@@ -55,7 +55,7 @@
   - 补充约束（确认日期：2026-04-02）：当前平台仍为唯一业务主数据源；飞书仅作为消息入口、通知入口和轻量审批入口，禁止在 MVP 阶段引入会反向改写主业务事实的旁路数据源。
   - 补充约束（确认日期：2026-04-02）：OpenClaw 在 MVP 阶段仅提供自然语言理解、摘要整理和只读问答能力；审批等写操作仍必须通过平台后端执行并保留现有审批权限、审批实例和审计逻辑。
   - 补充约束（确认日期：2026-04-02）：MVP 第一阶段只做飞书私聊机器人，不先开放复杂群聊协同、飞书 Base 双向同步、自动建群、自动建日程和飞书文档深度写入。
-  - 补充约束（确认日期：2026-04-02）：若后续需要将平台代码自动打包并同步到 GitLab，必须先将平台代码收敛为明确的 Git 仓库边界，再接入 GitLab CI / 制品归档；不得直接将整个家目录或与平台无关的目录纳入版本库。
+  - 补充约束（确认日期：2026-04-02）：若后续需要将平台代码自动打包并同步到 GitHub，必须先将平台代码收敛为明确的 Git 仓库边界，再接入 GitHub 仓库与自动化构建；不得直接将整个家目录或与平台无关的目录纳入版本库。
 
 新增或变更需求时流程：
 - 先在会话中与你讨论，达成一致；
@@ -93,7 +93,13 @@
 - 云服务器项目目录使用的 Codex 约定源文档见 [docs/cloud-server-codex-AGENTS.md](/Users/gjy/docs/cloud-server-codex-AGENTS.md)，其已同步到服务器 `/opt/presales-platform/AGENTS.md`。
 - 云服务器 `deploy` 用户下的 Codex 运维约定源文档见 [docs/cloud-server-codex-SERVER_CONVENTIONS.md](/Users/gjy/docs/cloud-server-codex-SERVER_CONVENTIONS.md)，其已同步到服务器 `/home/deploy/.codex/SERVER_CONVENTIONS.md`。
 - 飞书 / OpenClaw 最小 MVP 独立任务文档见 [docs/feishu-openclaw-mvp-README.md](/Users/gjy/docs/feishu-openclaw-mvp-README.md)。
-- GitLab 代码托管与自动打包落地方案见 [docs/gitlab-rollout-plan.md](/Users/gjy/docs/gitlab-rollout-plan.md)。
+- GitHub 代码托管与自动打包落地方案见 [docs/github-rollout-plan.md](/Users/gjy/docs/github-rollout-plan.md)。
+
+### 本地仓库收口进展（2026-04-02）
+
+- 已在本机新建独立目录 `/Users/gjy/presales-platform`，作为后续 GitHub 托管的本地候选仓库根目录。
+- 当前采取“复制收口、非破坏式准备”策略：不移动 `/Users/gjy` 下现有开发目录，先将平台相关内容复制到独立目录，避免影响当前业务开发、联调与云端修复节奏。
+- 已在独立目录补齐 `.gitignore`、`.env.example`、`.gitlab-ci.yml` 和本地仓库收口清单 `docs/local-repo-bootstrap-checklist.md`；其中 `.gitlab-ci.yml` 当前仅作为构建思路样板，接入 GitHub 时需迁移为 GitHub Actions 工作流。当前可继续进入 `git init / GitHub origin / 首次推送` 阶段。
 
 ### 云端联调收口补充（2026-04-02）
 

@@ -1,9 +1,9 @@
-# GitLab 落地方案 README
+# GitHub 落地方案 README
 
 ## 1. 目标
 
-- 在**不影响当前售前管理平台主业务开发、联调、部署**的前提下，为平台建立标准 GitLab 代码托管与自动打包能力。
-- 第一阶段只做“代码收敛 + GitLab 托管 + CI 自动构建制品”。
+- 在**不影响当前售前管理平台主业务开发、联调、部署**的前提下，为平台建立标准 GitHub 代码托管与自动打包能力。
+- 第一阶段只做“代码收敛 + GitHub 托管 + 自动构建制品”。
 - 第二阶段再做“受控发布到云服务器”。
 
 ## 2. 当前现状判断
@@ -18,7 +18,7 @@
   - `frontend/`
   - `backend/`
   - `docker-compose.yml`
-- 但仍不应直接把整个 `/Users/gjy` 作为 GitLab 仓库根。
+- 但仍不应直接把整个 `/Users/gjy` 作为 GitHub 仓库根。
 
 ## 3. 推荐仓库边界
 
@@ -35,7 +35,7 @@
 - `docker-compose.yml`
 - `.env.example`
 - `.gitignore`
-- `.gitlab-ci.yml`
+- GitHub Actions 工作流目录 `.github/workflows/`
 
 不应纳入仓库的内容：
 
@@ -58,10 +58,11 @@ presales-platform/
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
-└── .gitlab-ci.yml
+└── .github/
+    └── workflows/
 ```
 
-## 5. GitLab 落地分阶段方案
+## 5. GitHub 落地分阶段方案
 
 ### 阶段 A：代码收敛
 
@@ -87,23 +88,19 @@ presales-platform/
 1. `git init`
 2. 配置默认分支 `main`
 3. 首次提交基础代码
-4. 添加 GitLab 远程仓库
+4. 添加 GitHub 远程仓库
 5. 推送首个基础分支
 
-### 阶段 C：GitLab CI 自动打包
+### 阶段 C：GitHub Actions 自动打包
 
 目标：每次推送后自动验证并生成制品，但不自动上线。
 
 建议流水线：
 
-1. `lint / test`
-2. `frontend build`
-3. `backend build`
-4. `docker build`
-5. 产出制品：
-   - 前端构建产物
-   - 后端构建产物
-   - Docker 镜像或压缩包
+1. `frontend build`
+2. `backend build`
+3. `package source bundle`
+4. 可选 `docker build`
 
 ### 阶段 D：受控部署
 
@@ -173,13 +170,13 @@ backend/dist/
 backend/node_modules/
 ```
 
-## 8. GitLab CI 最小方案
+## 8. 自动化最小方案
 
-MVP 阶段的 `.gitlab-ci.yml` 只做三类事情：
+MVP 阶段建议只做三类事情：
 
 - 构建前端
 - 构建后端
-- 打包 Docker 制品
+- 打包源代码制品
 
 不在第一版做：
 
@@ -187,12 +184,10 @@ MVP 阶段的 `.gitlab-ci.yml` 只做三类事情：
 - 自动改线上环境变量
 - 自动重建生产数据库
 
-推荐作业：
+说明：
 
-1. `frontend_build`
-2. `backend_build`
-3. `docker_build`
-4. `package_artifacts`
+- 当前本地目录中已经补了 `.gitlab-ci.yml`，它只是构建思路样板；
+- 正式接入 GitHub 时，应将其迁移为 `.github/workflows/*.yml`。
 
 ## 9. 建议制品策略
 
@@ -202,9 +197,7 @@ MVP 阶段的 `.gitlab-ci.yml` 只做三类事情：
 
 产出：
 
-- `frontend-dist.tar.gz`
-- `backend-dist.tar.gz`
-- `release-manifest.json`
+- `presales-platform-source.tar.gz`
 
 优点：
 
@@ -230,11 +223,11 @@ MVP 阶段的 `.gitlab-ci.yml` 只做三类事情：
 
 ## 10. 与当前云服务器发布流程的关系
 
-当前云端已经有稳定的“最小压缩包 + Docker Compose 重建”流程，因此 GitLab 第一阶段不替代它，只增强它：
+当前云端已经有稳定的“最小压缩包 + Docker Compose 重建”流程，因此 GitHub 第一阶段不替代它，只增强它：
 
 - 现在：本地打包 -> 上传 -> 云端重建
-- 第一阶段后：GitLab 自动打包 -> 下载制品 -> 云端重建
-- 第二阶段后：GitLab 手工批准 -> 自动上传并重建
+- 第一阶段后：GitHub 自动打包 -> 下载制品 -> 云端重建
+- 第二阶段后：GitHub 手工批准 -> 自动上传并重建
 
 这样能保证：
 
@@ -249,13 +242,13 @@ MVP 阶段的 `.gitlab-ci.yml` 只做三类事情：
 - 搬运平台文件
 - 补 `.gitignore`
 
-### 第二步：接入 GitLab
+### 第二步：接入 GitHub
 
-- 新建 GitLab 仓库
+- 新建 GitHub 仓库
 - 初始化 Git
 - 首次推送
 
-### 第三步：接入最小 CI
+### 第三步：接入最小自动化
 
 - 前端构建
 - 后端构建
@@ -272,6 +265,7 @@ MVP 阶段的 `.gitlab-ci.yml` 只做三类事情：
 - 仓库边界不清，误纳入家目录内容
 - `.env`、密钥、证书被误提交
 - 自动部署过早接入，影响线上稳定
+- GitHub HTTPS 推送通常使用 Personal Access Token，而不是账户密码
 - 当前根目录 `package.json` 仅为占位，不应作为最终 monorepo 入口设计依据
 
 ## 13. 推荐结论
@@ -279,8 +273,8 @@ MVP 阶段的 `.gitlab-ci.yml` 只做三类事情：
 最稳的路径是：
 
 1. **先新建独立平台目录，不在 `/Users/gjy` 家目录直接初始化 Git**
-2. **先做 GitLab 托管和自动打包，不做自动上线**
-3. **等仓库结构、忽略规则、CI 制品稳定后，再接入手工批准发布**
+2. **先做 GitHub 托管和自动打包，不做自动上线**
+3. **等仓库结构、忽略规则、制品稳定后，再接入手工批准发布**
 
 ## 14. 下一步可直接执行的内容
 
@@ -290,6 +284,6 @@ MVP 阶段的 `.gitlab-ci.yml` 只做三类事情：
 2. 搬运平台代码
 3. 生成 `.gitignore`
 4. 初始化 Git
-5. 新建 GitLab 仓库并添加 `origin`
-6. 编写 `.gitlab-ci.yml`
-7. 首次推送并验证 CI
+5. 新建 GitHub 仓库并添加 `origin`
+6. 将当前 `.gitlab-ci.yml` 迁移为 GitHub Actions 工作流
+7. 首次推送并验证自动构建
