@@ -64,13 +64,26 @@ export class FeishuController {
       { ...body },
       {
         headers: req.headers as Record<string, string | string[] | undefined>,
+        rawBody:
+          typeof (req as Request & { rawBody?: Buffer }).rawBody !== "undefined"
+            ? (req as Request & { rawBody?: Buffer }).rawBody?.toString("utf8")
+            : undefined,
       },
     );
   }
 
   @Post("cards/action")
-  handleCardAction(@Body() body: FeishuCardActionDto) {
-    return this.feishuService.handleCardAction({ ...body });
+  handleCardAction(@Body() body: FeishuCardActionDto, @Req() req: Request) {
+    return this.feishuService.handleCardAction(
+      { ...body },
+      {
+        headers: req.headers as Record<string, string | string[] | undefined>,
+        rawBody:
+          typeof (req as Request & { rawBody?: Buffer }).rawBody !== "undefined"
+            ? (req as Request & { rawBody?: Buffer }).rawBody?.toString("utf8")
+            : undefined,
+      },
+    );
   }
 
   @UseGuards(AuthGuard("jwt"))

@@ -4,7 +4,9 @@ import { AppModule } from "./app.module";
 import { runtimeConfig } from "./config/runtime";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
   const allowedOrigins =
     runtimeConfig.corsOrigins.length > 0 ? runtimeConfig.corsOrigins : true;
 

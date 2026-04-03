@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { createHmac, timingSafeEqual } from "crypto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { type AuthenticatedUser } from "../../auth/auth.service";
@@ -123,6 +124,7 @@ export class FeishuService {
     body: { challenge?: string; token?: string; header?: Record<string, unknown> },
     request?: {
       headers?: Record<string, string | string[] | undefined>;
+      rawBody?: string;
     },
   ) {
     const eventId =
@@ -141,6 +143,7 @@ export class FeishuService {
     );
 
     try {
+      this.assertCallbackSignature(request);
       this.assertEventToken(body);
 
       if (eventId) {
@@ -186,7 +189,13 @@ export class FeishuService {
     }
   }
 
-  async handleCardAction(body: Record<string, unknown>) {
+  async handleCardAction(
+    body: Record<string, unknown>,
+    request?: {
+      headers?: Record<string, string | string[] | undefined>;
+      rawBody?: string;
+    },
+  ) {
     const operatorOpenId =
       typeof body.open_id === "string" ? body.open_id : undefined;
     const actionToken = this.readString(body, ["token", "action.token", "action.value.actionToken"]);
@@ -227,6 +236,7 @@ export class FeishuService {
     );
 
     try {
+      this.assertCallbackSignature(request);
       if (actionToken) {
         const processed = await this.feishuCallbackLogRepository.findOne({
           where: {
@@ -911,6 +921,47 @@ export class FeishuService {
     }
   }
 
+  private assertCallbackSignature(request?: {
+    headers?: Record<string, string | string[] | undefined>;
+    rawBody?: string;
+  }) {
+    const encryptKey = runtimeConfig.feishuEncryptKey.trim();
+    if (!encryptKey) {
+      return;
+    }
+
+    const headers = request?.headers || {};
+    const timestamp = this.readHeader(headers, "x-lark-request-timestamp");
+    const nonce = this.readHeader(headers, "x-lark-request-nonce");
+    const signature = this.readHeader(headers, "x-lark-signature");
+    const rawBody = request?.rawBody || "";
+
+    if (!timestamp || !nonce || !signature) {
+      throw new BadRequestException("飞书签名头缺失");
+    }
+
+    const timestampMs = Number(timestamp) * 1000;
+    if (!Number.isFinite(timestampMs)) {
+      throw new BadRequestException("飞书签名时间戳不合法");
+    }
+
+    const now = Date.now();
+    if (Math.abs(now - timestampMs) > 60 * 60 * 1000) {
+      throw new BadRequestException("飞书签名时间戳已过期");
+    }
+
+    const base = `${timestamp}${nonce}${encryptKey}${rawBody}`;
+    const expected = createHmac("sha256", encryptKey).update(base).digest("base64");
+    const receivedBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    if (
+      receivedBuffer.length !== expectedBuffer.length ||
+      !timingSafeEqual(receivedBuffer, expectedBuffer)
+    ) {
+      throw new BadRequestException("飞书回调签名校验失败");
+    }
+  }
+
   private async logOutboundMessage(input: {
     receiverId: string;
     messageType: FeishuMessageType;
@@ -950,6 +1001,18 @@ export class FeishuService {
       current = (current as Record<string, unknown>)[segment];
     }
     return current;
+  }
+
+  private readHeader(
+    headers: Record<string, string | string[] | undefined>,
+    key: string,
+  ) {
+    const direct = headers[key];
+    const value = direct ?? headers[key.toLowerCase()] ?? headers[key.toUpperCase()];
+    if (Array.isArray(value)) {
+      return value[0];
+    }
+    return value;
   }
 
   private readString(source: Record<string, unknown>, paths: string[]) {
