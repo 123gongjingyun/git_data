@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -7,13 +8,16 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { type AuthenticatedUser } from "../../auth/auth.service";
 import { ApprovalInstance } from "../../domain/entities/approval-instance.entity";
+import {
+  FeishuUserBinding,
+  type FeishuBindingSource,
+  type FeishuBindingStatus,
+} from "../../domain/entities/feishu-user-binding.entity";
 import { Opportunity } from "../../domain/entities/opportunity.entity";
 import { SolutionVersion } from "../../domain/entities/solution-version.entity";
 import { User } from "../../domain/entities/user.entity";
 
-type FeishuBindingStatus = "active" | "disabled" | "pending";
-
-interface FeishuBindingRecord {
+export interface FeishuBindingRecord {
   id: number;
   feishuOpenId: string;
   feishuUnionId?: string;
@@ -22,7 +26,7 @@ interface FeishuBindingRecord {
   platformUserId: number;
   platformUsername: string;
   department: string;
-  bindingSource: "manual" | "import" | "self_claimed";
+  bindingSource: FeishuBindingSource;
   status: FeishuBindingStatus;
   updatedAt: string;
 }
@@ -84,11 +88,11 @@ const FEISHU_BINDINGS_SEED: FeishuBindingRecord[] = [
 
 @Injectable()
 export class FeishuService {
-  private readonly bindings = new Map<number, FeishuBindingRecord>(
-    FEISHU_BINDINGS_SEED.map((item) => [item.id, item]),
-  );
+  private seedPromise?: Promise<void>;
 
   constructor(
+    @InjectRepository(FeishuUserBinding)
+    private readonly feishuBindingRepository: Repository<FeishuUserBinding>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Opportunity)
@@ -110,7 +114,7 @@ export class FeishuService {
     };
   }
 
-  handleCardAction(body: Record<string, unknown>) {
+  handleCardAction(body: { open_id?: string; open_message_id?: string }) {
     return {
       toast: {
         type: "warning",
@@ -129,11 +133,18 @@ export class FeishuService {
   }
 
   listBindings() {
+    return this.listBindingsInternal();
+  }
+
+  private async listBindingsInternal() {
+    await this.ensureSeedBindings();
+    const bindings = await this.feishuBindingRepository.find({
+      relations: ["platformUser"],
+      order: { updatedAt: "DESC" },
+    });
     return {
-      items: Array.from(this.bindings.values()).sort((left, right) =>
-        right.updatedAt.localeCompare(left.updatedAt),
-      ),
-      total: this.bindings.size,
+      items: bindings.map((item) => this.toBindingRecord(item)),
+      total: bindings.length,
     };
   }
 
@@ -141,6 +152,7 @@ export class FeishuService {
     input: CreateFeishuBindingInput,
     actor: AuthenticatedUser,
   ) {
+    await this.ensureSeedBindings();
     const feishuOpenId = input.feishuOpenId?.trim();
     if (!feishuOpenId) {
       throw new BadRequestException("feishuOpenId 不能为空");
@@ -153,24 +165,25 @@ export class FeishuService {
       throw new NotFoundException("绑定的平台注册用户不存在");
     }
 
-    const nextId = Math.max(0, ...Array.from(this.bindings.keys())) + 1;
-    const record: FeishuBindingRecord = {
-      id: nextId,
-      feishuOpenId,
-      feishuUnionId: input.feishuUnionId?.trim() || undefined,
-      feishuUserId: input.feishuUserId?.trim() || undefined,
-      feishuName: input.feishuName?.trim() || targetUser.displayName || targetUser.username,
-      platformUserId: targetUser.id,
-      platformUsername: targetUser.username,
-      department: targetUser.teamRole || "未分配团队",
-      bindingSource: "manual",
-      status: input.status || "pending",
-      updatedAt: this.buildTimestamp(),
-    };
+    await this.assertBindingUniqueness(feishuOpenId, targetUser.id);
 
-    this.bindings.set(record.id, record);
+    const saved = await this.feishuBindingRepository.save(
+      this.feishuBindingRepository.create({
+        feishuOpenId,
+        feishuUnionId: input.feishuUnionId?.trim() || null,
+        feishuUserId: input.feishuUserId?.trim() || null,
+        feishuName: input.feishuName?.trim() || targetUser.displayName || targetUser.username,
+        platformUserId: targetUser.id,
+        platformUser: targetUser,
+        platformUsername: targetUser.username,
+        department: targetUser.teamRole || "未分配团队",
+        bindingSource: "manual",
+        status: input.status || "pending",
+      }),
+    );
+
     return {
-      ...record,
+      ...this.toBindingRecord(saved),
       updatedBy: actor.username,
     };
   }
@@ -180,7 +193,11 @@ export class FeishuService {
     input: UpdateFeishuBindingInput,
     actor: AuthenticatedUser,
   ) {
-    const existing = this.bindings.get(id);
+    await this.ensureSeedBindings();
+    const existing = await this.feishuBindingRepository.findOne({
+      where: { id },
+      relations: ["platformUser"],
+    });
     if (!existing) {
       throw new NotFoundException("飞书绑定记录不存在");
     }
@@ -193,20 +210,20 @@ export class FeishuService {
       if (!targetUser) {
         throw new NotFoundException("绑定的平台注册用户不存在");
       }
+      await this.assertBindingUniqueness(existing.feishuOpenId, targetUser.id, existing.id);
     }
 
-    const updated: FeishuBindingRecord = {
+    const updated = this.feishuBindingRepository.create({
       ...existing,
       platformUserId: targetUser?.id ?? existing.platformUserId,
+      platformUser: targetUser ?? existing.platformUser,
       platformUsername: targetUser?.username ?? existing.platformUsername,
       department: targetUser?.teamRole || existing.department,
       status: input.status || existing.status,
-      updatedAt: this.buildTimestamp(),
-    };
-
-    this.bindings.set(id, updated);
+    });
+    const saved = await this.feishuBindingRepository.save(updated);
     return {
-      ...updated,
+      ...this.toBindingRecord(saved),
       updatedBy: actor.username,
     };
   }
@@ -507,5 +524,84 @@ export class FeishuService {
     const date = now.toISOString().slice(0, 10);
     const time = now.toTimeString().slice(0, 5);
     return `${date} ${time}`;
+  }
+
+  private async ensureSeedBindings() {
+    if (!this.seedPromise) {
+      this.seedPromise = this.seedBindingsIfEmpty();
+    }
+    await this.seedPromise;
+  }
+
+  private async seedBindingsIfEmpty() {
+    const existingCount = await this.feishuBindingRepository.count();
+    if (existingCount > 0) {
+      return;
+    }
+
+    for (const seed of FEISHU_BINDINGS_SEED) {
+      const targetUser = await this.userRepository.findOne({
+        where: { username: seed.platformUsername },
+      });
+      if (!targetUser) {
+        continue;
+      }
+      const binding = this.feishuBindingRepository.create({
+        feishuOpenId: seed.feishuOpenId,
+        feishuName: seed.feishuName,
+        platformUserId: targetUser.id,
+        platformUser: targetUser,
+        platformUsername: targetUser.username,
+        department: seed.department,
+        bindingSource: seed.bindingSource,
+        status: seed.status,
+      });
+      await this.feishuBindingRepository.save(binding);
+    }
+  }
+
+  private async assertBindingUniqueness(
+    feishuOpenId: string,
+    platformUserId: number,
+    excludeId?: number,
+  ) {
+    const bindings = await this.feishuBindingRepository.find();
+    const openIdTaken = bindings.find(
+      (item) => item.feishuOpenId === feishuOpenId && item.id !== excludeId,
+    );
+    if (openIdTaken) {
+      throw new ConflictException("该飞书 Open ID 已绑定其他平台账号");
+    }
+    const platformUserTaken = bindings.find(
+      (item) => item.platformUserId === platformUserId && item.id !== excludeId,
+    );
+    if (platformUserTaken) {
+      throw new ConflictException("该平台账号已绑定其他飞书用户");
+    }
+  }
+
+  private toBindingRecord(binding: FeishuUserBinding): FeishuBindingRecord {
+    return {
+      id: binding.id,
+      feishuOpenId: binding.feishuOpenId,
+      feishuUnionId: binding.feishuUnionId || undefined,
+      feishuUserId: binding.feishuUserId || undefined,
+      feishuName: binding.feishuName || binding.platformUsername,
+      platformUserId: binding.platformUserId,
+      platformUsername: binding.platformUsername,
+      department: binding.department || "未分配团队",
+      bindingSource: binding.bindingSource,
+      status: binding.status,
+      updatedAt: this.buildTimestampFromDate(binding.updatedAt),
+    };
+  }
+
+  private buildTimestampFromDate(value: Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    const hour = String(value.getHours()).padStart(2, "0");
+    const minute = String(value.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day} ${hour}:${minute}`;
   }
 }

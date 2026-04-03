@@ -14,6 +14,7 @@ import { WorkflowNodeApprover } from "./entities/workflow-node-approver.entity";
 import { ApprovalInstance } from "./entities/approval-instance.entity";
 import { ApprovalInstanceNode } from "./entities/approval-instance-node.entity";
 import { ApprovalAction } from "./entities/approval-action.entity";
+import { FeishuUserBinding } from "./entities/feishu-user-binding.entity";
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ApprovalAction } from "./entities/approval-action.entity";
       ApprovalInstance,
       ApprovalInstanceNode,
       ApprovalAction,
+      FeishuUserBinding,
     ]),
   ],
   exports: [TypeOrmModule],

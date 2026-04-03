@@ -6,6 +6,7 @@ import { User } from "../../domain/entities/user.entity";
 import { Opportunity } from "../../domain/entities/opportunity.entity";
 import { SolutionVersion } from "../../domain/entities/solution-version.entity";
 import { ApprovalInstance } from "../../domain/entities/approval-instance.entity";
+import { FeishuUserBinding } from "../../domain/entities/feishu-user-binding.entity";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ApprovalInstance } from "../../domain/entities/approval-instance.entity
       Opportunity,
       SolutionVersion,
       ApprovalInstance,
+      FeishuUserBinding,
     ]),
   ],
   controllers: [FeishuController],

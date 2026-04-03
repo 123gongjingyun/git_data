@@ -9,6 +9,7 @@ import {
 import { Opportunity } from "./opportunity.entity";
 import { SolutionVersion } from "./solution-version.entity";
 import { ReviewRecord } from "./review-record.entity";
+import { FeishuUserBinding } from "./feishu-user-binding.entity";
 import { type UserRole } from "../../users/user-access";
 
 @Entity({ name: "users" })
@@ -69,4 +70,7 @@ export class User {
 
   @OneToMany(() => ReviewRecord, (review) => review.reviewer)
   reviewRecords!: ReviewRecord[];
+
+  @OneToMany(() => FeishuUserBinding, (binding) => binding.platformUser)
+  feishuBindings!: FeishuUserBinding[];
 }
