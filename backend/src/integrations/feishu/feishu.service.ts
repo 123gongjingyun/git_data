@@ -61,6 +61,23 @@ interface PendingApprovalsQuery {
   limit?: number;
   businessType?: "opportunity" | "solution";
 }
+interface FeishuCardView {
+  templateKey: "pending_approval" | "opportunity_summary" | "solution_summary";
+  title: string;
+  subtitle: string;
+  businessCode: string;
+  businessTypeLabel: string;
+  summaryLines: string[];
+  tags: string[];
+  fields: Array<{ label: string; value: string }>;
+  actions: Array<{
+    key: string;
+    label: string;
+    type: "link" | "action";
+    action?: "approve" | "reject" | "open_detail";
+    enabled: boolean;
+  }>;
+}
 
 const FEISHU_BINDINGS_SEED: FeishuBindingRecord[] = [
   {
@@ -372,11 +389,7 @@ export class FeishuService {
               ? `审批已通过，当前节点：${currentNodeName}`
               : "审批已驳回，平台状态已更新。",
         },
-        card: {
-          status: approvalResult.status,
-          currentNodeName,
-          approvalInstanceId,
-        },
+        card: await this.buildApprovalCardView(approvalResult),
       };
       await this.logOutboundMessage({
         receiverId: operatorOpenId,
@@ -790,6 +803,151 @@ export class FeishuService {
       return "最近结论：方案处于评审中，待当前节点处理。";
     }
     return "最近结论：暂无完整评审结论。";
+  }
+
+  private async buildApprovalCardView(
+    approvalResult: Record<string, unknown>,
+  ): Promise<FeishuCardView> {
+    const businessType =
+      approvalResult.businessType === "solution" ? "solution" : "opportunity";
+    const businessId =
+      typeof approvalResult.businessId === "number"
+        ? approvalResult.businessId
+        : Number(approvalResult.businessId || 0);
+    const status =
+      typeof approvalResult.status === "string" ? approvalResult.status : "in_progress";
+    const currentNode = approvalResult.currentNode as
+      | { nodeName?: string | null }
+      | null
+      | undefined;
+
+    if (businessType === "opportunity") {
+      const opportunity = await this.opportunityRepository.findOne({
+        where: { id: businessId },
+        relations: ["owner", "customer"],
+      });
+      if (!opportunity) {
+        throw new NotFoundException("未找到对应商机");
+      }
+      const businessCode = this.formatBusinessCode("OPP", opportunity.id);
+      return {
+        templateKey: "pending_approval",
+        title: `待审批：${businessCode} ${opportunity.name}`,
+        subtitle:
+          status === "approved"
+            ? "审批已完成：通过"
+            : status === "rejected"
+              ? "审批已完成：驳回"
+              : `当前节点：${currentNode?.nodeName || "待处理节点"}`,
+        businessCode,
+        businessTypeLabel: "商机审批",
+        summaryLines: [
+          `当前阶段：${opportunity.stage}，预计金额 ${opportunity.expectedValue || "待补充"}。`,
+          opportunity.approvalOpinion
+            ? `最近审批意见：${opportunity.approvalOpinion}`
+            : "当前暂无额外审批意见。",
+        ],
+        tags: [
+          status === "approved" ? "已通过" : status === "rejected" ? "已驳回" : "待审批",
+          "商机",
+          "平台同步",
+        ],
+        fields: [
+          { label: "客户", value: opportunity.customer?.name || "-" },
+          {
+            label: "销售负责人",
+            value:
+              opportunity.owner?.displayName || opportunity.owner?.username || "-",
+          },
+          {
+            label: "当前节点",
+            value:
+              status === "approved"
+                ? "已完成"
+                : status === "rejected"
+                  ? "已驳回"
+                  : currentNode?.nodeName || "待处理节点",
+          },
+        ],
+        actions: [
+          { key: "open", label: "打开平台", type: "link", action: "open_detail", enabled: true },
+          {
+            key: "approve",
+            label: "通过",
+            type: "action",
+            action: "approve",
+            enabled: status === "in_progress",
+          },
+          {
+            key: "reject",
+            label: "驳回",
+            type: "action",
+            action: "reject",
+            enabled: status === "in_progress",
+          },
+        ],
+      };
+    }
+
+    const solution = await this.solutionRepository.findOne({
+      where: { id: businessId },
+      relations: ["createdBy", "opportunity", "opportunity.customer"],
+    });
+    if (!solution) {
+      throw new NotFoundException("未找到对应方案");
+    }
+    const businessCode = this.formatBusinessCode("SOL", solution.id);
+    return {
+      templateKey: "solution_summary",
+      title: `方案审批：${businessCode} ${solution.name}`,
+      subtitle:
+        status === "approved"
+          ? "审批已完成：通过"
+          : status === "rejected"
+            ? "审批已完成：驳回"
+            : `当前节点：${currentNode?.nodeName || "待处理节点"}`,
+      businessCode,
+      businessTypeLabel: "方案审批",
+      summaryLines: [
+        `当前版本 ${solution.versionTag || "未标记版本"}，状态 ${solution.status}。`,
+        solution.summary || this.buildSolutionReviewConclusion(solution),
+      ],
+      tags: [
+        status === "approved" ? "已通过" : status === "rejected" ? "已驳回" : "待审批",
+        "方案",
+        "平台同步",
+      ],
+      fields: [
+        { label: "关联商机", value: solution.opportunity?.name || "-" },
+        { label: "客户", value: solution.opportunity.customer?.name || "-" },
+        {
+          label: "当前节点",
+          value:
+            status === "approved"
+              ? "已完成"
+              : status === "rejected"
+                ? "已驳回"
+                : currentNode?.nodeName || "待处理节点",
+        },
+      ],
+      actions: [
+        { key: "open", label: "打开平台", type: "link", action: "open_detail", enabled: true },
+        {
+          key: "approve",
+          label: "通过",
+          type: "action",
+          action: "approve",
+          enabled: status === "in_progress",
+        },
+        {
+          key: "reject",
+          label: "驳回",
+          type: "action",
+          action: "reject",
+          enabled: status === "in_progress",
+        },
+      ],
+    };
   }
 
   private parseBusinessCode(code: string, prefix: "OPP" | "SOL") {
