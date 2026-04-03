@@ -8,6 +8,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { type AuthenticatedUser } from "../../auth/auth.service";
 import { ApprovalsService } from "../../approvals/approvals.service";
+import { runtimeConfig } from "../../config/runtime";
 import { ApprovalInstance } from "../../domain/entities/approval-instance.entity";
 import {
   FeishuCallbackLog,
@@ -118,15 +119,71 @@ export class FeishuService {
     private readonly approvalInstanceRepository: Repository<ApprovalInstance>,
   ) {}
 
-  handleEventCallback(body: { challenge?: string }) {
-    if (body.challenge) {
-      return { challenge: body.challenge };
+  async handleEventCallback(
+    body: { challenge?: string; token?: string; header?: Record<string, unknown> },
+    request?: {
+      headers?: Record<string, string | string[] | undefined>;
+    },
+  ) {
+    const eventId =
+      (typeof body.header?.event_id === "string" && body.header.event_id) ||
+      undefined;
+    const callbackLog = await this.feishuCallbackLogRepository.save(
+      this.feishuCallbackLogRepository.create({
+        callbackType: "event",
+        eventId: eventId || null,
+        requestJson: {
+          body,
+          headers: request?.headers || {},
+        },
+        status: "received",
+      }),
+    );
+
+    try {
+      this.assertEventToken(body);
+
+      if (eventId) {
+        const duplicated = await this.feishuCallbackLogRepository.findOne({
+          where: {
+            callbackType: "event",
+            eventId,
+          },
+          order: { id: "DESC" },
+        });
+        if (duplicated && duplicated.id !== callbackLog.id) {
+          const duplicateResult = {
+            code: 0,
+            message: "duplicate event ignored",
+          };
+          await this.finishCallbackLog(callbackLog, "ignored", duplicateResult);
+          return duplicateResult;
+        }
+      }
+
+      if (body.challenge) {
+        const challengeResult = { challenge: body.challenge };
+        await this.finishCallbackLog(callbackLog, "processed", challengeResult);
+        return challengeResult;
+      }
+
+      const result = {
+        code: 0,
+        message:
+          "Feishu event callback accepted. Signature verification is still pending, but verification token check is enabled when configured.",
+      };
+      await this.finishCallbackLog(callbackLog, "processed", result);
+      return result;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "飞书事件回调处理失败";
+      const failedResult = {
+        code: 1,
+        message,
+      };
+      await this.finishCallbackLog(callbackLog, "failed", failedResult, message);
+      throw error;
     }
-    return {
-      code: 0,
-      message:
-        "Feishu event callback placeholder received. Real signature verification is not enabled in this MVP shell.",
-    };
   }
 
   async handleCardAction(body: Record<string, unknown>) {
@@ -256,6 +313,30 @@ export class FeishuService {
       }
       if (!(action === "approve" || action === "reject")) {
         throw new BadRequestException("当前仅支持 approve / reject / open_detail 三类动作");
+      }
+
+      const approvalInstance = await this.approvalInstanceRepository.findOne({
+        where: { id: approvalInstanceId },
+      });
+      if (!approvalInstance || !["pending", "in_progress"].includes(approvalInstance.status)) {
+        const staleResult = {
+          toast: {
+            type: "warning",
+            content: "当前卡片已失效，请重新获取最新审批卡片。",
+          },
+        };
+        await this.logOutboundMessage({
+          receiverId: operatorOpenId,
+          messageType: "interactive",
+          businessType,
+          businessId,
+          templateKey: "card_action_stale",
+          payloadJson: staleResult,
+          responseJson: { callbackLogId: callbackLog.id },
+          sendStatus: "sent",
+        });
+        await this.finishCallbackLog(callbackLog, "ignored", staleResult);
+        return staleResult;
       }
 
       const approvalResult = await this.approvalsService.executeAction(
@@ -810,6 +891,24 @@ export class FeishuService {
     log.resultJson = resultJson;
     log.errorMessage = errorMessage || null;
     await this.feishuCallbackLogRepository.save(log);
+  }
+
+  private assertEventToken(body: {
+    token?: string;
+    header?: Record<string, unknown>;
+  }) {
+    const configuredToken = runtimeConfig.feishuVerificationToken.trim();
+    if (!configuredToken) {
+      return;
+    }
+
+    const candidateToken =
+      (typeof body.token === "string" && body.token) ||
+      (typeof body.header?.token === "string" && body.header.token) ||
+      "";
+    if (candidateToken !== configuredToken) {
+      throw new BadRequestException("飞书事件 token 校验失败");
+    }
   }
 
   private async logOutboundMessage(input: {

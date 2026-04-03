@@ -18,6 +18,7 @@ import {
   FeishuService,
   UpdateFeishuBindingInput,
 } from "./feishu.service";
+import type { Request } from "express";
 
 interface AuthenticatedRequest {
   user: AuthenticatedUser;
@@ -39,6 +40,7 @@ class UpdateFeishuBindingDto {
 
 class FeishuEventDto {
   challenge?: string;
+  token?: string;
   schema?: string;
   header?: Record<string, unknown>;
   event?: Record<string, unknown>;
@@ -57,8 +59,13 @@ export class FeishuController {
   constructor(private readonly feishuService: FeishuService) {}
 
   @Post("events")
-  handleEvents(@Body() body: FeishuEventDto) {
-    return this.feishuService.handleEventCallback(body);
+  handleEvents(@Body() body: FeishuEventDto, @Req() req: Request) {
+    return this.feishuService.handleEventCallback(
+      { ...body },
+      {
+        headers: req.headers as Record<string, string | string[] | undefined>,
+      },
+    );
   }
 
   @Post("cards/action")

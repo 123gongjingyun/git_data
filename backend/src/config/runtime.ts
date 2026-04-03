@@ -32,4 +32,10 @@ export const runtimeConfig = {
     process.env.DB_SQLITE_PATH ||
     join(__dirname, "..", "..", "..", "pre_sales_lifecycle.sqlite"),
   dbSynchronize: parseBoolean(process.env.DB_SYNCHRONIZE, !isProduction),
+  feishuAppId: process.env.FEISHU_APP_ID || "",
+  feishuAppSecret: process.env.FEISHU_APP_SECRET || "",
+  feishuVerificationToken: process.env.FEISHU_VERIFICATION_TOKEN || "",
+  feishuEncryptKey: process.env.FEISHU_ENCRYPT_KEY || "",
+  feishuBotName: process.env.FEISHU_BOT_NAME || "售前助手",
+  feishuBaseUrl: process.env.FEISHU_BASE_URL || "https://open.feishu.cn",
 };
