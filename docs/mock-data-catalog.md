@@ -16,6 +16,28 @@
 - 先更新实际代码中的 Mock 数据，再更新本文档中的“数据说明 / 当前样例 / 派生规则 / 存储键”。
 - 若某个页面的数据不是独立维护，而是由共享商机数据派生，优先修改共享源数据，并在本文档中记录派生影响范围。
 
+## 0. 飞书集成原型数据
+
+代码来源：
+- [feishuIntegrationMock.ts](/Users/gjy/presales-platform/frontend/src/shared/feishuIntegrationMock.ts)
+- [FeishuIntegrationView.tsx](/Users/gjy/presales-platform/frontend/src/views/FeishuIntegrationView.tsx)
+
+用途：
+- 作为“系统设置 > 飞书集成”页面的前端原型数据源。
+- 当前仅用于预演飞书绑定管理、机器人命令口径和卡片字段，不调用真实后端。
+
+本地存储：
+- `feishuIntegrationMockState`
+
+字段与样例说明：
+- `bindings`: 飞书绑定记录列表，包含 `feishuOpenId / feishuName / platformUserId / platformUsername / department / bindingSource / status / updatedAt`
+- `commands`: 机器人命令预览，包含 `command / description / targetEndpoint / responseType`
+- `cards`: 飞书卡片预览，包含 `templateKey / title / subtitle / summaryLines / fields / actions`
+
+维护约束：
+- 这里的 Mock 字段必须对齐 [feishu-openclaw-interface-design.md](/Users/gjy/presales-platform/docs/feishu-openclaw-interface-design.md) 中的绑定、命令和卡片设计，不允许前端自行另起字段名。
+- 若后续真实接口字段有调整，必须同时更新此处 Mock 数据、原型页展示和接口设计文档。
+
 ## 1. 核心共享商机数据
 
 代码来源：

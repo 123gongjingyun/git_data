@@ -11,6 +11,7 @@ import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { WorkflowsModule } from "./workflows/workflows.module";
 import { UsersModule } from "./users/users.module";
 import { ApprovalsModule } from "./approvals/approvals.module";
+import { FeishuModule } from "./integrations/feishu/feishu.module";
 import { runtimeConfig } from "./config/runtime";
 
 // DB_TYPE 支持:
@@ -55,6 +56,7 @@ const dbRelatedFeatureModules =
         WorkflowsModule,
         UsersModule,
         ApprovalsModule,
+        FeishuModule,
       ]
     : [];
 

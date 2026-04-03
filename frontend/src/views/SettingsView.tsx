@@ -26,6 +26,7 @@ import { buildApiUrl } from "../shared/api";
 import type { CurrentUser } from "../shared/auth";
 import { hasActionAccess, hasPermission } from "../shared/auth";
 import { PluginLibraryView } from "./PluginLibraryView";
+import { FeishuIntegrationView } from "./FeishuIntegrationView";
 import type {
   WorkflowDefinition,
   WorkflowNode,
@@ -110,6 +111,7 @@ type SettingsMenuKey =
   | "notifications"
   | "team"
   | "permissionsCenter"
+  | "feishuIntegration"
   | "workflow"
   | "system"
   | "plugins"
@@ -228,6 +230,12 @@ const settingsMenuItems: SettingsMenuItem[] = [
     label: "权限管理中心",
     icon: "🎛️",
     highlight: "success",
+  },
+  {
+    key: "feishuIntegration",
+    label: "飞书集成",
+    icon: "💬",
+    highlight: "primary",
   },
   {
     key: "workflow",
@@ -5604,6 +5612,13 @@ export function SettingsView(props: SettingsViewProps) {
             </Card>
           )}
 
+          {activeMenu === "feishuIntegration" && (
+            <FeishuIntegrationView
+              currentUser={currentUser}
+              accessToken={accessToken}
+            />
+          )}
+
           {activeMenu === "plugins" && (
             <Card>
               <div
@@ -6094,6 +6109,7 @@ export function SettingsView(props: SettingsViewProps) {
             activeMenu !== "security" &&
             activeMenu !== "notifications" &&
             activeMenu !== "system" &&
+            activeMenu !== "feishuIntegration" &&
             activeMenu !== "workflow" &&
             activeMenu !== "plugins" &&
             activeMenu !== "data" && (
