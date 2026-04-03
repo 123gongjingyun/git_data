@@ -79,6 +79,25 @@ interface FeishuCardView {
   }>;
 }
 
+interface FeishuInteractiveCard {
+  config: {
+    wide_screen_mode: boolean;
+    enable_forward: boolean;
+  };
+  header: {
+    template: "blue" | "green" | "red" | "grey";
+    title: {
+      tag: "plain_text";
+      content: string;
+    };
+    subtitle?: {
+      tag: "plain_text";
+      content: string;
+    };
+  };
+  elements: Array<Record<string, unknown>>;
+}
+
 const FEISHU_BINDINGS_SEED: FeishuBindingRecord[] = [
   {
     id: 1,
@@ -190,7 +209,7 @@ export class FeishuService {
       const result = {
         code: 0,
         message:
-          "Feishu event callback accepted. Signature verification is still pending, but verification token check is enabled when configured.",
+          "Feishu event callback accepted. Signature verification and verification token checks are enabled when configured.",
       };
       await this.finishCallbackLog(callbackLog, "processed", result);
       return result;
@@ -381,6 +400,7 @@ export class FeishuService {
 
       const currentNodeName =
         approvalResult.currentNode?.nodeName || "已完成";
+      const cardView = await this.buildApprovalCardView(approvalResult);
       const result = {
         toast: {
           type: "success",
@@ -389,7 +409,14 @@ export class FeishuService {
               ? `审批已通过，当前节点：${currentNodeName}`
               : "审批已驳回，平台状态已更新。",
         },
-        card: await this.buildApprovalCardView(approvalResult),
+        card: cardView,
+        interactiveCard: this.toInteractiveCardJson(cardView, {
+          approvalInstanceId,
+          businessType,
+          businessId,
+          actionToken,
+          requestId: `feishu-card-action-${callbackLog.id}`,
+        }),
       };
       await this.logOutboundMessage({
         receiverId: operatorOpenId,
@@ -948,6 +975,186 @@ export class FeishuService {
         },
       ],
     };
+  }
+
+  private toInteractiveCardJson(
+    card: FeishuCardView,
+    context: {
+      approvalInstanceId?: number;
+      businessType?: string;
+      businessId?: number;
+      actionToken?: string;
+      cardSessionId?: number;
+      requestId?: string;
+    },
+  ): FeishuInteractiveCard {
+    const elements: Array<Record<string, unknown>> = [
+      {
+        tag: "div",
+        text: {
+          tag: "lark_md",
+          content: `**${this.escapeLarkMarkdown(card.businessTypeLabel)}**\n${this.escapeLarkMarkdown(
+            card.subtitle,
+          )}`,
+        },
+      },
+    ];
+
+    if (card.tags.length > 0) {
+      elements.push({
+        tag: "note",
+        elements: card.tags.map((tag) => ({
+          tag: "plain_text",
+          content: `#${tag}`,
+        })),
+      });
+    }
+
+    if (card.summaryLines.length > 0) {
+      elements.push(
+        ...card.summaryLines.map((line) => ({
+          tag: "div",
+          text: {
+            tag: "lark_md",
+            content: this.escapeLarkMarkdown(line),
+          },
+        })),
+      );
+    }
+
+    if (card.fields.length > 0) {
+      elements.push({
+        tag: "div",
+        fields: card.fields.map((field) => ({
+          is_short: true,
+          text: {
+            tag: "lark_md",
+            content: `**${this.escapeLarkMarkdown(field.label)}**\n${this.escapeLarkMarkdown(
+              field.value,
+            )}`,
+          },
+        })),
+      });
+    }
+
+    const actions = card.actions.map((item) =>
+      item.type === "link"
+        ? {
+            tag: "button",
+            text: {
+              tag: "plain_text",
+              content: item.label,
+            },
+            type: "default",
+            multi_url: {
+              url: this.buildPlatformDetailUrl(
+                context.businessType,
+                context.businessId,
+                card.businessCode,
+              ),
+            },
+          }
+        : {
+            tag: "button",
+            text: {
+              tag: "plain_text",
+              content: item.label,
+            },
+            type:
+              item.action === "approve"
+                ? "primary"
+                : item.action === "reject"
+                  ? "danger"
+                  : "default",
+            value: this.buildCardActionValue(item, card, context),
+            disabled: !item.enabled,
+          },
+    );
+
+    if (actions.length > 0) {
+      elements.push({
+        tag: "action",
+        actions,
+      });
+    }
+
+    return {
+      config: {
+        wide_screen_mode: true,
+        enable_forward: true,
+      },
+      header: {
+        template: this.resolveCardHeaderTemplate(card),
+        title: {
+          tag: "plain_text",
+          content: card.title,
+        },
+        subtitle: {
+          tag: "plain_text",
+          content: card.businessCode,
+        },
+      },
+      elements,
+    };
+  }
+
+  private resolveCardHeaderTemplate(
+    card: FeishuCardView,
+  ): "blue" | "green" | "red" | "grey" {
+    if (card.tags.includes("已通过")) {
+      return "green";
+    }
+    if (card.tags.includes("已驳回")) {
+      return "red";
+    }
+    if (card.tags.includes("待审批")) {
+      return "blue";
+    }
+    return "grey";
+  }
+
+  private buildCardActionValue(
+    action: FeishuCardView["actions"][number],
+    card: FeishuCardView,
+    context: {
+      approvalInstanceId?: number;
+      businessType?: string;
+      businessId?: number;
+      actionToken?: string;
+      cardSessionId?: number;
+      requestId?: string;
+    },
+  ) {
+    return {
+      action: action.action || action.key,
+      approvalInstanceId: context.approvalInstanceId,
+      businessType: context.businessType,
+      businessId: context.businessId,
+      businessCode: card.businessCode,
+      cardSessionId: context.cardSessionId,
+      actionToken: context.actionToken,
+      requestId: context.requestId,
+    };
+  }
+
+  private buildPlatformDetailUrl(
+    businessType?: string,
+    businessId?: number,
+    businessCode?: string,
+  ) {
+    if (!businessType || typeof businessId !== "number") {
+      return "/";
+    }
+
+    const path = businessType === "solution" ? "solutions" : "opportunities";
+    const highlight =
+      businessCode ||
+      this.formatBusinessCode(businessType === "solution" ? "SOL" : "OPP", businessId);
+    return `/${path}?highlight=${highlight}`;
+  }
+
+  private escapeLarkMarkdown(value: string) {
+    return value.replace(/[\\`*_{}[\]()#+\-.!]/g, "\\$&");
   }
 
   private parseBusinessCode(code: string, prefix: "OPP" | "SOL") {
