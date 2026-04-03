@@ -7,7 +7,12 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { type AuthenticatedUser } from "../../auth/auth.service";
+import { ApprovalsService } from "../../approvals/approvals.service";
 import { ApprovalInstance } from "../../domain/entities/approval-instance.entity";
+import {
+  FeishuCallbackLog,
+  type FeishuCallbackStatus,
+} from "../../domain/entities/feishu-callback-log.entity";
 import {
   FeishuUserBinding,
   type FeishuBindingSource,
@@ -91,6 +96,9 @@ export class FeishuService {
   private seedPromise?: Promise<void>;
 
   constructor(
+    private readonly approvalsService: ApprovalsService,
+    @InjectRepository(FeishuCallbackLog)
+    private readonly feishuCallbackLogRepository: Repository<FeishuCallbackLog>,
     @InjectRepository(FeishuUserBinding)
     private readonly feishuBindingRepository: Repository<FeishuUserBinding>,
     @InjectRepository(User)
@@ -114,22 +122,158 @@ export class FeishuService {
     };
   }
 
-  handleCardAction(body: { open_id?: string; open_message_id?: string }) {
-    return {
-      toast: {
-        type: "warning",
-        content:
-          "飞书卡片动作接口已预留，当前环境尚未接入真实审批执行链路。",
-      },
-      debugEcho: {
-        openId:
-          typeof body.open_id === "string" ? body.open_id : undefined,
-        openMessageId:
-          typeof body.open_message_id === "string"
-            ? body.open_message_id
-            : undefined,
-      },
-    };
+  async handleCardAction(body: Record<string, unknown>) {
+    const operatorOpenId =
+      typeof body.open_id === "string" ? body.open_id : undefined;
+    const actionToken = this.readString(body, ["token", "action.token", "action.value.actionToken"]);
+    const action = this.readString(body, ["action.value.action", "action.action", "actionValue.action"]);
+    const approvalInstanceId = this.readNumber(body, [
+      "action.value.approvalInstanceId",
+      "action.approvalInstanceId",
+      "approvalInstanceId",
+    ]);
+    const businessType = this.readString(body, [
+      "action.value.businessType",
+      "action.businessType",
+    ]);
+    const businessId = this.readNumber(body, [
+      "action.value.businessId",
+      "action.businessId",
+    ]);
+    const comment = this.readString(body, [
+      "action.value.comment",
+      "action.formValue.comment",
+      "comment",
+    ]);
+
+    const callbackLog = await this.feishuCallbackLogRepository.save(
+      this.feishuCallbackLogRepository.create({
+        callbackType: "card_action",
+        actionToken: actionToken || null,
+        eventId:
+          typeof body.event_id === "string"
+            ? body.event_id
+            : null,
+        operatorOpenId: operatorOpenId || null,
+        businessType: businessType || null,
+        businessId: businessId ?? null,
+        requestJson: body,
+        status: "received",
+      }),
+    );
+
+    try {
+      if (actionToken) {
+        const processed = await this.feishuCallbackLogRepository.findOne({
+          where: {
+            callbackType: "card_action",
+            actionToken,
+            status: "processed",
+          },
+        });
+        if (processed && processed.id !== callbackLog.id) {
+          const duplicateResult = {
+            toast: {
+              type: "warning",
+              content: "该卡片动作已处理，请刷新最新卡片状态。",
+            },
+          };
+          await this.finishCallbackLog(callbackLog, "ignored", duplicateResult);
+          return duplicateResult;
+        }
+      }
+
+      if (!operatorOpenId) {
+        throw new BadRequestException("缺少飞书操作人 open_id");
+      }
+
+      const binding = await this.feishuBindingRepository.findOne({
+        where: {
+          feishuOpenId: operatorOpenId,
+        },
+        relations: ["platformUser"],
+      });
+      if (!binding || binding.status !== "active") {
+        throw new NotFoundException("当前飞书用户未绑定有效的平台账号");
+      }
+
+      callbackLog.operatorOpenId = operatorOpenId;
+      callbackLog.operatorPlatformUserId = binding.platformUserId;
+      callbackLog.operatorPlatformUser = binding.platformUser;
+      await this.feishuCallbackLogRepository.save(callbackLog);
+
+      if (action === "open_detail") {
+        const openResult = {
+          toast: {
+            type: "success",
+            content: "请在平台中继续处理详情。",
+          },
+          action: {
+            url:
+              typeof businessId === "number" && businessType
+                ? `/${businessType === "solution" ? "solutions" : "opportunities"}?highlight=${
+                    this.formatBusinessCode(
+                      businessType === "solution" ? "SOL" : "OPP",
+                      businessId,
+                    )
+                  }`
+                : "/",
+          },
+        };
+        await this.finishCallbackLog(callbackLog, "processed", openResult);
+        return openResult;
+      }
+
+      if (!approvalInstanceId) {
+        throw new BadRequestException("缺少 approvalInstanceId");
+      }
+      if (!(action === "approve" || action === "reject")) {
+        throw new BadRequestException("当前仅支持 approve / reject / open_detail 三类动作");
+      }
+
+      const approvalResult = await this.approvalsService.executeAction(
+        approvalInstanceId,
+        {
+          actionType: action,
+          comment,
+        },
+        {
+          id: binding.platformUserId,
+          username: binding.platformUsername,
+          role: binding.platformUser.role,
+        },
+      );
+
+      const currentNodeName =
+        approvalResult.currentNode?.nodeName || "已完成";
+      const result = {
+        toast: {
+          type: "success",
+          content:
+            action === "approve"
+              ? `审批已通过，当前节点：${currentNodeName}`
+              : "审批已驳回，平台状态已更新。",
+        },
+        card: {
+          status: approvalResult.status,
+          currentNodeName,
+          approvalInstanceId,
+        },
+      };
+      await this.finishCallbackLog(callbackLog, "processed", result);
+      return result;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "飞书卡片动作处理失败";
+      const failedResult = {
+        toast: {
+          type: "error",
+          content: message,
+        },
+      };
+      await this.finishCallbackLog(callbackLog, "failed", failedResult, message);
+      throw error;
+    }
   }
 
   listBindings() {
@@ -603,5 +747,52 @@ export class FeishuService {
     const hour = String(value.getHours()).padStart(2, "0");
     const minute = String(value.getMinutes()).padStart(2, "0");
     return `${year}-${month}-${day} ${hour}:${minute}`;
+  }
+
+  private async finishCallbackLog(
+    log: FeishuCallbackLog,
+    status: FeishuCallbackStatus,
+    resultJson: Record<string, unknown>,
+    errorMessage?: string,
+  ) {
+    log.status = status;
+    log.resultJson = resultJson;
+    log.errorMessage = errorMessage || null;
+    await this.feishuCallbackLogRepository.save(log);
+  }
+
+  private readPath(source: Record<string, unknown>, path: string) {
+    const segments = path.split(".");
+    let current: unknown = source;
+    for (const segment of segments) {
+      if (!current || typeof current !== "object" || !(segment in current)) {
+        return undefined;
+      }
+      current = (current as Record<string, unknown>)[segment];
+    }
+    return current;
+  }
+
+  private readString(source: Record<string, unknown>, paths: string[]) {
+    for (const path of paths) {
+      const value = this.readPath(source, path);
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+    return undefined;
+  }
+
+  private readNumber(source: Record<string, unknown>, paths: string[]) {
+    for (const path of paths) {
+      const value = this.readPath(source, path);
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+      if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+        return Number(value.trim());
+      }
+    }
+    return undefined;
   }
 }

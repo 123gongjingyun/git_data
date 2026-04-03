@@ -49,6 +49,7 @@ class FeishuCardActionDto {
   open_message_id?: string;
   token?: string;
   action?: Record<string, unknown>;
+  event_id?: string;
 }
 
 @Controller("integrations/feishu")
@@ -62,7 +63,7 @@ export class FeishuController {
 
   @Post("cards/action")
   handleCardAction(@Body() body: FeishuCardActionDto) {
-    return this.feishuService.handleCardAction(body);
+    return this.feishuService.handleCardAction({ ...body });
   }
 
   @UseGuards(AuthGuard("jwt"))

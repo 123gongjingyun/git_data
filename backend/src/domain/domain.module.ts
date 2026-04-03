@@ -14,6 +14,7 @@ import { WorkflowNodeApprover } from "./entities/workflow-node-approver.entity";
 import { ApprovalInstance } from "./entities/approval-instance.entity";
 import { ApprovalInstanceNode } from "./entities/approval-instance-node.entity";
 import { ApprovalAction } from "./entities/approval-action.entity";
+import { FeishuCallbackLog } from "./entities/feishu-callback-log.entity";
 import { FeishuUserBinding } from "./entities/feishu-user-binding.entity";
 
 @Module({
@@ -33,6 +34,7 @@ import { FeishuUserBinding } from "./entities/feishu-user-binding.entity";
       ApprovalInstance,
       ApprovalInstanceNode,
       ApprovalAction,
+      FeishuCallbackLog,
       FeishuUserBinding,
     ]),
   ],
