@@ -57,11 +57,18 @@ export interface UpdateFeishuBindingInput {
   status?: FeishuBindingStatus;
 }
 
+export interface SendFeishuApprovalCardInput {
+  approvalInstanceId: number;
+  bindingId?: number;
+  openId?: string;
+  dryRun?: boolean;
+}
+
 interface PendingApprovalsQuery {
   limit?: number;
   businessType?: "opportunity" | "solution";
 }
-interface FeishuCardView {
+export interface FeishuCardView {
   templateKey: "pending_approval" | "opportunity_summary" | "solution_summary";
   title: string;
   subtitle: string;
@@ -79,7 +86,7 @@ interface FeishuCardView {
   }>;
 }
 
-interface FeishuInteractiveCard {
+export interface FeishuInteractiveCard {
   config: {
     wide_screen_mode: boolean;
     enable_forward: boolean;
@@ -137,6 +144,10 @@ const FEISHU_BINDINGS_SEED: FeishuBindingRecord[] = [
 @Injectable()
 export class FeishuService {
   private seedPromise?: Promise<void>;
+  private tenantAccessTokenCache?: {
+    token: string;
+    expiresAt: number;
+  };
 
   constructor(
     private readonly approvalsService: ApprovalsService,
@@ -691,6 +702,65 @@ export class FeishuService {
     };
   }
 
+  async sendApprovalCard(
+    input: SendFeishuApprovalCardInput,
+    actor: AuthenticatedUser,
+  ) {
+    await this.ensureSeedBindings();
+
+    const approvalInstance = await this.approvalInstanceRepository.findOne({
+      where: { id: input.approvalInstanceId },
+      relations: ["nodes"],
+    });
+    if (!approvalInstance) {
+      throw new NotFoundException("审批实例不存在");
+    }
+
+    const receiverBinding = await this.resolveReceiverBinding(input);
+    const cardView = await this.buildApprovalCardViewFromInstance(approvalInstance);
+    const interactiveCard = this.toInteractiveCardJson(cardView, {
+      approvalInstanceId: approvalInstance.id,
+      businessType: approvalInstance.businessType,
+      businessId: approvalInstance.businessId,
+      requestId: `feishu-send-${approvalInstance.id}-${Date.now()}`,
+    });
+
+    if (input.dryRun ?? true) {
+      return {
+        mode: "dry_run",
+        receiverOpenId: receiverBinding.feishuOpenId,
+        approvalInstanceId: approvalInstance.id,
+        card: cardView,
+        interactiveCard,
+      };
+    }
+
+    const responseJson = await this.sendInteractiveMessage(receiverBinding.feishuOpenId, interactiveCard);
+    await this.logOutboundMessage({
+      receiverId: receiverBinding.feishuOpenId,
+      messageType: "interactive",
+      businessType: approvalInstance.businessType,
+      businessId: approvalInstance.businessId,
+      templateKey: cardView.templateKey,
+      payloadJson: {
+        card: cardView,
+        interactiveCard,
+      },
+      responseJson,
+      sendStatus: "sent",
+    });
+
+    return {
+      mode: "sent",
+      sentBy: actor.username,
+      receiverOpenId: receiverBinding.feishuOpenId,
+      approvalInstanceId: approvalInstance.id,
+      messageId:
+        typeof responseJson.message_id === "string" ? responseJson.message_id : undefined,
+      raw: responseJson,
+    };
+  }
+
   private async mapPendingApprovalItem(
     instance: ApprovalInstance,
     user: AuthenticatedUser,
@@ -753,6 +823,17 @@ export class FeishuService {
       }，状态为 ${solution.status}。`,
       detailUrl: `/solutions?highlight=${this.formatBusinessCode("SOL", solution.id)}`,
     };
+  }
+
+  private async buildApprovalCardViewFromInstance(instance: ApprovalInstance) {
+    return this.buildApprovalCardView({
+      businessType: instance.businessType,
+      businessId: instance.businessId,
+      status: instance.status,
+      currentNode: {
+        nodeName: this.findCurrentNodeName(instance),
+      },
+    });
   }
 
   private canUserHandleInstance(user: AuthenticatedUser, businessOwnerId?: number | null) {
@@ -1337,7 +1418,7 @@ export class FeishuService {
     responseJson?: Record<string, unknown>;
     sendStatus: FeishuSendStatus;
     errorMessage?: string;
-  }) {
+    }) {
     await this.feishuMessageLogRepository.save(
       this.feishuMessageLogRepository.create({
         messageDirection: "outbound",
@@ -1354,6 +1435,123 @@ export class FeishuService {
         sentAt: input.sendStatus === "sent" ? new Date() : null,
       }),
     );
+  }
+
+  private async resolveReceiverBinding(input: SendFeishuApprovalCardInput) {
+    if (input.bindingId) {
+      const binding = await this.feishuBindingRepository.findOne({
+        where: { id: input.bindingId },
+      });
+      if (!binding || binding.status !== "active") {
+        throw new NotFoundException("指定的飞书绑定不存在或未启用");
+      }
+      return binding;
+    }
+
+    if (input.openId) {
+      const binding = await this.feishuBindingRepository.findOne({
+        where: { feishuOpenId: input.openId },
+      });
+      if (!binding || binding.status !== "active") {
+        throw new NotFoundException("指定的飞书 Open ID 未绑定有效平台账号");
+      }
+      return binding;
+    }
+
+    throw new BadRequestException("发送飞书卡片时必须提供 bindingId 或 openId");
+  }
+
+  private async sendInteractiveMessage(
+    receiverOpenId: string,
+    interactiveCard: FeishuInteractiveCard,
+  ) {
+    const token = await this.getTenantAccessToken();
+    const response = await fetch(
+      `${runtimeConfig.feishuBaseUrl}/open-apis/im/v1/messages?receive_id_type=open_id`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          receive_id: receiverOpenId,
+          msg_type: "interactive",
+          content: JSON.stringify(interactiveCard),
+        }),
+      },
+    );
+
+    const payload = (await response.json()) as Record<string, unknown>;
+    if (!response.ok || payload.code !== 0) {
+      throw new BadRequestException(
+        `飞书消息发送失败：${this.readFeishuErrorMessage(payload, response.status)}`,
+      );
+    }
+
+    return (payload.data as Record<string, unknown>) || payload;
+  }
+
+  private async getTenantAccessToken() {
+    if (
+      this.tenantAccessTokenCache &&
+      this.tenantAccessTokenCache.expiresAt > Date.now() + 30_000
+    ) {
+      return this.tenantAccessTokenCache.token;
+    }
+
+    if (!runtimeConfig.feishuAppId || !runtimeConfig.feishuAppSecret) {
+      throw new BadRequestException("缺少飞书应用配置，请先设置 FEISHU_APP_ID / FEISHU_APP_SECRET");
+    }
+
+    const response = await fetch(
+      `${runtimeConfig.feishuBaseUrl}/open-apis/auth/v3/tenant_access_token/internal`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          app_id: runtimeConfig.feishuAppId,
+          app_secret: runtimeConfig.feishuAppSecret,
+        }),
+      },
+    );
+
+    const payload = (await response.json()) as Record<string, unknown>;
+    if (!response.ok || payload.code !== 0) {
+      throw new BadRequestException(
+        `获取飞书 tenant_access_token 失败：${this.readFeishuErrorMessage(payload, response.status)}`,
+      );
+    }
+
+    const token =
+      typeof payload.tenant_access_token === "string"
+        ? payload.tenant_access_token
+        : undefined;
+    const expire =
+      typeof payload.expire === "number" ? payload.expire : Number(payload.expire || 0);
+    if (!token) {
+      throw new BadRequestException("飞书 tenant_access_token 响应缺少 token");
+    }
+
+    this.tenantAccessTokenCache = {
+      token,
+      expiresAt: Date.now() + Math.max(expire - 60, 60) * 1000,
+    };
+    return token;
+  }
+
+  private readFeishuErrorMessage(payload: Record<string, unknown>, status: number) {
+    const msg =
+      (typeof payload.msg === "string" && payload.msg) ||
+      (typeof payload.message === "string" && payload.message) ||
+      "未知错误";
+    const code =
+      typeof payload.code === "number" || typeof payload.code === "string"
+        ? String(payload.code)
+        : String(status);
+    return `${code} ${msg}`;
   }
 
   private readPath(source: Record<string, unknown>, path: string) {

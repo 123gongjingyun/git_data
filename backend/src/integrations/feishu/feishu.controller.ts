@@ -16,6 +16,7 @@ import { type AuthenticatedUser } from "../../auth/auth.service";
 import {
   CreateFeishuBindingInput,
   FeishuService,
+  SendFeishuApprovalCardInput,
   UpdateFeishuBindingInput,
 } from "./feishu.service";
 import type { Request } from "express";
@@ -52,6 +53,13 @@ class FeishuCardActionDto {
   token?: string;
   action?: Record<string, unknown>;
   event_id?: string;
+}
+
+class SendFeishuApprovalCardDto {
+  approvalInstanceId!: number;
+  bindingId?: number;
+  openId?: string;
+  dryRun?: boolean;
 }
 
 @Controller("integrations/feishu")
@@ -166,6 +174,24 @@ export class FeishuController {
   @Get("me/daily-brief")
   getDailyBrief(@Req() req: AuthenticatedRequest) {
     return this.feishuService.getDailyBrief(req.user);
+  }
+
+  @UseGuards(AuthGuard("jwt"))
+  @Post("messages/approval-cards/send")
+  sendApprovalCard(
+    @Body() body: SendFeishuApprovalCardDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    this.assertManageFeishu(req.user);
+    return this.feishuService.sendApprovalCard(
+      {
+        approvalInstanceId: body.approvalInstanceId,
+        bindingId: body.bindingId,
+        openId: body.openId,
+        dryRun: body.dryRun,
+      } satisfies SendFeishuApprovalCardInput,
+      req.user,
+    );
   }
 
   private assertManageFeishu(user: AuthenticatedUser) {
