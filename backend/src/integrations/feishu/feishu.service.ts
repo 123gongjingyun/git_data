@@ -14,6 +14,11 @@ import {
   type FeishuCallbackStatus,
 } from "../../domain/entities/feishu-callback-log.entity";
 import {
+  FeishuMessageLog,
+  type FeishuMessageType,
+  type FeishuSendStatus,
+} from "../../domain/entities/feishu-message-log.entity";
+import {
   FeishuUserBinding,
   type FeishuBindingSource,
   type FeishuBindingStatus,
@@ -99,6 +104,8 @@ export class FeishuService {
     private readonly approvalsService: ApprovalsService,
     @InjectRepository(FeishuCallbackLog)
     private readonly feishuCallbackLogRepository: Repository<FeishuCallbackLog>,
+    @InjectRepository(FeishuMessageLog)
+    private readonly feishuMessageLogRepository: Repository<FeishuMessageLog>,
     @InjectRepository(FeishuUserBinding)
     private readonly feishuBindingRepository: Repository<FeishuUserBinding>,
     @InjectRepository(User)
@@ -168,8 +175,8 @@ export class FeishuService {
           where: {
             callbackType: "card_action",
             actionToken,
-            status: "processed",
           },
+          order: { id: "DESC" },
         });
         if (processed && processed.id !== callbackLog.id) {
           const duplicateResult = {
@@ -178,6 +185,16 @@ export class FeishuService {
               content: "该卡片动作已处理，请刷新最新卡片状态。",
             },
           };
+          await this.logOutboundMessage({
+            receiverId: operatorOpenId || "unknown",
+            messageType: "interactive",
+            businessType,
+            businessId,
+            templateKey: "card_action_duplicate",
+            payloadJson: duplicateResult,
+            responseJson: { callbackLogId: processed.id },
+            sendStatus: "sent",
+          });
           await this.finishCallbackLog(callbackLog, "ignored", duplicateResult);
           return duplicateResult;
         }
@@ -220,6 +237,16 @@ export class FeishuService {
                 : "/",
           },
         };
+        await this.logOutboundMessage({
+          receiverId: operatorOpenId,
+          messageType: "interactive",
+          businessType,
+          businessId,
+          templateKey: "card_action_open_detail",
+          payloadJson: openResult,
+          responseJson: { callbackLogId: callbackLog.id },
+          sendStatus: "sent",
+        });
         await this.finishCallbackLog(callbackLog, "processed", openResult);
         return openResult;
       }
@@ -260,6 +287,19 @@ export class FeishuService {
           approvalInstanceId,
         },
       };
+      await this.logOutboundMessage({
+        receiverId: operatorOpenId,
+        messageType: "interactive",
+        businessType,
+        businessId,
+        templateKey: action === "approve" ? "card_action_approve" : "card_action_reject",
+        payloadJson: result,
+        responseJson: {
+          callbackLogId: callbackLog.id,
+          approvalStatus: approvalResult.status,
+        },
+        sendStatus: "sent",
+      });
       await this.finishCallbackLog(callbackLog, "processed", result);
       return result;
     } catch (error) {
@@ -271,6 +311,17 @@ export class FeishuService {
           content: message,
         },
       };
+      await this.logOutboundMessage({
+        receiverId: operatorOpenId || "unknown",
+        messageType: "interactive",
+        businessType,
+        businessId,
+        templateKey: "card_action_error",
+        payloadJson: failedResult,
+        responseJson: { callbackLogId: callbackLog.id },
+        sendStatus: "failed",
+        errorMessage: message,
+      });
       await this.finishCallbackLog(callbackLog, "failed", failedResult, message);
       throw error;
     }
@@ -759,6 +810,35 @@ export class FeishuService {
     log.resultJson = resultJson;
     log.errorMessage = errorMessage || null;
     await this.feishuCallbackLogRepository.save(log);
+  }
+
+  private async logOutboundMessage(input: {
+    receiverId: string;
+    messageType: FeishuMessageType;
+    businessType?: string;
+    businessId?: number;
+    templateKey?: string;
+    payloadJson: Record<string, unknown>;
+    responseJson?: Record<string, unknown>;
+    sendStatus: FeishuSendStatus;
+    errorMessage?: string;
+  }) {
+    await this.feishuMessageLogRepository.save(
+      this.feishuMessageLogRepository.create({
+        messageDirection: "outbound",
+        messageType: input.messageType,
+        receiverType: "open_id",
+        receiverId: input.receiverId,
+        businessType: input.businessType || null,
+        businessId: input.businessId ?? null,
+        templateKey: input.templateKey || null,
+        payloadJson: input.payloadJson,
+        responseJson: input.responseJson || null,
+        sendStatus: input.sendStatus,
+        errorMessage: input.errorMessage || null,
+        sentAt: input.sendStatus === "sent" ? new Date() : null,
+      }),
+    );
   }
 
   private readPath(source: Record<string, unknown>, path: string) {
