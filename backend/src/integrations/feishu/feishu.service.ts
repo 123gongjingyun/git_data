@@ -309,6 +309,15 @@ export class FeishuService {
 
     try {
       this.assertCallbackSignature(request);
+
+      const challenge =
+        typeof body.challenge === "string" ? body.challenge : undefined;
+      if (challenge) {
+        const challengeResult = { challenge };
+        await this.finishCallbackLog(callbackLog, "processed", challengeResult);
+        return challengeResult;
+      }
+
       if (actionToken) {
         const processed = await this.feishuCallbackLogRepository.findOne({
           where: {
