@@ -1,0 +1,2510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>售前流程全生命周期管理系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.12.8/reset.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+                'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 240px;
+            background: #001529;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.2s;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+        .logo {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+        }
+
+        .logo.collapsed {
+            font-size: 18px;
+        }
+
+        .menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 0;
+        }
+
+        .menu-item {
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: #1890ff;
+            color: white;
+        }
+
+        .menu-item .icon {
+            font-size: 16px;
+            margin-right: 12px;
+        }
+
+        .sidebar.collapsed .menu-item {
+            padding: 12px;
+            justify-content: center;
+        }
+
+        .sidebar.collapsed .menu-item .text {
+            display: none;
+        }
+
+        .sidebar.collapsed .menu-item .icon {
+            margin-right: 0;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 顶部导航 */
+        .header {
+            height: 64px;
+            background: white;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .toggle-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #262626;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .page-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #262626;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: #262626;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .notification-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #ff4d4f;
+            color: white;
+            font-size: 12px;
+            padding: 0 4px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .user-info:hover {
+            background: #f0f0f0;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            background: #1890ff;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* 内容区域 */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #262626;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #262626;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #8c8c8c;
+            margin-bottom: 8px;
+        }
+
+        .stat-trend {
+            font-size: 12px;
+            color: #52c41a;
+        }
+
+        .stat-trend.down {
+            color: #ff4d4f;
+        }
+
+        /* 表格样式 */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #fafafa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 500;
+            color: #262626;
+            border-bottom: 1px solid #f0f0f0;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #595959;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        /* 标签样式 */
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .tag.blue {
+            background: #e6f7ff;
+            color: #1890ff;
+            border: 1px solid #91d5ff;
+        }
+
+        .tag.green {
+            background: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+
+        .tag.orange {
+            background: #fff7e6;
+            color: #fa8c16;
+            border: 1px solid #ffd591;
+        }
+
+        .tag.red {
+            background: #fff1f0;
+            color: #ff4d4f;
+            border: 1px solid #ffa39e;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #1890ff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #40a9ff;
+        }
+
+        .btn-link {
+            background: none;
+            color: #1890ff;
+            padding: 4px 8px;
+        }
+
+        .btn-link:hover {
+            color: #40a9ff;
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            width: 100px;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #52c41a;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #8c8c8c;
+        }
+
+        .close-btn:hover {
+            color: #262626;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #262626;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #262626;
+        }
+
+        .btn-secondary:hover {
+            background: #d9d9d9;
+        }
+
+        .btn-danger {
+            background: #ff4d4f;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff7875;
+        }
+
+        /* 时间线样式 */
+        .timeline {
+            position: relative;
+            padding-left: 32px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e8e8e8;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 24px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #1890ff;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #1890ff;
+        }
+
+        .timeline-item.completed::before {
+            background: #52c41a;
+            box-shadow: 0 0 0 2px #52c41a;
+        }
+
+        .timeline-content {
+            background: white;
+            padding: 16px;
+            border-radius: 4px;
+            border: 1px solid #f0f0f0;
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: #8c8c8c;
+            margin-bottom: 4px;
+        }
+
+        .timeline-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .timeline-desc {
+            font-size: 14px;
+            color: #595959;
+        }
+
+        /* 文件上传 */
+        .upload-area {
+            border: 2px dashed #d9d9d9;
+            border-radius: 4px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #1890ff;
+            background: #f0f8ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #8c8c8c;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            color: #8c8c8c;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #bfbfbf;
+        }
+
+        .file-list {
+            margin-top: 16px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .file-icon {
+            font-size: 24px;
+        }
+
+        .file-name {
+            font-weight: 500;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #8c8c8c;
+        }
+
+        /* 审批流程 */
+        .approval-flow {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .approval-step {
+            flex: 1;
+            text-align: center;
+            padding: 16px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #f0f0f0;
+        }
+
+        .approval-step.active {
+            border-color: #1890ff;
+            background: #e6f7ff;
+        }
+
+        .approval-step.completed {
+            border-color: #52c41a;
+            background: #f6ffed;
+        }
+
+        .approval-step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #d9d9d9;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-weight: bold;
+        }
+
+        .approval-step.active .approval-step-number {
+            background: #1890ff;
+        }
+
+        .approval-step.completed .approval-step-number {
+            background: #52c41a;
+        }
+
+        .approval-step-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .approval-step-status {
+            font-size: 12px;
+            color: #8c8c8c;
+        }
+
+        /* 图表容器 */
+        .chart-container {
+            height: 400px;
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #8c8c8c;
+        }
+
+        .loading::after {
+            content: '加载中...';
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <div class="sidebar" id="sidebar">
+        <div class="logo" onclick="toggleSidebar()">
+            <span id="logoText">售前管理系统</span>
+        </div>
+        <div class="menu">
+            <div class="menu-item active" onclick="navigateTo('dashboard')">
+                <span class="icon">📊</span>
+                <span class="text">工作台</span>
+            </div>
+            <div class="menu-item" onclick="navigateTo('projects')">
+                <span class="icon">📁</span>
+                <span class="text">项目管理</span>
+            </div>
+            <div class="menu-item" onclick="navigateTo('opportunities')">
+                <span class="icon">💡</span>
+                <span class="text">商机管理</span>
+            </div>
+            <div class="menu-item" onclick="navigateTo('solutions')">
+                <span class="icon">🎯</span>
+                <span class="text">解决方案</span>
+            </div>
+            <div class="menu-item" onclick="navigateTo('tenders')">
+                <span class="icon">📄</span>
+                <span class="text">投标管理</span>
+            </div>
+            <div class="menu-item" onclick="navigateTo('contracts')">
+                <span class="icon">📝</span>
+                <span class="text">合同管理</span>
+            </div>
+            <div class="menu-item" onclick="navigateTo('knowledge')">
+                <span class="icon">📚</span>
+                <span class="text">知识库</span>
+            </div>
+            <div class="menu-item" onclick="navigateTo('analytics')">
+                <span class="icon">📈</span>
+                <span class="text">数据分析</span>
+            </div>
+            <div class="menu-item" onclick="navigateTo('settings')">
+                <span class="icon">⚙️</span>
+                <span class="text">系统设置</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 顶部导航 -->
+        <div class="header">
+            <div class="header-left">
+                <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+                <span class="page-title">工作台</span>
+            </div>
+            <div class="header-right">
+                <button class="notification-btn">
+                    🔔
+                    <span class="badge">5</span>
+                </button>
+                <div class="user-info">
+                    <div class="avatar">售</div>
+                    <span>解决方案工程师</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="content" id="mainContent">
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: #1890ff;">📁</div>
+                    <div class="stat-value">24</div>
+                    <div class="stat-label">进行中项目</div>
+                    <div class="stat-trend">↑ 12% 较上月</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: #52c41a;">💡</div>
+                    <div class="stat-value">18</div>
+                    <div class="stat-label">活跃商机</div>
+                    <div class="stat-trend">↑ 8% 较上月</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: #722ed1;">🎯</div>
+                    <div class="stat-value">32</div>
+                    <div class="stat-label">解决方案</div>
+                    <div class="stat-trend">↓ 5% 较上月</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: #fa8c16;">📄</div>
+                    <div class="stat-value">7</div>
+                    <div class="stat-label">投标项目</div>
+                    <div class="stat-trend">↑ 2% 较上月</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: #13c2c2;">💰</div>
+                    <div class="stat-value">1280万</div>
+                    <div class="stat-label">预计签约金额</div>
+                    <div class="stat-trend">↑ 15% 较上月</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color: #eb2f96;">🏆</div>
+                    <div class="stat-value">320万</div>
+                    <div class="stat-label">本月签约</div>
+                    <div class="stat-trend">↑ 20% 较上月</div>
+                </div>
+            </div>
+
+            <!-- 最近项目表格 -->
+            <div class="card">
+                <div class="card-title">最近项目</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>项目名称</th>
+                                <th>客户</th>
+                                <th>状态</th>
+                                <th>阶段</th>
+                                <th>预算</th>
+                                <th>成功概率</th>
+                                <th>剩余天数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>某银行数字化转型项目</td>
+                                <td>某某银行</td>
+                                <td><span class="tag blue">进行中</span></td>
+                                <td>提案</td>
+                                <td>¥500万</td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 65%;"></div>
+                                    </div>
+                                </td>
+                                <td>15天</td>
+                                <td><button class="btn btn-link">查看详情</button></td>
+                            </tr>
+                            <tr>
+                                <td>制造业MES系统</td>
+                                <td>某某制造企业</td>
+                                <td><span class="tag blue">进行中</span></td>
+                                <td>分析</td>
+                                <td>¥280万</td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 45%;"></div>
+                                    </div>
+                                </td>
+                                <td>22天</td>
+                                <td><button class="btn btn-link">查看详情</button></td>
+                            </tr>
+                            <tr>
+                                <td>电商平台升级</td>
+                                <td>某某电商公司</td>
+                                <td><span class="tag green">合格</span></td>
+                                <td>发现</td>
+                                <td>¥120万</td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 30%;"></div>
+                                    </div>
+                                </td>
+                                <td>8天</td>
+                                <td><button class="btn btn-link">查看详情</button></td>
+                            </tr>
+                            <tr>
+                                <td>智慧园区项目</td>
+                                <td>某某地产集团</td>
+                                <td><span class="tag blue">进行中</span></td>
+                                <td>谈判</td>
+                                <td>¥800万</td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 80%; background: #52c41a;"></div>
+                                    </div>
+                                </td>
+                                <td>5天</td>
+                                <td><button class="btn btn-link">查看详情</button></td>
+                            </tr>
+                            <tr>
+                                <td>数据中心建设</td>
+                                <td>某某科技公司</td>
+                                <td><span class="tag blue">进行中</span></td>
+                                <td>提案</td>
+                                <td>¥350万</td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 55%;"></div>
+                                    </div>
+                                </td>
+                                <td>12天</td>
+                                <td><button class="btn btn-link">查看详情</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 待办任务和业绩趋势 -->
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px;">
+                <div class="card">
+                    <div class="card-title">待办任务</div>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div style="padding: 12px; background: #fff1f0; border-radius: 4px; border-left: 3px solid #ff4d4f;">
+                            <div style="font-weight: 500; margin-bottom: 4px;">完成技术方案评审</div>
+                            <div style="font-size: 12px; color: #8c8c8c;">某银行数字化转型项目 | 2024-01-20</div>
+                        </div>
+                        <div style="padding: 12px; background: #fff7e6; border-radius: 4px; border-left: 3px solid #fa8c16;">
+                            <div style="font-weight: 500; margin-bottom: 4px;">提交投标文件</div>
+                            <div style="font-size: 12px; color: #8c8c8c;">智慧园区项目 | 2024-01-18</div>
+                        </div>
+                        <div style="padding: 12px; background: #e6f7ff; border-radius: 4px; border-left: 3px solid #1890ff;">
+                            <div style="font-weight: 500; margin-bottom: 4px;">客户需求调研会议</div>
+                            <div style="font-size: 12px; color: #8c8c8c;">制造业MES系统 | 2024-01-19</div>
+                        </div>
+                        <div style="padding: 12px; background: #fff1f0; border-radius: 4px; border-left: 3px solid #ff4d4f;">
+                            <div style="font-weight: 500; margin-bottom: 4px;">合同谈判</div>
+                            <div style="font-size: 12px; color: #8c8c8c;">电商平台升级 | 2024-01-22</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">本月业绩趋势</div>
+                    <div style="height: 300px; display: flex; align-items: center; justify-content: center; color: #8c8c8c;">
+                        📊 图表区域（可集成ECharts或其他图表库）
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 切换侧边栏
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const logoText = document.getElementById('logoText');
+            sidebar.classList.toggle('collapsed');
+            logoText.textContent = sidebar.classList.contains('collapsed') ? '售前' : '售前管理系统';
+        }
+
+        // 页面内容定义
+        const pageContents = {
+            dashboard: `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #1890ff;">📁</div>
+                        <div class="stat-value">24</div>
+                        <div class="stat-label">进行中项目</div>
+                        <div class="stat-trend">↑ 12% 较上月</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #52c41a;">💡</div>
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">活跃商机</div>
+                        <div class="stat-trend">↑ 8% 较上月</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #722ed1;">🎯</div>
+                        <div class="stat-value">32</div>
+                        <div class="stat-label">解决方案</div>
+                        <div class="stat-trend">↓ 5% 较上月</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #fa8c16;">📄</div>
+                        <div class="stat-value">7</div>
+                        <div class="stat-label">投标项目</div>
+                        <div class="stat-trend">↑ 2% 较上月</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #13c2c2;">💰</div>
+                        <div class="stat-value">1280万</div>
+                        <div class="stat-label">预计签约金额</div>
+                        <div class="stat-trend">↑ 15% 较上月</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #eb2f96;">🏆</div>
+                        <div class="stat-value">320万</div>
+                        <div class="stat-label">本月签约</div>
+                        <div class="stat-trend">↑ 20% 较上月</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">最近项目</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>项目名称</th>
+                                    <th>客户</th>
+                                    <th>状态</th>
+                                    <th>阶段</th>
+                                    <th>预算</th>
+                                    <th>成功概率</th>
+                                    <th>剩余天数</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>某银行数字化转型项目</td>
+                                    <td>某某银行</td>
+                                    <td><span class="tag blue">进行中</span></td>
+                                    <td>提案</td>
+                                    <td>¥500万</td>
+                                    <td>
+                                        <div class="progress-bar"><div class="progress-fill" style="width: 65%;"></div></div>
+                                    </td>
+                                    <td>15天</td>
+                                    <td><button class="btn btn-link">查看详情</button></td>
+                                </tr>
+                                <tr>
+                                    <td>制造业MES系统</td>
+                                    <td>某某制造企业</td>
+                                    <td><span class="tag blue">进行中</span></td>
+                                    <td>分析</td>
+                                    <td>¥280万</td>
+                                    <td>
+                                        <div class="progress-bar"><div class="progress-fill" style="width: 45%;"></div></div>
+                                    </td>
+                                    <td>22天</td>
+                                    <td><button class="btn btn-link">查看详情</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px;">
+                    <div class="card">
+                        <div class="card-title">待办任务</div>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="padding: 12px; background: #fff1f0; border-radius: 4px; border-left: 3px solid #ff4d4f;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">完成技术方案评审</div>
+                                <div style="font-size: 12px; color: #8c8c8c;">某银行数字化转型项目 | 2024-01-20</div>
+                            </div>
+                            <div style="padding: 12px; background: #fff7e6; border-radius: 4px; border-left: 3px solid #fa8c16;">
+                                <div style="font-weight: 500; margin-bottom: 4px;">提交投标文件</div>
+                                <div style="font-size: 12px; color: #8c8c8c;">智慧园区项目 | 2024-01-18</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">本月业绩趋势</div>
+                        <div style="height: 300px; display: flex; align-items: center; justify-content: center; color: #8c8c8c;">
+                            📊 图表区域（可集成ECharts）
+                        </div>
+                    </div>
+                </div>
+            `,
+            projects: `
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" class="form-input" style="width: 200px;" placeholder="搜索项目...">
+                        <select class="form-select" style="width: 120px;">
+                            <option value="">全部状态</option>
+                            <option value="inprogress">进行中</option>
+                            <option value="completed">已完成</option>
+                            <option value="archived">已归档</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="addProject()">+ 新建项目</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #1890ff;">📁</div>
+                        <div class="stat-value">24</div>
+                        <div class="stat-label">项目总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #52c41a;">✓</div>
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">进行中</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #722ed1;">⏳</div>
+                        <div class="stat-value">6</div>
+                        <div class="stat-label">已归档</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #fa8c16;">💰</div>
+                        <div class="stat-value">3200万</div>
+                        <div class="stat-label">总预算</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">项目列表</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>项目名称</th>
+                                    <th>客户</th>
+                                    <th>状态</th>
+                                    <th>阶段</th>
+                                    <th>优先级</th>
+                                    <th>预算</th>
+                                    <th>开始时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>某银行数字化转型项目</td>
+                                    <td>某某银行</td>
+                                    <td><span class="tag blue">进行中</span></td>
+                                    <td>提案</td>
+                                    <td><span class="tag red">高</span></td>
+                                    <td>¥500万</td>
+                                    <td>2024-01-05</td>
+                                    <td><button class="btn btn-link" onclick="viewProjectDetail(1)">查看</button> <button class="btn btn-link" onclick="editProject(1)">编辑</button></td>
+                                </tr>
+                                <tr>
+                                    <td>制造业MES系统</td>
+                                    <td>某某制造企业</td>
+                                    <td><span class="tag blue">进行中</span></td>
+                                    <td>分析</td>
+                                    <td><span class="tag orange">中</span></td>
+                                    <td>¥280万</td>
+                                    <td>2024-01-02</td>
+                                    <td><button class="btn btn-link" onclick="viewProjectDetail(2)">查看</button> <button class="btn btn-link" onclick="editProject(2)">编辑</button></td>
+                                </tr>
+                                <tr>
+                                    <td>电商平台升级</td>
+                                    <td>某某电商公司</td>
+                                    <td><span class="tag green">合格</span></td>
+                                    <td>发现</td>
+                                    <td><span class="tag orange">中</span></td>
+                                    <td>¥120万</td>
+                                    <td>2024-01-08</td>
+                                    <td><button class="btn btn-link" onclick="viewProjectDetail(3)">查看</button> <button class="btn btn-link" onclick="editProject(3)">编辑</button></td>
+                                </tr>
+                                <tr>
+                                    <td>智慧园区项目</td>
+                                    <td>某某地产集团</td>
+                                    <td><span class="tag blue">进行中</span></td>
+                                    <td>谈判</td>
+                                    <td><span class="tag red">高</span></td>
+                                    <td>¥800万</td>
+                                    <td>2024-01-03</td>
+                                    <td><button class="btn btn-link" onclick="viewProjectDetail(4)">查看</button> <button class="btn btn-link" onclick="editProject(4)">编辑</button></td>
+                                </tr>
+                                <tr>
+                                    <td>数据中心建设</td>
+                                    <td>某某科技公司</td>
+                                    <td><span class="tag blue">进行中</span></td>
+                                    <td>提案</td>
+                                    <td><span class="tag orange">中</span></td>
+                                    <td>¥350万</td>
+                                    <td>2024-01-10</td>
+                                    <td><button class="btn btn-link" onclick="viewProjectDetail(5)">查看</button> <button class="btn btn-link" onclick="editProject(5)">编辑</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `,
+            opportunities: `
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" class="form-input" style="width: 200px;" placeholder="搜索商机...">
+                        <select class="form-select" style="width: 120px;">
+                            <option value="">全部阶段</option>
+                            <option value="discovery">发现</option>
+                            <option value="analysis">分析</option>
+                            <option value="proposal">提案</option>
+                            <option value="negotiation">谈判</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="alert('新建商机')">+ 新建商机</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #1890ff;">💡</div>
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">商机总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #52c41a;">💰</div>
+                        <div class="stat-value">1280万</div>
+                        <div class="stat-label">总预期价值</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #722ed1;">📊</div>
+                        <div class="stat-value">640万</div>
+                        <div class="stat-label">总加权价值</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #fa8c16;">%</div>
+                        <div class="stat-value">50%</div>
+                        <div class="stat-label">平均成功概率</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">商机列表（3步转化流程）</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>商机名称</th>
+                                    <th>客户</th>
+                                    <th>阶段</th>
+                                    <th>预期价值</th>
+                                    <th>成功概率</th>
+                                    <th>加权价值</th>
+                                    <th>预计关闭时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="cursor: pointer;" onclick="viewOpportunityDetail(1)">
+                                    <td>某银行数字化转型</td>
+                                    <td>某某银行</td>
+                                    <td><span class="tag orange">需求分析</span></td>
+                                    <td>¥500万</td>
+                                    <td>65%</td>
+                                    <td>¥325万</td>
+                                    <td>2024-02-20</td>
+                                    <td><button class="btn btn-link">查看</button></td>
+                                </tr>
+                                <tr style="cursor: pointer;" onclick="viewOpportunityDetail(2)">
+                                    <td>制造业MES系统</td>
+                                    <td>某某制造企业</td>
+                                    <td><span class="tag blue">提案</span></td>
+                                    <td>¥280万</td>
+                                    <td>45%</td>
+                                    <td>¥126万</td>
+                                    <td>2024-03-15</td>
+                                    <td><button class="btn btn-link">查看</button></td>
+                                </tr>
+                                <tr style="cursor: pointer;" onclick="viewOpportunityDetail(3)">
+                                    <td>电商平台升级</td>
+                                    <td>某某电商公司</td>
+                                    <td><span class="tag green">线索确认</span></td>
+                                    <td>¥120万</td>
+                                    <td>30%</td>
+                                    <td>¥36万</td>
+                                    <td>2024-02-28</td>
+                                    <td><button class="btn btn-link">查看</button></td>
+                                </tr>
+                                <tr style="cursor: pointer;" onclick="viewOpportunityDetail(4)">
+                                    <td>智慧园区项目</td>
+                                    <td>某某地产集团</td>
+                                    <td><span class="tag orange">需求分析</span></td>
+                                    <td>¥800万</td>
+                                    <td>55%</td>
+                                    <td>¥440万</td>
+                                    <td>2024-03-01</td>
+                                    <td><button class="btn btn-link">查看</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `,
+            solutions: `
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" class="form-input" style="width: 200px;" placeholder="搜索方案...">
+                        <select class="form-select" style="width: 120px;">
+                            <option value="">全部状态</option>
+                            <option value="pending">草稿</option>
+                            <option value="reviewing">审核中</option>
+                            <option value="approved">已批准</option>
+                            <option value="rejected">已驳回</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="alert('新建方案')">+ 新建方案</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #1890ff;">🎯</div>
+                        <div class="stat-value">32</div>
+                        <div class="stat-label">方案总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #fa8c16;">⏳</div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-label">审核中</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #52c41a;">✓</div>
+                        <div class="stat-value">20</div>
+                        <div class="stat-label">已批准</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #8c8c8c;">📝</div>
+                        <div class="stat-value">4</div>
+                        <div class="stat-label">草稿</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">解决方案列表</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>方案名称</th>
+                                    <th>关联项目</th>
+                                    <th>版本</th>
+                                    <th>类型</th>
+                                    <th>审批状态</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>某银行数字化转型方案</td>
+                                    <td>某银行数字化转型项目</td>
+                                    <td>v2.1</td>
+                                    <td>技术方案</td>
+                                    <td><span class="tag green">已批准</span></td>
+                                    <td>2024-01-15</td>
+                                    <td><button class="btn btn-link">查看</button> <button class="btn btn-link">下载</button></td>
+                                </tr>
+                                <tr>
+                                    <td>制造业MES系统方案</td>
+                                    <td>制造业MES系统</td>
+                                    <td>v1.3</td>
+                                    <td>解决方案</td>
+                                    <td><span class="tag orange">审核中</span></td>
+                                    <td>2024-01-12</td>
+                                    <td><button class="btn btn-link" onclick="openModal('solutionApprovalModal')">审批</button> <button class="btn btn-link">下载</button></td>
+                                </tr>
+                                <tr>
+                                    <td>电商平台升级方案</td>
+                                    <td>电商平台升级</td>
+                                    <td>v1.0</td>
+                                    <td>技术方案</td>
+                                    <td><span class="tag gray">草稿</span></td>
+                                    <td>2024-01-10</td>
+                                    <td><button class="btn btn-link">编辑</button> <button class="btn btn-link">下载</button></td>
+                                </tr>
+                                <tr>
+                                    <td>智慧园区整体解决方案</td>
+                                    <td>智慧园区项目</td>
+                                    <td>v2.0</td>
+                                    <td>解决方案</td>
+                                    <td><span class="tag red">已驳回</span></td>
+                                    <td>2024-01-08</td>
+                                    <td><button class="btn btn-link">查看</button> <button class="btn btn-link">重新提交</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `,
+            tenders: `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #1890ff;">📄</div>
+                        <div class="stat-value">7</div>
+                        <div class="stat-label">投标总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #52c41a;">🏆</div>
+                        <div class="stat-value">3</div>
+                        <div class="stat-label">中标数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #722ed1;">%</div>
+                        <div class="stat-value">43%</div>
+                        <div class="stat-label">中标率</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #fa8c16;">⏳</div>
+                        <div class="stat-value">2</div>
+                        <div class="stat-label">进行中</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">投标项目列表</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>投标项目</th>
+                                    <th>客户</th>
+                                    <th>招标编号</th>
+                                    <th>进度</th>
+                                    <th>开标时间</th>
+                                    <th>投标金额</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>智慧园区项目</td>
+                                    <td>某某地产集团</td>
+                                    <td>ZN2024001</td>
+                                    <td><span class="tag blue">标书制作</span></td>
+                                    <td>2024-02-01</td>
+                                    <td>¥800万</td>
+                                    <td><span class="tag blue">进行中</span></td>
+                                    <td><button class="btn btn-link">查看</button></td>
+                                </tr>
+                                <tr>
+                                    <td>数据中心建设项目</td>
+                                    <td>某某科技公司</td>
+                                    <td>ZN2024002</td>
+                                    <td><span class="tag green">已完成</span></td>
+                                    <td>2024-01-15</td>
+                                    <td>¥350万</td>
+                                    <td><span class="tag green">已中标</span></td>
+                                    <td><button class="btn btn-link">查看</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `,
+            contracts: `
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" class="form-input" style="width: 200px;" placeholder="搜索合同...">
+                        <select class="form-select" style="width: 120px;">
+                            <option value="">全部状态</option>
+                            <option value="draft">草稿</option>
+                            <option value="reviewing">审核中</option>
+                            <option value="signed">已签约</option>
+                            <option value="executing">执行中</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="openModal('contractModal')">+ 生成合同</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #1890ff;">📝</div>
+                        <div class="stat-value">12</div>
+                        <div class="stat-label">合同总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #52c41a;">💰</div>
+                        <div class="stat-value">1800万</div>
+                        <div class="stat-label">总合同金额</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #722ed1;">✓</div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-label">已签约</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #fa8c16;">⏳</div>
+                        <div class="stat-value">4</div>
+                        <div class="stat-label">执行中</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">合同列表</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>合同名称</th>
+                                    <th>客户</th>
+                                    <th>合同金额</th>
+                                    <th>付款条件</th>
+                                    <th>签约日期</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>某银行数字化转型合同</td>
+                                    <td>某某银行</td>
+                                    <td>¥500万</td>
+                                    <td>分期付款</td>
+                                    <td>2024-01-20</td>
+                                    <td><span class="tag green">已签约</span></td>
+                                    <td><button class="btn btn-link">查看</button> <button class="btn btn-link" onclick="alert('发送电子签名请求')">电子签名</button></td>
+                                </tr>
+                                <tr>
+                                    <td>制造业MES系统合同</td>
+                                    <td>某某制造企业</td>
+                                    <td>¥280万</td>
+                                    <td>3-3-4</td>
+                                    <td>2024-01-18</td>
+                                    <td><span class="tag blue">执行中</span></td>
+                                    <td><button class="btn btn-link">查看</button> <button class="btn btn-link" onclick="alert('查看签名状态')">签名状态</button></td>
+                                </tr>
+                                <tr>
+                                    <td>电商平台升级合同</td>
+                                    <td>某某电商公司</td>
+                                    <td>¥120万</td>
+                                    <td>5-5</td>
+                                    <td>2024-01-16</td>
+                                    <td><span class="tag green">已签约</span></td>
+                                    <td><button class="btn btn-link">查看</button> <button class="btn btn-link" onclick="alert('发送电子签名请求')">电子签名</button></td>
+                                </tr>
+                                <tr>
+                                    <td>智慧园区项目合同</td>
+                                    <td>某某地产集团</td>
+                                    <td>¥800万</td>
+                                    <td>分期付款</td>
+                                    <td>2024-01-14</td>
+                                    <td><span class="tag orange">审核中</span></td>
+                                    <td><button class="btn btn-link">查看</button> <button class="btn btn-link" onclick="alert('审批合同')">审批</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `,
+            knowledge: `
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" class="form-input" style="width: 200px;" placeholder="搜索文档...">
+                        <select class="form-select" style="width: 120px;">
+                            <option value="">全部分类</option>
+                            <option value="case">成功案例</option>
+                            <option value="solution">解决方案</option>
+                            <option value="template">文档模板</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="openModal('uploadModal')">+ 上传文档</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #1890ff;">📚</div>
+                        <div class="stat-value">156</div>
+                        <div class="stat-label">文档总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #52c41a;">📁</div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-label">分类数量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #722ed1;">⭐</div>
+                        <div class="stat-value">23</div>
+                        <div class="stat-label">我的收藏</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #fa8c16;">🔥</div>
+                        <div class="stat-value">12</div>
+                        <div class="stat-label">热门文档</div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 24px;">
+                    <div class="card">
+                        <div class="card-title">文档分类</div>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="padding: 12px; background: #e6f7ff; border-radius: 4px; cursor: pointer; border-left: 3px solid #1890ff;">
+                                <div style="font-weight: 500;">✓ 成功案例</div>
+                                <div style="font-size: 12px; color: #8c8c8c; margin-top: 4px;">32 个文档</div>
+                            </div>
+                            <div style="padding: 12px; background: #f6ffed; border-radius: 4px; cursor: pointer; border-left: 3px solid #52c41a;">
+                                <div style="font-weight: 500;">📄 解决方案</div>
+                                <div style="font-size: 12px; color: #8c8c8c; margin-top: 4px;">45 个文档</div>
+                            </div>
+                            <div style="padding: 12px; background: #fff7e6; border-radius: 4px; cursor: pointer; border-left: 3px solid #fa8c16;">
+                                <div style="font-weight: 500;">📋 文档模板</div>
+                                <div style="font-size: 12px; color: #8c8c8c; margin-top: 4px;">28 个文档</div>
+                            </div>
+                            <div style="padding: 12px; background: #fff0f6; border-radius: 4px; cursor: pointer; border-left: 3px solid #eb2f96;">
+                                <div style="font-weight: 500;">📖 行业知识</div>
+                                <div style="font-size: 12px; color: #8c8c8c; margin-top: 4px;">35 个文档</div>
+                            </div>
+                            <div style="padding: 12px; background: #f9f0ff; border-radius: 4px; cursor: pointer; border-left: 3px solid #722ed1;">
+                                <div style="font-weight: 500;">📚 产品文档</div>
+                                <div style="font-size: 12px; color: #8c8c8c; margin-top: 4px;">16 个文档</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">文档列表</div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>文档名称</th>
+                                        <th>分类</th>
+                                        <th>作者</th>
+                                        <th>更新时间</th>
+                                        <th>大小</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>某银行数字化转型案例</td>
+                                        <td>成功案例</td>
+                                        <td>张三</td>
+                                        <td>2024-01-15</td>
+                                        <td>2.5MB</td>
+                                        <td><button class="btn btn-link">预览</button> <button class="btn btn-link" onclick="alert('开始下载文档...')">下载</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>MES系统解决方案模板</td>
+                                        <td>解决方案</td>
+                                        <td>李四</td>
+                                        <td>2024-01-12</td>
+                                        <td>1.8MB</td>
+                                        <td><button class="btn btn-link">预览</button> <button class="btn btn-link" onclick="alert('开始下载文档...')">下载</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>技术方案撰写指南</td>
+                                        <td>文档模板</td>
+                                        <td>王五</td>
+                                        <td>2024-01-10</td>
+                                        <td>1.2MB</td>
+                                        <td><button class="btn btn-link">预览</button> <button class="btn btn-link" onclick="alert('开始下载文档...')">下载</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>金融行业技术白皮书</td>
+                                        <td>行业知识</td>
+                                        <td>张三</td>
+                                        <td>2024-01-08</td>
+                                        <td>3.2MB</td>
+                                        <td><button class="btn btn-link">预览</button> <button class="btn btn-link" onclick="alert('开始下载文档...')">下载</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>产品功能说明文档</td>
+                                        <td>产品文档</td>
+                                        <td>李四</td>
+                                        <td>2024-01-05</td>
+                                        <td>1.5MB</td>
+                                        <td><button class="btn btn-link">预览</button> <button class="btn btn-link" onclick="alert('开始下载文档...')">下载</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `,
+            analytics: `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #1890ff;">💡</div>
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">商机总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #52c41a;">💰</div>
+                        <div class="stat-value">320万</div>
+                        <div class="stat-label">本月签约</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #722ed1;">📊</div>
+                        <div class="stat-value">45天</div>
+                        <div class="stat-label">平均成交周期</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #fa8c16;">%</div>
+                        <div class="stat-value">43%</div>
+                        <div class="stat-label">商机转化率</div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 24px;">
+                    <div class="card">
+                        <div class="card-title">销售漏斗</div>
+                        <div style="height: 320px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 12px; width: 80%;">
+                                <span style="font-size: 12px; width: 60px;">线索确认</span>
+                                <div style="flex: 1; height: 40px; background: linear-gradient(135deg, #1890ff, #40a9ff); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 500;">32个 (100%)</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px; width: 75%;">
+                                <span style="font-size: 12px; width: 60px;">需求分析</span>
+                                <div style="flex: 1; height: 40px; background: linear-gradient(135deg, #52c41a, #73d13d); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 500;">18个 (56%)</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px; width: 70%;">
+                                <span style="font-size: 12px; width: 60px;">方案提报</span>
+                                <div style="flex: 1; height: 40px; background: linear-gradient(135deg, #fa8c16, #ffa940); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 500;">12个 (38%)</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px; width: 65%;">
+                                <span style="font-size: 12px; width: 60px;">商务谈判</span>
+                                <div style="flex: 1; height: 40px; background: linear-gradient(135deg, #722ed1, #9254de); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 500;">8个 (25%)</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px; width: 60%;">
+                                <span style="font-size: 12px; width: 60px;">签约</span>
+                                <div style="flex: 1; height: 40px; background: linear-gradient(135deg, #13c2c2, #36cfc9); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 500;">6个 (19%)</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">业绩趋势</div>
+                        <div style="height: 320px; display: flex; flex-direction: column; justify-content: center; padding: 0 20px;">
+                            <div style="display: flex; align-items: flex-end; justify-content: space-around; height: 250px; gap: 20px;">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <div style="width: 40px; height: 60%; background: linear-gradient(135deg, #1890ff, #40a9ff); border-radius: 4px 4px 0 0;"></div>
+                                    <span style="font-size: 12px; color: #8c8c8c;">1月</span>
+                                    <span style="font-size: 10px; color: #8c8c8c;">¥120万</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <div style="width: 40px; height: 75%; background: linear-gradient(135deg, #52c41a, #73d13d); border-radius: 4px 4px 0 0;"></div>
+                                    <span style="font-size: 12px; color: #8c8c8c;">2月</span>
+                                    <span style="font-size: 10px; color: #8c8c8c;">¥150万</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <div style="width: 40px; height: 65%; background: linear-gradient(135deg, #fa8c16, #ffa940); border-radius: 4px 4px 0 0;"></div>
+                                    <span style="font-size: 12px; color: #8c8c8c;">3月</span>
+                                    <span style="font-size: 10px; color: #8c8c8c;">¥130万</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <div style="width: 40px; height: 85%; background: linear-gradient(135deg, #722ed1, #9254de); border-radius: 4px 4px 0 0;"></div>
+                                    <span style="font-size: 12px; color: #8c8c8c;">4月</span>
+                                    <span style="font-size: 10px; color: #8c8c8c;">¥170万</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <div style="width: 40px; height: 95%; background: linear-gradient(135deg, #eb2f96, #f759ab); border-radius: 4px 4px 0 0;"></div>
+                                    <span style="font-size: 12px; color: #8c8c8c;">5月</span>
+                                    <span style="font-size: 10px; color: #8c8c8c;">¥190万</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;">
+                                    <div style="width: 40px; height: 100%; background: linear-gradient(135deg, #13c2c2, #36cfc9); border-radius: 4px 4px 0 0;"></div>
+                                    <span style="font-size: 12px; color: #8c8c8c;">6月</span>
+                                    <span style="font-size: 10px; color: #8c8c8c;">¥200万</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;">
+                    <div class="card">
+                        <div class="card-title">行业分布</div>
+                        <div style="height: 320px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                            <div style="width: 200px; height: 200px; border-radius: 50%; background: conic-gradient(#1890ff 0deg 108deg, #52c41a 108deg 198deg, #fa8c16 198deg 270deg, #722ed1 270deg 324deg, #eb2f96 324deg 360deg); display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                                <div style="width: 100px; height: 100px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                    <span style="font-size: 24px; font-weight: bold; color: #262626;">18</span>
+                                    <span style="font-size: 12px; color: #8c8c8c;">个行业</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 16px;">
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                                    <div style="width: 12px; height: 12px; background: #1890ff; border-radius: 2px;"></div>
+                                    <span>金融 30%</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                                    <div style="width: 12px; height: 12px; background: #52c41a; border-radius: 2px;"></div>
+                                    <span>制造 25%</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                                    <div style="width: 12px; height: 12px; background: #fa8c16; border-radius: 2px;"></div>
+                                    <span>电商 20%</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                                    <div style="width: 12px; height: 12px; background: #722ed1; border-radius: 2px;"></div>
+                                    <span>地产 15%</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                                    <div style="width: 12px; height: 12px; background: #eb2f96; border-radius: 2px;"></div>
+                                    <span>其他 10%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">项目进度甘特图</div>
+                        <div style="height: 320px; overflow-y: auto; padding: 0 10px;">
+                            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 8px;">
+                                <span style="font-size: 12px; width: 140px; white-space: nowrap;">银行数字化转型</span>
+                                <div style="flex: 1; height: 24px; position: relative;">
+                                    <div style="position: absolute; left: 0%; width: 80%; height: 24px; background: linear-gradient(135deg, #1890ff, #40a9ff); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">1/5 - 2/15</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 8px;">
+                                <span style="font-size: 12px; width: 140px; white-space: nowrap;">制造业MES系统</span>
+                                <div style="flex: 1; height: 24px; position: relative;">
+                                    <div style="position: absolute; left: 10%; width: 70%; height: 24px; background: linear-gradient(135deg, #52c41a, #73d13d); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">1/10 - 3/20</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 8px;">
+                                <span style="font-size: 12px; width: 140px; white-space: nowrap;">电商平台升级</span>
+                                <div style="flex: 1; height: 24px; position: relative;">
+                                    <div style="position: absolute; left: 20%; width: 50%; height: 24px; background: linear-gradient(135deg, #fa8c16, #ffa940); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">1/15 - 2/28</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 8px;">
+                                <span style="font-size: 12px; width: 140px; white-space: nowrap;">智慧园区项目</span>
+                                <div style="flex: 1; height: 24px; position: relative;">
+                                    <div style="position: absolute; left: 5%; width: 85%; height: 24px; background: linear-gradient(135deg, #722ed1, #9254de); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">1/8 - 3/10</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 8px;">
+                                <span style="font-size: 12px; width: 140px; white-space: nowrap;">数据中心建设</span>
+                                <div style="flex: 1; height: 24px; position: relative;">
+                                    <div style="position: absolute; left: 30%; width: 60%; height: 24px; background: linear-gradient(135deg, #eb2f96, #f759ab); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">1/20 - 3/5</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 8px;">
+                                <span style="font-size: 12px; width: 140px; white-space: nowrap;">智慧医疗系统</span>
+                                <div style="flex: 1; height: 24px; position: relative;">
+                                    <div style="position: absolute; left: 40%; width: 55%; height: 24px; background: linear-gradient(135deg, #13c2c2, #36cfc9); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;">1/25 - 3/15</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `,
+            settings: `
+                <div style="display: grid; grid-template-columns: 250px 1fr; gap: 24px;">
+                    <div class="card" style="height: fit-content;">
+                        <div class="card-title">设置菜单</div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="padding: 12px; background: #e6f7ff; border-radius: 4px; cursor: pointer; border-left: 3px solid #1890ff;" onclick="alert('已切换到：个人资料')">
+                                👤 个人资料
+                            </div>
+                            <div style="padding: 12px; border-radius: 4px; cursor: pointer;" onclick="alert('已切换到：安全设置')">
+                                🔒 安全设置
+                            </div>
+                            <div style="padding: 12px; border-radius: 4px; cursor: pointer;" onclick="alert('已切换到：通知设置')">
+                                🔔 通知设置
+                            </div>
+                            <div style="padding: 12px; background: #f6ffed; border-radius: 4px; cursor: pointer; border-left: 3px solid #52c41a;" onclick="alert('已切换到：团队管理')">
+                                👥 团队管理
+                            </div>
+                            <div style="padding: 12px; border-radius: 4px; cursor: pointer;" onclick="alert('已切换到：系统配置')">
+                                ⚙️ 系统配置
+                            </div>
+                            <div style="padding: 12px; border-radius: 4px; cursor: pointer;" onclick="alert('已切换到：数据管理')">
+                                🗄️ 数据管理
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">团队与权限管理</div>
+                        <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 14px; color: #595959;">
+                                管理团队成员及其访问权限
+                            </div>
+                            <button class="btn btn-primary" onclick="alert('打开新增成员弹窗')">+ 添加成员</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>姓名</th>
+                                        <th>邮箱</th>
+                                        <th>角色</th>
+                                        <th>权限</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="width: 32px; height: 32px; background: #1890ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">张</div>
+                                                张三
+                                            </div>
+                                        </td>
+                                        <td>zhangsan@example.com</td>
+                                        <td><span class="tag red">管理员</span></td>
+                                        <td>全部权限</td>
+                                        <td><span class="tag green">活跃</span></td>
+                                        <td><button class="btn btn-link" onclick="alert('编辑成员权限')">编辑</button> <button class="btn btn-link" style="color: #ff4d4f;">删除</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="width: 32px; height: 32px; background: #52c41a; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">李</div>
+                                                李四
+                                            </div>
+                                        </td>
+                                        <td>lisi@example.com</td>
+                                        <td><span class="tag blue">经理</span></td>
+                                        <td>项目、商机、解决方案</td>
+                                        <td><span class="tag green">活跃</span></td>
+                                        <td><button class="btn btn-link" onclick="alert('编辑成员权限')">编辑</button> <button class="btn btn-link" style="color: #ff4d4f;">删除</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="width: 32px; height: 32px; background: #fa8c16; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">王</div>
+                                                王五
+                                            </div>
+                                        </td>
+                                        <td>wangwu@example.com</td>
+                                        <td><span class="tag orange">工程师</span></td>
+                                        <td>项目、商机</td>
+                                        <td><span class="tag green">活跃</span></td>
+                                        <td><button class="btn btn-link" onclick="alert('编辑成员权限')">编辑</button> <button class="btn btn-link" style="color: #ff4d4f;">删除</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="width: 32px; height: 32px; background: #722ed1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">赵</div>
+                                                赵六
+                                            </div>
+                                        </td>
+                                        <td>zhaoliu@example.com</td>
+                                        <td><span class="tag orange">工程师</span></td>
+                                        <td>项目、商机</td>
+                                        <td><span class="tag orange">离线</span></td>
+                                        <td><button class="btn btn-link" onclick="alert('编辑成员权限')">编辑</button> <button class="btn btn-link" style="color: #ff4d4f;">删除</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="width: 32px; height: 32px; background: #eb2f96; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">钱</div>
+                                                钱七
+                                            </div>
+                                        </td>
+                                        <td>qianqi@example.com</td>
+                                        <td><span class="tag gray">访客</span></td>
+                                        <td>仅查看</td>
+                                        <td><span class="tag green">活跃</span></td>
+                                        <td><button class="btn btn-link" onclick="alert('编辑成员权限')">编辑</button> <button class="btn btn-link" style="color: #ff4d4f;">删除</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 24px; padding: 16px; background: #fff7e6; border-radius: 4px; border-left: 3px solid #fa8c16;">
+                            <div style="font-weight: 500; margin-bottom: 8px;">权限说明</div>
+                            <div style="font-size: 12px; color: #595959; line-height: 1.6;">
+                                • <strong>管理员</strong>：拥有系统所有权限，包括用户管理和系统配置<br>
+                                • <strong>经理</strong>：可管理项目、商机、解决方案，可查看投标和合同<br>
+                                • <strong>工程师</strong>：可创建和编辑项目、商机，仅可查看解决方案<br>
+                                • <strong>访客</strong>：仅可查看所有内容，无法编辑
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `
+        };
+
+        // 导航到不同页面
+        function navigateTo(page) {
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            const pageTitle = document.querySelector('.page-title');
+            const pageTitles = {
+                'dashboard': '工作台',
+                'projects': '项目管理',
+                'opportunities': '商机管理',
+                'solutions': '解决方案',
+                'tenders': '投标管理',
+                'contracts': '合同管理',
+                'knowledge': '知识库',
+                'analytics': '数据分析',
+                'settings': '系统设置'
+            };
+            
+            if (pageTitle && pageTitles[page]) {
+                pageTitle.textContent = pageTitles[page];
+            }
+            
+            // 更新页面内容
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent && pageContents[page]) {
+                mainContent.innerHTML = pageContents[page];
+            }
+            
+            console.log('导航到:', page);
+        }
+
+        // 响应式处理
+        function handleResize() {
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth <= 768) {
+                sidebar.classList.add('collapsed');
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); // 初始化
+
+        // 模态框操作
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('active');
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        // 查看项目详情
+        function viewProjectDetail(projectId) {
+            openModal('projectDetailModal');
+        }
+
+        // 编辑项目
+        function editProject(projectId) {
+            openModal('projectModal');
+        }
+
+        // 删除项目
+        function deleteProject(projectId) {
+            if (confirm('确定要删除这个项目吗？')) {
+                alert('项目已删除');
+            }
+        }
+
+        // 新增项目
+        function addProject() {
+            openModal('projectModal');
+        }
+
+        // 添加活动
+        function addActivity() {
+            openModal('activityModal');
+        }
+
+        // 查看商机详情
+        function viewOpportunityDetail(opportunityId) {
+            openModal('opportunityDetailModal');
+        }
+
+        // 上传文档
+        function uploadDocument() {
+            const input = document.getElementById('fileInput');
+            if (input) {
+                input.click();
+            }
+        }
+
+        // 模拟文件上传
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                alert(`文件 "${file.name}" 上传成功！`);
+            }
+        }
+    </script>
+
+    <!-- 项目表单模态框 -->
+    <div class="modal" id="projectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">项目信息</div>
+                <button class="close-btn" onclick="closeModal('projectModal')">&times;</button>
+            </div>
+            <form>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">项目名称 *</label>
+                        <input type="text" class="form-input" placeholder="请输入项目名称">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">客户名称 *</label>
+                        <input type="text" class="form-input" placeholder="请输入客户名称">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">预算金额</label>
+                        <input type="number" class="form-input" placeholder="请输入预算金额">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">优先级</label>
+                        <select class="form-select">
+                            <option value="low">低</option>
+                            <option value="medium" selected>中</option>
+                            <option value="high">高</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">项目状态</label>
+                        <select class="form-select">
+                            <option value="inprogress" selected>进行中</option>
+                            <option value="completed">已完成</option>
+                            <option value="archived">已归档</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">项目阶段</label>
+                        <select class="form-select">
+                            <option value="discovery">发现</option>
+                            <option value="analysis">分析</option>
+                            <option value="proposal">提案</option>
+                            <option value="negotiation">谈判</option>
+                            <option value="closing">签约</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">项目描述</label>
+                    <textarea class="form-textarea" placeholder="请输入项目描述"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('projectModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 项目详情模态框 -->
+    <div class="modal" id="projectDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">项目详情</div>
+                <button class="close-btn" onclick="closeModal('projectDetailModal')">&times;</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                <div>
+                    <strong>项目名称：</strong><br>
+                    某银行数字化转型项目
+                </div>
+                <div>
+                    <strong>客户名称：</strong><br>
+                    某某银行
+                </div>
+                <div>
+                    <strong>项目状态：</strong><br>
+                    <span class="tag blue">进行中</span>
+                </div>
+                <div>
+                    <strong>项目阶段：</strong><br>
+                    提案
+                </div>
+                <div>
+                    <strong>预算金额：</strong><br>
+                    ¥500万
+                </div>
+                <div>
+                    <strong>优先级：</strong><br>
+                    <span class="tag red">高</span>
+                </div>
+                <div>
+                    <strong>开始时间：</strong><br>
+                    2024-01-05
+                </div>
+                <div>
+                    <strong>负责人：</strong><br>
+                    张三
+                </div>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <strong>项目描述：</strong>
+                <p style="margin-top: 8px; color: #595959; line-height: 1.6;">
+                    为某大型国有银行提供全面的数字化转型解决方案，包括核心系统升级、数据中台建设、智能风控系统等多个子项目。
+                </p>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <strong>项目进度时间线：</strong>
+                <div class="timeline" style="margin-top: 16px;">
+                    <div class="timeline-item completed">
+                        <div class="timeline-date">2024-01-05</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">项目启动</div>
+                            <div class="timeline-desc">项目立项，完成需求调研</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item completed">
+                        <div class="timeline-date">2024-01-10</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">需求分析</div>
+                            <div class="timeline-desc">完成详细需求分析和方案设计</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">2024-01-15</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">方案提案</div>
+                            <div class="timeline-desc">向客户提交技术方案和商务方案</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">预计 2024-02-01</div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">商务谈判</div>
+                            <div class="timeline-desc">进行商务谈判和合同签约</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-danger" onclick="deleteProject(1); closeModal('projectDetailModal');">删除项目</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('projectDetailModal')">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="closeModal('projectDetailModal'); editProject(1);">编辑</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 活动添加模态框 -->
+    <div class="modal" id="activityModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">添加活动</div>
+                <button class="close-btn" onclick="closeModal('activityModal')">&times;</button>
+            </div>
+            <form>
+                <div class="form-group">
+                    <label class="form-label">活动类型</label>
+                    <select class="form-select">
+                        <option value="meeting">会议</option>
+                        <option value="call">电话</option>
+                        <option value="email">邮件</option>
+                        <option value="visit">拜访</option>
+                        <option value="demo">演示</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">活动标题</label>
+                    <input type="text" class="form-input" placeholder="请输入活动标题">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">活动时间</label>
+                        <input type="datetime-local" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">参与人员</label>
+                        <input type="text" class="form-input" placeholder="请输入参与人员">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">活动描述</label>
+                    <textarea class="form-textarea" placeholder="请输入活动描述"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('activityModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 商机详情模态框 -->
+    <div class="modal" id="opportunityDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">商机详情</div>
+                <button class="close-btn" onclick="closeModal('opportunityDetailModal')">&times;</button>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px;">商机转化流程（3步）</h3>
+                <div class="approval-flow">
+                    <div class="approval-step completed">
+                        <div class="approval-step-number">1</div>
+                        <div class="approval-step-title">线索确认</div>
+                        <div class="approval-step-status">已完成</div>
+                    </div>
+                    <div class="approval-step active">
+                        <div class="approval-step-number">2</div>
+                        <div class="approval-step-title">需求分析</div>
+                        <div class="approval-step-status">进行中</div>
+                    </div>
+                    <div class="approval-step">
+                        <div class="approval-step-number">3</div>
+                        <div class="approval-step-title">方案提报</div>
+                        <div class="approval-step-status">待开始</div>
+                    </div>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                <div>
+                    <strong>商机名称：</strong><br>
+                    某银行数字化转型
+                </div>
+                <div>
+                    <strong>客户名称：</strong><br>
+                    某某银行
+                </div>
+                <div>
+                    <strong>当前阶段：</strong><br>
+                    <span class="tag orange">需求分析</span>
+                </div>
+                <div>
+                    <strong>预期价值：</strong><br>
+                    ¥500万
+                </div>
+                <div>
+                    <strong>成功概率：</strong><br>
+                    65%
+                </div>
+                <div>
+                    <strong>加权价值：</strong><br>
+                    ¥325万
+                </div>
+                <div>
+                    <strong>预计关闭时间：</strong><br>
+                    2024-02-20
+                </div>
+                <div>
+                    <strong>负责人：</strong><br>
+                    张三
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('opportunityDetailModal')">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="alert('推进到下一阶段：方案提报')">推进阶段</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文档上传模态框 -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">上传文档</div>
+                <button class="close-btn" onclick="closeModal('uploadModal')">&times;</button>
+            </div>
+            <input type="file" id="fileInput" style="display: none;" onchange="handleFileUpload(event)">
+            <div class="upload-area" onclick="uploadDocument()">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击或拖拽文件到此处上传</div>
+                <div class="upload-hint">支持 PDF、Word、Excel、PPT 等格式，单个文件不超过 50MB</div>
+            </div>
+            <div class="file-list">
+                <div class="file-item">
+                    <div class="file-info">
+                        <div class="file-icon">📄</div>
+                        <div>
+                            <div class="file-name">某银行数字化转型方案.pdf</div>
+                            <div class="file-size">2.5 MB</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-link" style="color: #ff4d4f;">删除</button>
+                </div>
+                <div class="file-item">
+                    <div class="file-info">
+                        <div class="file-icon">📊</div>
+                        <div>
+                            <div class="file-name">项目报价表.xlsx</div>
+                            <div class="file-size">1.2 MB</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-link" style="color: #ff4d4f;">删除</button>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('uploadModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="closeModal('uploadModal'); alert('上传成功！')">确认上传</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 方案审批模态框 -->
+    <div class="modal" id="solutionApprovalModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">方案审批流程</div>
+                <button class="close-btn" onclick="closeModal('solutionApprovalModal')">&times;</button>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px;">某银行数字化转型方案 v2.1</h3>
+                <div class="approval-flow">
+                    <div class="approval-step completed">
+                        <div class="approval-step-number">1</div>
+                        <div class="approval-step-title">技术评审</div>
+                        <div class="approval-step-status">已通过</div>
+                    </div>
+                    <div class="approval-step active">
+                        <div class="approval-step-number">2</div>
+                        <div class="approval-step-title">商务评审</div>
+                        <div class="approval-step-status">进行中</div>
+                    </div>
+                    <div class="approval-step">
+                        <div class="approval-step-number">3</div>
+                        <div class="approval-step-title">最终审批</div>
+                        <div class="approval-step-status">待开始</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin-bottom: 12px;">审批记录</h4>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="padding: 12px; background: #f6ffed; border-radius: 4px; border-left: 3px solid #52c41a;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <strong>张三</strong>
+                            <span style="font-size: 12px; color: #8c8c8c;">2024-01-15 14:30</span>
+                        </div>
+                        <div style="font-size: 13px; color: #52c41a;">✓ 技术评审通过</div>
+                        <div style="font-size: 12px; color: #595959; margin-top: 4px;">方案技术架构合理，符合客户需求。</div>
+                    </div>
+                    <div style="padding: 12px; background: #fff7e6; border-radius: 4px; border-left: 3px solid #fa8c16;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <strong>李四</strong>
+                            <span style="font-size: 12px; color: #8c8c8c;">2024-01-16 10:15</span>
+                        </div>
+                        <div style="font-size: 13px; color: #fa8c16;">⏳ 商务评审中</div>
+                        <div style="font-size: 12px; color: #595959; margin-top: 4px;">正在审核报价和商务条款。</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin-bottom: 12px;">添加审批意见</h4>
+                <textarea class="form-textarea" placeholder="请输入审批意见..." style="margin-bottom: 12px;"></textarea>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="closeModal('solutionApprovalModal'); alert('已提交审批意见：通过')">✓ 通过</button>
+                    <button class="btn btn-danger" onclick="closeModal('solutionApprovalModal'); alert('已提交审批意见：驳回')">✗ 驳回</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 合同生成模态框 -->
+    <div class="modal" id="contractModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">生成合同</div>
+                <button class="close-btn" onclick="closeModal('contractModal')">&times;</button>
+            </div>
+            <div style="margin-bottom: 24px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">合同名称 *</label>
+                        <input type="text" class="form-input" value="某银行数字化转型项目合同">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">合同编号</label>
+                        <input type="text" class="form-input" value="CON-2024-001">
+                    </div>
+                </div>
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">甲方（客户） *</label>
+                        <input type="text" class="form-input" value="某某银行股份有限公司">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">乙方（我方） *</label>
+                        <input type="text" class="form-input" value="某某科技有限公司">
+                    </div>
+                </div>
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">合同金额 *</label>
+                        <input type="number" class="form-input" value="5000000">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">付款条件</label>
+                        <select class="form-select">
+                            <option value="3-3-4">分期付款 3-3-4</option>
+                            <option value="5-5">分期付款 5-5</option>
+                            <option value="full">一次性付款</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" style="margin-bottom: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">合同开始日期 *</label>
+                        <input type="date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">合同结束日期 *</label>
+                        <input type="date" class="form-input">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label">合同内容</label>
+                    <textarea class="form-textarea" rows="6" placeholder="请输入合同主要内容...">为某大型国有银行提供全面的数字化转型解决方案，包括核心系统升级、数据中台建设、智能风控系统等多个子项目。具体服务范围和技术要求详见附件。</textarea>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label">附件</label>
+                    <div class="upload-area" style="padding: 20px;" onclick="alert('上传附件')">
+                        <div class="upload-icon" style="font-size: 32px;">📎</div>
+                        <div class="upload-text">点击上传合同附件</div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('contractModal')">取消</button>
+                <button type="button" class="btn btn-primary" onclick="alert('合同生成成功！')">生成合同</button>
+                <button type="button" class="btn btn-primary" onclick="closeModal('contractModal'); alert('已发送电子签名请求')">发送电子签名</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

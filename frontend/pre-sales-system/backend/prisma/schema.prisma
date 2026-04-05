@@ -1,0 +1,751 @@
+// 数据库模型定义
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id                String    @id @default(uuid())
+  username          String    @unique
+  email             String    @unique
+  password          String
+  realName          String?
+  avatar            String?
+  phone             String?
+  department        String?
+  position          String?
+  status            UserStatus @default(ACTIVE)
+  role              UserRole  @default(STAFF)
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // 关系
+  createdProjects    Project[]  @relation("CreatedBy")
+  assignedProjects   Project[]  @relation("AssignedTo")
+  createdOpportunities Opportunity[] @relation("OpportunityCreatedBy")
+  solutions         Solution[]
+  documents         Document[]
+  comments          Comment[]
+  ledTeams          Team[]      @relation("TeamLeader")
+  teamMemberships   TeamMember[] @relation("TeamMembership")
+  assignedTasks     Task[]      @relation("TaskAssignee")
+  createdTasks      Task[]      @relation("TaskCreator")
+  timeLogs          TimeLog[]    @relation("TimeLogUser")
+  ownedCustomers    Customer[]   @relation("CustomerOwner")
+  createdFollowups  CustomerFollowup[] @relation("FollowupCreator")
+  
+  @@map("users")
+}
+
+// 项目表
+model Project {
+  id                String        @id @default(uuid())
+  projectNo         String        @unique // 项目编号
+  name              String
+  description       String?
+  status            ProjectStatus @default(LEAD)
+  priority          Priority      @default(MEDIUM)
+  budget            Float?
+  currency          String        @default("CNY")
+  expectedValue     Float?
+  customerName      String        // 客户名称
+  customerContact   String?       // 客户联系人
+  customerPhone     String?       // 客户电话
+  customerEmail     String?       // 客户邮箱
+  industry          String?       // 行业
+  region            String?       // 地区
+  
+  // 时间管理
+  startDate         DateTime?
+  expectedCloseDate DateTime?
+  actualCloseDate   DateTime?
+  
+  // 流程控制
+  currentStage      ProjectStage  @default(DISCOVERY)
+  stageHistory      Json?         // 阶段历史记录
+  
+  // 关联信息
+  createdBy         String
+  assignedTo        String?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  creator           User          @relation("CreatedBy", fields: [createdBy], references: [id])
+  assignee          User?         @relation("AssignedTo", fields: [assignedTo], references: [id])
+  opportunities     Opportunity[]
+  solutions         Solution[]
+  tenders           Tender[]
+  contracts         Contract[]
+  activities        Activity[]
+  tasks             Task[]
+  
+  @@map("projects")
+}
+
+// 商机表
+model Opportunity {
+  id                String           @id @default(uuid())
+  opportunityNo     String           @unique
+  name              String
+  projectId         String
+  description       String?
+  status            OpportunityStatus @default(QUALIFIED)
+  stage             OpportunityStage  @default(ANALYSIS)
+  
+  // 需求信息
+  requirements      String?          // 需求描述
+  painPoints        String?          // 痛点
+  successCriteria   String?          // 成功标准
+  
+  // 竞争分析
+  competitors       String?          // 竞争对手
+  competitorInfo    Json?            // 竞争对手详细信息
+  
+  // 概率与价值
+  winProbability    Int              @default(50) // 赢的概率 0-100
+  expectedValue     Float?
+  weightedValue     Float?           // 加权价值 = 期望值 * 概率/100
+  
+  // 时间信息
+  expectedCloseDate DateTime?
+  actualCloseDate   DateTime?
+  
+  // 创建者
+  createdBy         String
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // 关系
+  project           Project          @relation(fields: [projectId], references: [id])
+  creator           User             @relation("OpportunityCreatedBy", fields: [createdBy], references: [id])
+  
+  @@map("opportunities")
+}
+
+// 解决方案表
+model Solution {
+  id                String        @id @default(uuid())
+  solutionNo        String        @unique
+  name              String
+  projectId         String
+  version           String        @default("1.0")
+  status            SolutionStatus @default(DRAFT)
+  
+  // 方案内容
+  summary           String?       // 方案摘要
+  architecture      String?       // 技术架构
+  features          String?       // 功能特性
+  benefits          String?       // 方案价值
+  
+  // 版本控制
+  parentSolutionId  String?       // 父版本ID
+  versionHistory    Json?         // 版本历史
+  
+  // 审批流程
+  approvalStatus    ApprovalStatus @default(PENDING)
+  approvedBy        String?
+  approvedAt        DateTime?
+  rejectionReason   String?
+  
+  // 负责人
+  createdBy         String
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  project           Project       @relation(fields: [projectId], references: [id])
+  parent            Solution?    @relation("SolutionHierarchy", fields: [parentSolutionId], references: [id])
+  children          Solution[]    @relation("SolutionHierarchy")
+  documents         Document[]
+  
+  @@map("solutions")
+}
+
+// 文档表
+model Document {
+  id                String        @id @default(uuid())
+  title             String
+  fileName          String
+  fileUrl           String
+  fileSize          Int
+  fileType          String
+  version           String        @default("1.0")
+  
+  // 文档分类
+  category          DocCategory
+  relatedType       RelatedType
+  relatedId         String        // 关联对象ID (solutionId, tenderId等)
+  
+  // 状态控制
+  status            DocStatus     @default(DRAFT)
+  
+  // 访问控制
+  isPublic          Boolean       @default(false)
+  
+  // 上传者
+  uploadedBy        String
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  solution          Solution?     @relation(fields: [relatedId], references: [id])
+  uploader          User          @relation(fields: [uploadedBy], references: [id])
+  
+  @@map("documents")
+}
+
+// 投标表
+model Tender {
+  id                String        @id @default(uuid())
+  tenderNo          String        @unique
+  projectId         String
+  name              String
+  description       String?
+  
+  // 投标信息
+  tenderType        TenderType
+  bidPrice          Float?
+  currency          String        @default("CNY")
+  depositAmount     Float?        // 保证金金额
+  
+  // 时间管理
+  announcementDate  DateTime?     // 招标公告发布日期
+  submissionDate    DateTime?     // 投标截止日期
+  openingDate       DateTime?     // 开标日期
+  
+  // 流程状态
+  status            TenderStatus  @default(PREPARING)
+  result            TenderResult?
+  
+  // 负责团队
+  bidLeader         String?       // 投标负责人
+  technicalLead     String?       // 技术负责人
+  commercialLead    String?       // 商务负责人
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  project           Project       @relation(fields: [projectId], references: [id])
+  contracts         Contract[]
+  
+  @@map("tenders")
+}
+
+// 合同表
+model Contract {
+  id                String        @id @default(uuid())
+  contractNo        String        @unique
+  projectId         String
+  tenderId          String?
+  name              String
+  description       String?
+  
+  // 合同金额
+  contractValue     Float
+  currency          String        @default("CNY")
+  paymentTerms      String?       // 付款条件
+  
+  // 合同时间
+  signDate          DateTime?
+  startDate         DateTime?
+  endDate           DateTime?
+  contractPeriod    String?       // 合同周期
+  
+  // 合同状态
+  status            ContractStatus @default(DRAFT)
+  
+  // 审批信息
+  approvalStatus    ApprovalStatus @default(PENDING)
+  approvedBy        String?
+  approvedAt        DateTime?
+  
+  // 签约信息
+  signedBy          String?
+  signedAt          DateTime?
+  signingParty      String?       // 签约方
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  project           Project       @relation(fields: [projectId], references: [id])
+  tender            Tender?       @relation(fields: [tenderId], references: [id])
+  
+  @@map("contracts")
+}
+
+// 活动记录表
+model Activity {
+  id                String        @id @default(uuid())
+  projectId         String?
+  customerId        String?
+  type              ActivityType
+  title             String
+  description       String?
+  
+  // 活动时间
+  activityDate      DateTime
+  duration          Int?          // 时长(分钟)
+  
+  // 参与人
+  participants      String?       // 参与人列表(JSON)
+  
+  // 活动结果
+  outcome           String?
+  nextAction        String?
+  nextActionDate    DateTime?
+  
+  // 记录者
+  createdBy         String
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  project           Project?       @relation(fields: [projectId], references: [id])
+  comments          Comment[]
+  creator           User?         @relation("ActivityCreator", fields: [createdBy], references: [id])
+  customer          Customer?     @relation(fields: [customerId], references: [id])
+  
+  @@map("activities")
+}
+
+// 评论表
+model Comment {
+  id                String        @id @default(uuid())
+  content           String
+  relatedType       RelatedType
+  relatedId         String
+  activityId        String?
+  
+  // 评论者
+  createdBy         String
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  user              User          @relation(fields: [createdBy], references: [id])
+  activity          Activity?     @relation(fields: [activityId], references: [id])
+  task              Task?         @relation(fields: [relatedId], references: [id])
+  
+  @@map("comments")
+}
+
+// ==================== 枚举类型 ====================
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  SALES_MANAGER
+  SOLUTION_ARCHITECT
+  SALES_ENGINEER
+  STAFF
+}
+
+enum TeamStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum TaskStatus {
+  PENDING         // 待处理
+  IN_PROGRESS     // 进行中
+  COMPLETED       // 已完成
+  CANCELLED       // 已取消
+  BLOCKED         // 已阻塞
+}
+
+enum ProjectStatus {
+  LEAD           // 线索
+  QUALIFIED      // 资质合格
+  IN_PROGRESS    // 进行中
+  WON            // 赢单
+  LOST           // 输单
+  CANCELLED      // 取消
+}
+
+enum ProjectStage {
+  DISCOVERY      // 发现
+  ANALYSIS       // 分析
+  PROPOSAL       // 提案
+  NEGOTIATION    // 谈判
+  CLOSING        // 成交
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum OpportunityStatus {
+  LEAD           // 线索
+  QUALIFIED      // 资质合格
+  ACTIVE         // 活跃
+  WON            // 赢单
+  LOST           // 输单
+  CANCELLED      // 取消
+}
+
+enum OpportunityStage {
+  ANALYSIS       // 需求分析
+  PROPOSAL       // 方案提案
+  NEGOTIATION    // 商务谈判
+  FINAL_REVIEW   // 最终评审
+}
+
+enum SolutionStatus {
+  DRAFT          // 草稿
+  UNDER_REVIEW   // 审核中
+  APPROVED       // 已批准
+  REJECTED       // 已拒绝
+  ARCHIVED       // 已归档
+}
+
+enum ApprovalStatus {
+  PENDING        // 待审批
+  APPROVED       // 已批准
+  REJECTED       // 已拒绝
+}
+
+enum DocCategory {
+  REQUIREMENT    // 需求文档
+  TECHNICAL      // 技术方案
+  COMMERCIAL     // 商务文档
+  CONTRACT       // 合同文档
+  PRESENTATION   // 演示文稿
+  OTHER          // 其他
+}
+
+enum DocStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum RelatedType {
+  PROJECT
+  OPPORTUNITY
+  SOLUTION
+  TENDER
+  CONTRACT
+  ACTIVITY
+}
+
+enum TenderType {
+  PUBLIC         // 公开招标
+  INVITATIONAL   // 邀请招标
+  COMPETITIVE    // 竞争性谈判
+  DIRECT         // 直接采购
+}
+
+enum TenderStatus {
+  PREPARING      // 准备中
+  SUBMITTED      // 已提交
+  UNDER_REVIEW   // 评审中
+  AWARDED        // 中标
+  NOT_AWARDED    // 未中标
+  CANCELLED      // 取消
+}
+
+enum TenderResult {
+  WON
+  LOST
+  IN_PROGRESS
+}
+
+enum ContractStatus {
+  DRAFT          // 草稿
+  UNDER_REVIEW   // 审核中
+  APPROVED       // 已批准
+  SIGNED         // 已签约
+  ACTIVE         // 执行中
+  COMPLETED      // 已完成
+  TERMINATED     // 终止
+}
+
+enum ActivityType {
+  MEETING        // 会议
+  CALL           // 电话
+  EMAIL          // 邮件
+  VISIT          // 拜访
+  DEMO           // 演示
+  PRESENTATION   // 演示
+  REVIEW         // 评审
+  OTHER          // 其他
+  TASK           // 任务
+}
+
+enum CustomerType {
+  POTENTIAL      // 潜在客户
+  ACTIVE         // 活跃客户
+  PARTNER        // 合作伙伴
+}
+
+enum CustomerLevel {
+  A              // A级客户
+  B              // B级客户
+  C              // C级客户
+}
+
+enum CustomerStatus {
+  ACTIVE         // 活跃
+  INACTIVE       // 不活跃
+  LOST           // 流失
+}
+
+enum ContactStatus {
+  ACTIVE         // 活跃
+  INACTIVE       // 不活跃
+}
+
+enum DecisionInfluence {
+  HIGH           // 高
+  MEDIUM         // 中
+  LOW            // 低
+}
+
+enum FollowupType {
+  PHONE          // 电话
+  VISIT          // 拜访
+  EMAIL          // 邮件
+  MEETING        // 会议
+  DEMO           // 演示
+  OTHER          // 其他
+}
+
+// 客户表
+model Customer {
+  id                String          @id @default(uuid())
+  customerNo        String          @unique
+  name              String
+  type              CustomerType    @default(POTENTIAL)
+  
+  // 客户信息
+  industry          String?
+  region            String?
+  address           String?
+  website           String?
+  scale             String?
+  
+  // 客户等级
+  level             CustomerLevel   @default(C)
+  
+  // 联系信息
+  phone             String?
+  email             String?
+  
+  // 客户状态
+  status            CustomerStatus  @default(ACTIVE)
+  
+  // 跟进信息
+  owner             String
+  lastContactAt     DateTime?
+  lastContactType   String?
+  nextContactDate   DateTime?
+  
+  // 统计信息
+  projectCount      Int             @default(0)
+  contractCount     Int             @default(0)
+  totalContractValue Float           @default(0)
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  // 关系
+  ownerUser         User            @relation("CustomerOwner", fields: [owner], references: [id])
+  contacts          Contact[]
+  projects          Project[]
+  followups         CustomerFollowup[]
+  
+  @@map("customers")
+}
+
+// 联系人表
+model Contact {
+  id                String          @id @default(uuid())
+  customerId        String
+  name              String
+  
+  // 职位信息
+  position          String?
+  department        String?
+  
+  // 联系方式
+  phone             String?
+  mobile            String?
+  email             String?
+  wechat            String?
+  
+  // 其他信息
+  isPrimary         Boolean         @default(false)
+  status            ContactStatus   @default(ACTIVE)
+  notes             String?
+  
+  // 决策影响力
+  decisionInfluence DecisionInfluence @default(MEDIUM)
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  // 关系
+  customer          Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@map("contacts")
+}
+
+// 客户跟进记录表
+model CustomerFollowup {
+  id                String        @id @default(uuid())
+  customerId        String
+  
+  // 跟进内容
+  type              FollowupType
+  summary           String
+  description       String?
+  
+  // 跟进结果
+  outcome           String?
+  nextAction        String?
+  nextActionDate    DateTime?
+  
+  // 跟进人
+  createdBy         String
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  customer          Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  creator           User          @relation("FollowupCreator", fields: [createdBy], references: [id])
+  
+  @@map("customer_followups")
+}
+
+// 团队表
+model Team {
+  id                String    @id @default(uuid())
+  name              String
+  description       String?
+  leaderId          String    // 团队负责人
+  department        String?
+  
+  // 团队信息
+  memberCount       Int       @default(0)
+  status            TeamStatus @default(ACTIVE)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // 关系
+  leader            User      @relation("TeamLeader", fields: [leaderId], references: [id])
+  members           TeamMember[]
+  tasks             Task[]
+  
+  @@map("teams")
+}
+
+// 团队成员表
+model TeamMember {
+  id                String    @id @default(uuid())
+  teamId            String
+  userId            String
+  role              String    // 团队内角色
+  joinedAt          DateTime  @default(now())
+  
+  // 关系
+  team              Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user              User      @relation("TeamMembership", fields: [userId], references: [id])
+  
+  @@unique([teamId, userId])
+  @@map("team_members")
+}
+
+// 任务表
+model Task {
+  id                String        @id @default(uuid())
+  taskNo            String        @unique
+  title             String
+  description       String?
+  
+  // 任务关联
+  projectId         String?
+  teamId            String?
+  assignedTo        String?
+  parentTaskId      String?       // 父任务ID
+  
+  // 任务状态
+  status            TaskStatus    @default(PENDING)
+  priority          Priority      @default(MEDIUM)
+  progress          Int           @default(0) // 进度 0-100
+  
+  // 时间管理
+  startDate         DateTime?
+  dueDate           DateTime?
+  completedAt       DateTime?
+  estimatedHours    Float?
+  actualHours       Float?
+  
+  // 任务详情
+  tags              String?
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // 关系
+  project           Project?      @relation(fields: [projectId], references: [id])
+  team              Team?         @relation(fields: [teamId], references: [id])
+  assignee          User?         @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  creator           User?         @relation("TaskCreator", fields: [id], references: [id])
+  parent            Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id])
+  children          Task[]        @relation("TaskHierarchy")
+  timeLogs          TimeLog[]
+  comments          Comment[]
+  
+  @@map("tasks")
+}
+
+// 工时记录表
+model TimeLog {
+  id                String    @id @default(uuid())
+  taskId            String
+  userId            String
+  
+  // 工时信息
+  date              DateTime
+  hours             Float
+  description       String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // 关系
+  task              Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user              User      @relation("TimeLogUser", fields: [userId], references: [id])
+  
+  @@map("time_logs")
+}
