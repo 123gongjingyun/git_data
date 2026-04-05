@@ -39,12 +39,18 @@ type PlaygroundResponse = {
   result: Record<string, unknown>;
 };
 
+type PlaygroundErrorResponse = {
+  message?: string;
+  error?: string;
+  statusCode?: number;
+};
+
 type RequestRecord = {
   id: string;
   queryText: string;
   skillName: string;
   requestedAt: string;
-  outcome: "success" | "error";
+  outcome: "success" | "error" | "blocked";
 };
 
 interface OpenClawPlaygroundViewProps {
@@ -191,6 +197,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
   const [queryText, setQueryText] = useState("给我今日简报");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<PlaygroundResponse | null>(null);
+  const [blockedResult, setBlockedResult] = useState<PlaygroundErrorResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [requestHistory, setRequestHistory] = useState<RequestRecord[]>([]);
 
@@ -224,6 +231,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
 
     setRunning(true);
     setErrorMessage("");
+    setBlockedResult(null);
     try {
       const response = await fetch(buildApiUrl("/integrations/openclaw/playground/query"), {
         method: "POST",
@@ -235,12 +243,44 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || `请求失败：${response.status}`);
+        let errorPayload: PlaygroundErrorResponse | null = null;
+        let fallbackText = "";
+        try {
+          errorPayload = (await response.json()) as PlaygroundErrorResponse;
+        } catch {
+          fallbackText = await response.text();
+        }
+
+        if (
+          response.status === 403 &&
+          errorPayload?.message?.includes("OPENCLAW_READONLY_ONLY")
+        ) {
+          setResult(null);
+          setBlockedResult(errorPayload);
+          setRequestHistory((current) => [
+            {
+              id: `blocked-${Date.now()}`,
+              queryText: normalizedQuery,
+              skillName: "readonly_guard",
+              requestedAt: formatDateTime(new Date()),
+              outcome: "blocked",
+            },
+            ...current,
+          ].slice(0, 5));
+          message.info("只读拦截已生效。");
+          return;
+        }
+
+        throw new Error(
+          errorPayload?.message ||
+            fallbackText ||
+            `请求失败：${response.status}`,
+        );
       }
 
       const payload = (await response.json()) as PlaygroundResponse;
       setResult(payload);
+      setBlockedResult(null);
       setRequestHistory((current) => [
         {
           id: payload.requestId,
@@ -258,6 +298,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
         error instanceof Error ? error.message : "OpenClaw 联调请求失败";
       setErrorMessage(nextMessage);
       setResult(null);
+      setBlockedResult(null);
       setRequestHistory((current) => [
         {
           id: `error-${Date.now()}`,
@@ -337,6 +378,15 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
         <Alert type="error" showIcon message="联调请求失败" description={errorMessage} />
       ) : null}
 
+      {blockedResult?.message ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="只读拦截已生效"
+          description={blockedResult.message}
+        />
+      ) : null}
+
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={15}>
           <Card
@@ -347,11 +397,54 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
               ) : undefined
             }
           >
-            {!result || !resultPreview ? (
+            {!result && !blockedResult ? (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description="发送一条命令后，在这里查看 OpenClaw 返回结果。"
               />
+            ) : blockedResult ? (
+              <div style={{ display: "grid", gap: 14 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+                    只读拦截已生效
+                  </div>
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      background: "var(--app-surface-soft)",
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {blockedResult.message}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    borderRadius: 12,
+                    border: "1px solid var(--app-border)",
+                    padding: 12,
+                    background: "var(--app-surface-soft)",
+                  }}
+                >
+                  <Text strong style={{ display: "block", marginBottom: 6 }}>
+                    原始错误响应 JSON
+                  </Text>
+                  <Paragraph
+                    copyable
+                    style={{
+                      marginBottom: 0,
+                      whiteSpace: "pre-wrap",
+                      fontFamily: "SFMono-Regular, Consolas, monospace",
+                      fontSize: 12,
+                    }}
+                  >
+                    {JSON.stringify(blockedResult, null, 2)}
+                  </Paragraph>
+                </div>
+              </div>
             ) : (
               <div style={{ display: "grid", gap: 14 }}>
                 <div>
@@ -441,8 +534,20 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
                       }}
                     >
                       <Text strong>{item.queryText}</Text>
-                      <Tag color={item.outcome === "success" ? "green" : "red"}>
-                        {item.outcome === "success" ? "成功" : "失败"}
+                      <Tag
+                        color={
+                          item.outcome === "success"
+                            ? "green"
+                            : item.outcome === "blocked"
+                              ? "gold"
+                              : "red"
+                        }
+                      >
+                        {item.outcome === "success"
+                          ? "成功"
+                          : item.outcome === "blocked"
+                            ? "已拦截"
+                            : "失败"}
                       </Tag>
                     </div>
                     <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#595959" }}>
