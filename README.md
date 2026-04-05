@@ -836,4 +836,11 @@
       - `给我今日简报` -> 收敛为 6 行左右的单段摘要，只保留日期、待审批、风险商机数、今日更新方案数、关注商机总数和 1 条下一步建议，不再重复输出 `平台摘要` 区块；
       - `商机摘要 OPP-000001` -> 收敛为名称、阶段/金额、赢单概率、当前审批节点、核心风险、1 条下一步建议，不再展开多条并列建议；
       - `方案摘要 SOL-000001` -> 收敛为名称、版本/状态、关联商机、1 句摘要、最近评审、最近更新时间，不再堆叠审批状态、客户、创建人等次级字段。
+  - 前端可验证入口补记（确认日期：2026-04-05）：
+    - 已在后端 [openclaw.controller.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.controller.ts) 新增 JWT 受保护的浏览器联调接口 `POST /integrations/openclaw/playground/query`，当前会直接复用登录用户 `req.user.id` 作为 `platformUserId` 转发到现有 `openclawService.query()`，从而避免浏览器侧暴露 `x-openclaw-token` 共享令牌。
+    - 已在前端 [OpenClawPlaygroundView.tsx](/Users/gjy/presales-platform/frontend/src/views/OpenClawPlaygroundView.tsx) 新增“OpenClaw 联调台”页面，并挂载到 [SettingsView.tsx](/Users/gjy/presales-platform/frontend/src/views/SettingsView.tsx) 的“系统设置 -> OpenClaw联调”菜单中。页面现已支持：
+      - 输入任意测试命令并发送；
+      - 一键快捷触发 `待我审批 / 今日简报 / 商机摘要 / 方案摘要 / 只读拦截` 5 类典型命令；
+      - 同时展示“结果预览”和“原始响应 JSON”，并保留最近 5 次联调记录，便于你直接在平台页面验收当前 OpenClaw 能力，而不必再切到飞书或终端。
+    - 本轮已完成本地验证：`backend npm run build`、`backend npm test -- --runInBand`、`frontend npm run build` 全部通过。下次若要现场验收，应直接在本地启动前后端后进入“系统设置 -> OpenClaw联调”页面操作。
   - 因此，下次会话若继续本任务，应直接从“继续微调新摘要模板的字段取舍，例如是否去掉今日简报中的‘关注商机总数’、是否把商机金额格式化为带千分位和货币单位，或继续扩展更边缘的写操作别名（如作废、关闭、重开、提交变更）”开始，而不需要再回头处理当前这 4 类基础只读查询、基础写操作拒绝话术和摘要压缩生效路径的排查问题。

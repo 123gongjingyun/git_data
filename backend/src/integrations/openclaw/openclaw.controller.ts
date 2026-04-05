@@ -1,9 +1,15 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { type AuthenticatedUser } from "../../auth/auth.service";
 import {
   OpenClawQueryInput,
   OpenClawService,
   type OpenClawSkillName,
 } from "./openclaw.service";
+
+interface AuthenticatedRequest {
+  user: AuthenticatedUser;
+}
 
 class ExecuteOpenClawSkillDto {
   platformUserId?: number;
@@ -16,6 +22,11 @@ class ExecuteOpenClawSkillDto {
 class OpenClawQueryDto {
   platformUserId?: number;
   feishuOpenId?: string;
+  queryText!: string;
+  requestId?: string;
+}
+
+class OpenClawPlaygroundQueryDto {
   queryText!: string;
   requestId?: string;
 }
@@ -47,5 +58,18 @@ export class OpenClawController {
   ) {
     this.openClawService.assertSharedToken(token);
     return this.openClawService.query(body as OpenClawQueryInput);
+  }
+
+  @UseGuards(AuthGuard("jwt"))
+  @Post("playground/query")
+  queryFromPlayground(
+    @Body() body: OpenClawPlaygroundQueryDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.openClawService.query({
+      platformUserId: req.user.id,
+      queryText: body.queryText,
+      requestId: body.requestId,
+    });
   }
 }

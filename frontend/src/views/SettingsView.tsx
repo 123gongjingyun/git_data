@@ -27,6 +27,7 @@ import type { CurrentUser } from "../shared/auth";
 import { hasActionAccess, hasPermission } from "../shared/auth";
 import { PluginLibraryView } from "./PluginLibraryView";
 import { FeishuIntegrationView } from "./FeishuIntegrationView";
+import { OpenClawPlaygroundView } from "./OpenClawPlaygroundView";
 import type {
   WorkflowDefinition,
   WorkflowNode,
@@ -112,6 +113,7 @@ type SettingsMenuKey =
   | "team"
   | "permissionsCenter"
   | "feishuIntegration"
+  | "openclawPlayground"
   | "workflow"
   | "system"
   | "plugins"
@@ -235,6 +237,12 @@ const settingsMenuItems: SettingsMenuItem[] = [
     key: "feishuIntegration",
     label: "飞书集成",
     icon: "💬",
+    highlight: "primary",
+  },
+  {
+    key: "openclawPlayground",
+    label: "OpenClaw联调",
+    icon: "🦞",
     highlight: "primary",
   },
   {
@@ -5614,6 +5622,13 @@ export function SettingsView(props: SettingsViewProps) {
 
           {activeMenu === "feishuIntegration" && (
             <FeishuIntegrationView
+              currentUser={currentUser}
+              accessToken={accessToken}
+            />
+          )}
+
+          {activeMenu === "openclawPlayground" && (
+            <OpenClawPlaygroundView
               currentUser={currentUser}
               accessToken={accessToken}
             />
