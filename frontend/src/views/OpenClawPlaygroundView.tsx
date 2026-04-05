@@ -45,6 +45,20 @@ type PlaygroundErrorResponse = {
   statusCode?: number;
 };
 
+type RequestSnapshot =
+  | {
+      kind: "success";
+      payload: PlaygroundResponse;
+    }
+  | {
+      kind: "blocked";
+      payload: PlaygroundErrorResponse;
+    }
+  | {
+      kind: "error";
+      payload: string;
+    };
+
 type RequestRecord = {
   id: string;
   queryText: string;
@@ -53,6 +67,7 @@ type RequestRecord = {
   outcome: "success" | "error" | "blocked";
   responseTitle: string;
   responseDetail: string;
+  snapshot: RequestSnapshot;
 };
 
 interface OpenClawPlaygroundViewProps {
@@ -220,6 +235,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
   const [blockedResult, setBlockedResult] = useState<PlaygroundErrorResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [requestHistory, setRequestHistory] = useState<RequestRecord[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
 
   const resultPreview = useMemo(
     () => (result ? buildResultPreview(result.result, result.intent?.skillName) : null),
@@ -239,23 +255,35 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
     };
   }, [requestHistory]);
 
-  const latestOutcome = requestHistory[0]?.outcome;
-  const latestSummary = result
+  const activeHistoryRecord = useMemo(() => {
+    if (!selectedHistoryId) {
+      return requestHistory[0] ?? null;
+    }
+    return requestHistory.find((item) => item.id === selectedHistoryId) ?? requestHistory[0] ?? null;
+  }, [requestHistory, selectedHistoryId]);
+
+  const latestOutcome = activeHistoryRecord?.outcome;
+  const latestSummary = activeHistoryRecord
     ? {
-        title: resultPreview?.title || "最近结果",
-        detail: `${result.intent?.skillName || "unknown"} · ${result.intent?.reason || "n/a"}`,
+        title: activeHistoryRecord.responseTitle,
+        detail: activeHistoryRecord.responseDetail,
       }
-    : blockedResult
+    : result
       ? {
-          title: "只读拦截已生效",
-          detail: blockedResult.error || "Forbidden",
+          title: resultPreview?.title || "最近结果",
+          detail: `${result.intent?.skillName || "unknown"} · ${result.intent?.reason || "n/a"}`,
         }
-      : errorMessage
+      : blockedResult
         ? {
-            title: "最近一次请求失败",
-            detail: errorMessage,
+            title: "只读拦截已生效",
+            detail: blockedResult.error || "Forbidden",
           }
-        : null;
+        : errorMessage
+          ? {
+              title: "最近一次请求失败",
+              detail: errorMessage,
+            }
+          : null;
 
   const buildAuthHeaders = (withJson = true) => {
     const headers: Record<string, string> = {};
@@ -283,6 +311,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
     setRunning(true);
     setErrorMessage("");
     setBlockedResult(null);
+    setSelectedHistoryId(null);
     try {
       const response = await fetch(buildApiUrl("/integrations/openclaw/playground/query"), {
         method: "POST",
@@ -318,6 +347,10 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
               responseTitle: "只读拦截已生效",
               responseDetail:
                 errorPayload.message || "命中了 OpenClaw 只读保护，当前命令不会被执行。",
+              snapshot: {
+                kind: "blocked",
+                payload: errorPayload,
+              },
             },
             ...current,
           ].slice(0, 5));
@@ -345,6 +378,10 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
           outcome: "success",
           responseTitle: preview.title,
           responseDetail: preview.lines.join(" | "),
+          snapshot: {
+            kind: "success",
+            payload,
+          },
         },
         ...current,
       ].slice(0, 5));
@@ -365,6 +402,10 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
           outcome: "error",
           responseTitle: "联调请求失败",
           responseDetail: nextMessage,
+          snapshot: {
+            kind: "error",
+            payload: nextMessage,
+          },
         },
         ...current,
       ].slice(0, 5));
@@ -372,6 +413,26 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
     } finally {
       setRunning(false);
     }
+  };
+
+  const handleSelectHistory = (record: RequestRecord) => {
+    setSelectedHistoryId(record.id);
+    setQueryText(record.queryText);
+    if (record.snapshot.kind === "success") {
+      setResult(record.snapshot.payload);
+      setBlockedResult(null);
+      setErrorMessage("");
+      return;
+    }
+    if (record.snapshot.kind === "blocked") {
+      setResult(null);
+      setBlockedResult(record.snapshot.payload);
+      setErrorMessage("");
+      return;
+    }
+    setResult(null);
+    setBlockedResult(null);
+    setErrorMessage(record.snapshot.payload);
   };
 
   return (
@@ -694,13 +755,24 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
             ) : (
               <div style={{ display: "grid", gap: 10 }}>
                 {requestHistory.map((item) => (
-                  <div
+                  <button
                     key={item.id}
+                    type="button"
+                    onClick={() => handleSelectHistory(item)}
                     style={{
                       border: "1px solid var(--app-border)",
                       borderRadius: 16,
                       padding: 14,
-                      background: "var(--app-surface-soft)",
+                      background:
+                        activeHistoryRecord?.id === item.id
+                          ? "linear-gradient(180deg, rgba(22,119,255,0.08) 0%, rgba(22,119,255,0.02) 100%)"
+                          : "var(--app-surface-soft)",
+                      boxShadow:
+                        activeHistoryRecord?.id === item.id
+                          ? "0 0 0 1px rgba(22,119,255,0.25) inset"
+                          : "none",
+                      cursor: "pointer",
+                      textAlign: "left",
                     }}
                   >
                     <div
@@ -777,7 +849,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
