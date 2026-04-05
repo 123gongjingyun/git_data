@@ -81,6 +81,14 @@ const QUICK_COMMANDS = [
   },
 ] as const;
 
+const QUICK_COMMAND_HINTS: Record<(typeof QUICK_COMMANDS)[number]["key"], string> = {
+  pending: "查看当前登录账号下可直接处理的审批事项。",
+  brief: "查看今天待办、风险商机和方案更新的汇总结果。",
+  opportunity: "按商机编号查看当前阶段、金额、风险和审批节点。",
+  solution: "按方案编号查看版本状态、关联商机和最近评审。",
+  readonly: "验证写操作会被 OpenClaw 只读能力明确拦截。",
+};
+
 function formatDateTime(value: Date) {
   return value.toLocaleString("zh-CN", { hour12: false });
 }
@@ -205,6 +213,37 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
     () => (result ? buildResultPreview(result.result, result.intent?.skillName) : null),
     [result],
   );
+
+  const sessionStats = useMemo(() => {
+    const success = requestHistory.filter((item) => item.outcome === "success").length;
+    const blocked = requestHistory.filter((item) => item.outcome === "blocked").length;
+    const error = requestHistory.filter((item) => item.outcome === "error").length;
+
+    return {
+      total: requestHistory.length,
+      success,
+      blocked,
+      error,
+    };
+  }, [requestHistory]);
+
+  const latestOutcome = requestHistory[0]?.outcome;
+  const latestSummary = result
+    ? {
+        title: resultPreview?.title || "最近结果",
+        detail: `${result.intent?.skillName || "unknown"} · ${result.intent?.reason || "n/a"}`,
+      }
+    : blockedResult
+      ? {
+          title: "只读拦截已生效",
+          detail: blockedResult.error || "Forbidden",
+        }
+      : errorMessage
+        ? {
+            title: "最近一次请求失败",
+            detail: errorMessage,
+          }
+        : null;
 
   const buildAuthHeaders = (withJson = true) => {
     const headers: Record<string, string> = {};
@@ -336,19 +375,54 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
             description="这个页面不会暴露 x-openclaw-token，而是通过当前平台登录态映射到后端 OpenClaw 调用。"
           />
 
-          <Space wrap>
-            {QUICK_COMMANDS.map((item) => (
-              <Button
-                key={item.key}
-                onClick={() => {
-                  setQueryText(item.queryText);
-                  void handleRunQuery(item.queryText);
-                }}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </Space>
+          <div style={{ display: "grid", gap: 10 }}>
+            <Text strong>快捷命令</Text>
+            <div
+              style={{
+                display: "grid",
+                gap: 10,
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              }}
+            >
+              {QUICK_COMMANDS.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    setQueryText(item.queryText);
+                    void handleRunQuery(item.queryText);
+                  }}
+                  style={{
+                    textAlign: "left",
+                    border: "1px solid var(--app-border)",
+                    borderRadius: 14,
+                    padding: "12px 14px",
+                    background: "var(--app-surface-soft)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text strong>{item.label}</Text>
+                    <Tag color={item.tone}>{item.label}</Tag>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#595959", marginBottom: 8 }}>
+                    {QUICK_COMMAND_HINTS[item.key]}
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {item.queryText}
+                  </Text>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <TextArea
             value={queryText}
@@ -389,6 +463,38 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={15}>
+          <Card title="联调概览">
+            <div
+              style={{
+                display: "grid",
+                gap: 12,
+                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+              }}
+            >
+              {[
+                { label: "本轮请求", value: sessionStats.total, color: "default" },
+                { label: "成功返回", value: sessionStats.success, color: "green" },
+                { label: "只读拦截", value: sessionStats.blocked, color: "gold" },
+                { label: "异常失败", value: sessionStats.error, color: "red" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  style={{
+                    border: "1px solid var(--app-border)",
+                    borderRadius: 14,
+                    padding: 14,
+                    background: "var(--app-surface-soft)",
+                  }}
+                >
+                  <div style={{ marginBottom: 8 }}>
+                    <Tag color={item.color}>{item.label}</Tag>
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 700 }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
           <Card
             title="结果预览"
             extra={
@@ -506,6 +612,59 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
         </Col>
 
         <Col xs={24} xl={9}>
+          <Card title="最近状态">
+            {latestSummary ? (
+              <div style={{ display: "grid", gap: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}
+                >
+                  <Text strong>{latestSummary.title}</Text>
+                  <Tag
+                    color={
+                      latestOutcome === "success"
+                        ? "green"
+                        : latestOutcome === "blocked"
+                          ? "gold"
+                          : latestOutcome === "error"
+                            ? "red"
+                            : "default"
+                    }
+                  >
+                    {latestOutcome === "success"
+                      ? "成功"
+                      : latestOutcome === "blocked"
+                        ? "已拦截"
+                        : latestOutcome === "error"
+                          ? "失败"
+                          : "待发送"}
+                  </Tag>
+                </div>
+                <div
+                  style={{
+                    borderRadius: 12,
+                    border: "1px solid var(--app-border)",
+                    padding: 12,
+                    background: "var(--app-surface-soft)",
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {latestSummary.detail}
+                </div>
+              </div>
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="发起一次联调后，这里会显示最近状态。"
+              />
+            )}
+          </Card>
+
           <Card title="最近请求">
             {requestHistory.length === 0 ? (
               <Empty
@@ -550,6 +709,20 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
                             : "失败"}
                       </Tag>
                     </div>
+                    <div
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 999,
+                        marginBottom: 10,
+                        background:
+                          item.outcome === "success"
+                            ? "#52c41a"
+                            : item.outcome === "blocked"
+                              ? "#faad14"
+                              : "#ff4d4f",
+                      }}
+                    />
                     <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#595959" }}>
                       <div>命中技能：{item.skillName}</div>
                       <div>请求时间：{item.requestedAt}</div>
