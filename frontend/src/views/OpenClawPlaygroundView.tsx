@@ -236,6 +236,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [requestHistory, setRequestHistory] = useState<RequestRecord[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [showRawPayload, setShowRawPayload] = useState(false);
 
   const resultPreview = useMemo(
     () => (result ? buildResultPreview(result.result, result.intent?.skillName) : null),
@@ -284,6 +285,19 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
               detail: errorMessage,
             }
           : null;
+
+  const currentSummaryText = useMemo(() => {
+    if (result && resultPreview) {
+      return [resultPreview.title, ...resultPreview.lines].join("\n");
+    }
+    if (blockedResult?.message) {
+      return ["只读拦截已生效", blockedResult.message].join("\n");
+    }
+    if (errorMessage) {
+      return ["联调请求失败", errorMessage].join("\n");
+    }
+    return "";
+  }, [blockedResult, errorMessage, result, resultPreview]);
 
   const buildAuthHeaders = (withJson = true) => {
     const headers: Record<string, string> = {};
@@ -435,6 +449,50 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
     setErrorMessage(record.snapshot.payload);
   };
 
+  const handleCopySummary = async () => {
+    if (!currentSummaryText) {
+      message.warning("当前没有可复制的摘要。");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(currentSummaryText);
+      message.success("摘要已复制。");
+    } catch {
+      message.error("摘要复制失败。");
+    }
+  };
+
+  const handleExportHistory = () => {
+    if (requestHistory.length === 0) {
+      message.warning("当前没有可导出的联调记录。");
+      return;
+    }
+    const exportPayload = {
+      exportedAt: new Date().toISOString(),
+      currentUser: currentUser?.username || currentUser?.displayName || "unknown",
+      records: requestHistory.map((item) => ({
+        id: item.id,
+        queryText: item.queryText,
+        skillName: item.skillName,
+        requestedAt: item.requestedAt,
+        outcome: item.outcome,
+        responseTitle: item.responseTitle,
+        responseDetail: item.responseDetail,
+        snapshot: item.snapshot,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: "application/json",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `openclaw-playground-history-${Date.now()}.json`;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
+    message.success("联调记录已导出。");
+  };
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <Card>
@@ -516,11 +574,18 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
             <Button type="primary" loading={running} onClick={() => void handleRunQuery()}>
               发送测试
             </Button>
+            <Button onClick={() => void handleCopySummary()}>复制摘要</Button>
+            <Button onClick={handleExportHistory}>导出记录</Button>
+            <Button onClick={() => setShowRawPayload((current) => !current)}>
+              {showRawPayload ? "收起 JSON" : "展开 JSON"}
+            </Button>
             <Button
               onClick={() => {
                 setQueryText("给我今日简报");
                 setResult(null);
+                setBlockedResult(null);
                 setErrorMessage("");
+                setSelectedHistoryId(null);
               }}
             >
               重置
@@ -608,29 +673,31 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    borderRadius: 12,
-                    border: "1px solid var(--app-border)",
-                    padding: 12,
-                    background: "var(--app-surface-soft)",
-                  }}
-                >
-                  <Text strong style={{ display: "block", marginBottom: 6 }}>
-                    原始错误响应 JSON
-                  </Text>
-                  <Paragraph
-                    copyable
+                {showRawPayload ? (
+                  <div
                     style={{
-                      marginBottom: 0,
-                      whiteSpace: "pre-wrap",
-                      fontFamily: "SFMono-Regular, Consolas, monospace",
-                      fontSize: 12,
+                      borderRadius: 12,
+                      border: "1px solid var(--app-border)",
+                      padding: 12,
+                      background: "var(--app-surface-soft)",
                     }}
                   >
-                    {JSON.stringify(blockedResult, null, 2)}
-                  </Paragraph>
-                </div>
+                    <Text strong style={{ display: "block", marginBottom: 6 }}>
+                      原始错误响应 JSON
+                    </Text>
+                    <Paragraph
+                      copyable
+                      style={{
+                        marginBottom: 0,
+                        whiteSpace: "pre-wrap",
+                        fontFamily: "SFMono-Regular, Consolas, monospace",
+                        fontSize: 12,
+                      }}
+                    >
+                      {JSON.stringify(blockedResult, null, 2)}
+                    </Paragraph>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div style={{ display: "grid", gap: 14 }}>
@@ -664,29 +731,31 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
                   </Tag>
                 </div>
 
-                <div
-                  style={{
-                    borderRadius: 12,
-                    border: "1px solid var(--app-border)",
-                    padding: 12,
-                    background: "var(--app-surface-soft)",
-                  }}
-                >
-                  <Text strong style={{ display: "block", marginBottom: 6 }}>
-                    原始响应 JSON
-                  </Text>
-                  <Paragraph
-                    copyable
+                {showRawPayload ? (
+                  <div
                     style={{
-                      marginBottom: 0,
-                      whiteSpace: "pre-wrap",
-                      fontFamily: "SFMono-Regular, Consolas, monospace",
-                      fontSize: 12,
+                      borderRadius: 12,
+                      border: "1px solid var(--app-border)",
+                      padding: 12,
+                      background: "var(--app-surface-soft)",
                     }}
                   >
-                    {JSON.stringify(result, null, 2)}
-                  </Paragraph>
-                </div>
+                    <Text strong style={{ display: "block", marginBottom: 6 }}>
+                      原始响应 JSON
+                    </Text>
+                    <Paragraph
+                      copyable
+                      style={{
+                        marginBottom: 0,
+                        whiteSpace: "pre-wrap",
+                        fontFamily: "SFMono-Regular, Consolas, monospace",
+                        fontSize: 12,
+                      }}
+                    >
+                      {JSON.stringify(result, null, 2)}
+                    </Paragraph>
+                  </div>
+                ) : null}
               </div>
             )}
           </Card>
