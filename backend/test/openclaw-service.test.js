@@ -156,6 +156,44 @@ test("query maps business code to summary skill", async () => {
   assert.equal(result.result.code, "OPP-000123");
 });
 
+test("executeSkill accepts direct top-level code payload for opportunity summary", async () => {
+  const service = createService({
+    async getOpportunitySummary(code, actor) {
+      assert.equal(code, "OPP-000123");
+      assert.equal(actor.id, 2);
+      return { code, owner: actor.username };
+    },
+  });
+
+  const result = await service.executeSkill("get_opportunity_summary", {
+    platformUserId: 2,
+    code: "OPP-000123",
+  });
+
+  assert.equal(result.result.code, "OPP-000123");
+  assert.equal(result.result.owner, "manager_demo");
+});
+
+test("executeSkill accepts top-level limit and businessType payload for pending approvals", async () => {
+  const service = createService({
+    async getPendingApprovals(actor, query) {
+      assert.equal(actor.id, 2);
+      assert.equal(query.limit, 5);
+      assert.equal(query.businessType, "solution");
+      return { items: [], total: 0, requestId: "req-direct-pending" };
+    },
+  });
+
+  const result = await service.executeSkill("get_my_pending_approvals", {
+    platformUserId: 2,
+    limit: 5,
+    businessType: "solution",
+  });
+
+  assert.equal(result.skillName, "get_my_pending_approvals");
+  assert.equal(result.result.requestId, "req-direct-pending");
+});
+
 test("query rejects write intents for readonly OpenClaw integration", async () => {
   const service = createService();
 

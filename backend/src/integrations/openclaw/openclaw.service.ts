@@ -31,6 +31,12 @@ export interface OpenClawQueryInput extends OpenClawContextInput {
 
 interface ExecuteSkillInput extends OpenClawContextInput {
   input?: Record<string, unknown>;
+  code?: unknown;
+  businessCode?: unknown;
+  opportunityCode?: unknown;
+  solutionCode?: unknown;
+  limit?: unknown;
+  businessType?: unknown;
 }
 
 interface ResolvedOpenClawIntent {
@@ -118,7 +124,7 @@ export class OpenClawService {
   async executeSkill(skillName: OpenClawSkillName, payload: ExecuteSkillInput) {
     const actor = await this.resolveActor(payload);
     const requestId = payload.requestId || `openclaw-${skillName}-${Date.now()}`;
-    const input = payload.input || {};
+    const input = this.normalizeSkillInput(payload);
 
     if (skillName === "get_my_pending_approvals") {
       return {
@@ -345,6 +351,24 @@ export class OpenClawService {
       throw new BadRequestException(`编号格式不正确，应为 ${prefix}-000001`);
     }
     return code;
+  }
+
+  private normalizeSkillInput(payload: ExecuteSkillInput) {
+    const nestedInput =
+      payload.input && typeof payload.input === "object" ? payload.input : {};
+
+    return {
+      ...nestedInput,
+      limit: nestedInput.limit ?? payload.limit,
+      businessType: nestedInput.businessType ?? payload.businessType,
+      code:
+        nestedInput.code ??
+        nestedInput.businessCode ??
+        payload.code ??
+        payload.businessCode ??
+        payload.opportunityCode ??
+        payload.solutionCode,
+    };
   }
 
   private toActorSummary(actor: AuthenticatedUser, feishuOpenId?: string) {
