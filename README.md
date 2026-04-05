@@ -786,5 +786,9 @@
     - `status=active`
 - 当前结论：
   - 飞书审批卡片主链路已经完成真实闭环：私聊命令 -> 待审批查询 -> 审批卡片下发 -> 卡片动作回调 -> 平台审批执行 -> 飞书端结果提示与卡片失效保护，均已在真实环境完成验证；
-  - 当前代码分支 `docs/feishu-openclaw-dev-plan` 的最新提交为 `ab5b700 Stabilize Feishu approval card callbacks`，并已成功推送到 `origin/docs/feishu-openclaw-dev-plan`；
-  - 下次会话若继续本任务，应直接从“是否整理 PR 说明、补充飞书回调自动化测试，或在用户确认后执行合并 / 发版”开始，而不需要再回头排查审批执行链路本身。
+  - 已基于 `origin/master` 新建对齐分支 `pr/docs-feishu-openclaw-sync`，并在 GitHub 创建 [PR #2](https://github.com/123gongjingyun/git_data/pull/2)：
+    - 标题：`Sync presales platform snapshot and finalize Feishu OpenClaw MVP status`
+    - 包含当前完整项目快照、最终版 README、以及旧压缩包 `presales-platform.zip` 的移除；
+  - [PR #2](https://github.com/123gongjingyun/git_data/pull/2) 已于 `2026-04-05` 成功合并到 `master`，GitHub 侧 merge commit 为 `f5f8185 Merge pull request #2 from 123gongjingyun/pr/docs-feishu-openclaw-sync`；
+  - 远端临时分支 `pr/docs-feishu-openclaw-sync` 已删除；本地当前开发分支 `docs/feishu-openclaw-dev-plan` 已在 `5133a00 Merge origin/master after PR #2 sync` 中回合并 `origin/master`，两条历史已建立共同祖先；
+  - 下次会话若继续本任务，应直接从“补飞书回调自动化测试、继续 OpenClaw 技能接入，或推进下一阶段业务功能”开始，而不需要再回头处理 GitHub PR 对齐、合并或历史连通问题。
