@@ -3,6 +3,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
   Patch,
@@ -67,6 +68,7 @@ export class FeishuController {
   constructor(private readonly feishuService: FeishuService) {}
 
   @Post("events")
+  @HttpCode(200)
   handleEvents(@Body() body: FeishuEventDto, @Req() req: Request) {
     return this.feishuService.handleEventCallback(
       { ...body },
@@ -81,6 +83,7 @@ export class FeishuController {
   }
 
   @Post("cards/action")
+  @HttpCode(200)
   handleCardAction(@Body() body: FeishuCardActionDto, @Req() req: Request) {
     return this.feishuService.handleCardAction(
       { ...body },

@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createDecipheriv, createHash, timingSafeEqual } from "crypto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { type AuthenticatedUser } from "../../auth/auth.service";
@@ -87,9 +87,9 @@ export interface FeishuCardView {
 }
 
 export interface FeishuInteractiveCard {
-  config: {
-    wide_screen_mode: boolean;
-    enable_forward: boolean;
+  schema: "2.0";
+  config?: {
+    update_multi?: boolean;
   };
   header: {
     template: "blue" | "green" | "red" | "grey";
@@ -101,8 +101,19 @@ export interface FeishuInteractiveCard {
       tag: "plain_text";
       content: string;
     };
+    padding?: string;
   };
-  elements: Array<Record<string, unknown>>;
+  body: {
+    direction: "vertical";
+    padding?: string;
+    vertical_spacing?: string;
+    elements: Array<Record<string, unknown>>;
+  };
+}
+
+interface FeishuCallbackCardPayload {
+  type: "raw";
+  data: FeishuInteractiveCard;
 }
 
 interface FeishuMessageCommand {
@@ -210,13 +221,40 @@ export class FeishuService {
 
     try {
       this.assertCallbackSignature(request);
-      this.assertEventToken(body);
+      const normalizedBody = this.normalizeCallbackBody(body);
+      const normalizedHeader =
+        typeof normalizedBody.header === "object" && normalizedBody.header
+          ? (normalizedBody.header as Record<string, unknown>)
+          : {};
+      const normalizedHeaderEventId =
+        (typeof normalizedHeader.event_id === "string" &&
+          normalizedHeader.event_id) ||
+        undefined;
+      const normalizedEventType =
+        typeof normalizedHeader.event_type === "string"
+          ? normalizedHeader.event_type
+          : undefined;
+      const normalizedMessageId =
+        this.readString(normalizedBody as Record<string, unknown>, [
+          "event.message.message_id",
+        ]) || undefined;
+      const normalizedCallbackEventId =
+        normalizedEventType === "im.message.receive_v1" && normalizedMessageId
+          ? `message:${normalizedMessageId}`
+          : normalizedHeaderEventId;
 
-      if (callbackEventId) {
+      if (normalizedCallbackEventId && normalizedCallbackEventId !== callbackEventId) {
+        callbackLog.eventId = normalizedCallbackEventId;
+        await this.feishuCallbackLogRepository.save(callbackLog);
+      }
+
+      this.assertEventToken(normalizedBody);
+
+      if (normalizedCallbackEventId) {
         const duplicated = await this.feishuCallbackLogRepository.findOne({
           where: {
             callbackType: "event",
-            eventId: callbackEventId,
+            eventId: normalizedCallbackEventId,
           },
           order: { id: "DESC" },
         });
@@ -230,14 +268,17 @@ export class FeishuService {
         }
       }
 
-      if (body.challenge) {
-        const challengeResult = { challenge: body.challenge };
+      if (normalizedBody.challenge) {
+        const challengeResult = { challenge: normalizedBody.challenge };
         await this.finishCallbackLog(callbackLog, "processed", challengeResult);
         return challengeResult;
       }
 
-      if (eventType === "im.message.receive_v1" && body.event) {
-        const messageResult = await this.handleMessageEvent(body.event, callbackLog);
+      if (normalizedEventType === "im.message.receive_v1" && normalizedBody.event) {
+        const messageResult = await this.handleMessageEvent(
+          normalizedBody.event as Record<string, unknown>,
+          callbackLog,
+        );
         await this.finishCallbackLog(callbackLog, messageResult.status, messageResult.resultJson);
         return messageResult.resultJson;
       }
@@ -268,50 +309,98 @@ export class FeishuService {
       rawBody?: string;
     },
   ) {
-    const operatorOpenId =
-      typeof body.open_id === "string" ? body.open_id : undefined;
-    const actionToken = this.readString(body, ["token", "action.token", "action.value.actionToken"]);
-    const action = this.readString(body, ["action.value.action", "action.action", "actionValue.action"]);
-    const approvalInstanceId = this.readNumber(body, [
-      "action.value.approvalInstanceId",
-      "action.approvalInstanceId",
-      "approvalInstanceId",
-    ]);
-    const businessType = this.readString(body, [
-      "action.value.businessType",
-      "action.businessType",
-    ]);
-    const businessId = this.readNumber(body, [
-      "action.value.businessId",
-      "action.businessId",
-    ]);
-    const comment = this.readString(body, [
-      "action.value.comment",
-      "action.formValue.comment",
-      "comment",
-    ]);
+    let operatorOpenId: string | undefined;
+    let businessType: string | undefined;
+    let businessId: number | undefined;
 
     const callbackLog = await this.feishuCallbackLogRepository.save(
       this.feishuCallbackLogRepository.create({
         callbackType: "card_action",
-        actionToken: actionToken || null,
+        actionToken: this.readString(body, [
+          "token",
+          "action.token",
+          "action.value.actionToken",
+        ]) || null,
         eventId:
           typeof body.event_id === "string"
             ? body.event_id
             : null,
-        operatorOpenId: operatorOpenId || null,
-        businessType: businessType || null,
-        businessId: businessId ?? null,
-        requestJson: body,
+        operatorOpenId:
+          typeof body.open_id === "string" ? body.open_id : null,
+        businessType:
+          this.readString(body, ["action.value.businessType", "action.businessType"]) || null,
+        businessId:
+          this.readNumber(body, ["action.value.businessId", "action.businessId"]) ?? null,
+        requestJson: {
+          body,
+          headers: request?.headers || {},
+        },
         status: "received",
       }),
     );
 
     try {
       this.assertCallbackSignature(request);
+      const normalizedBody = this.normalizeCallbackBody(body);
+      operatorOpenId =
+        this.readString(normalizedBody, [
+          "open_id",
+          "event.operator.open_id",
+          "operator.open_id",
+        ]) || undefined;
+      const actionToken = this.readString(normalizedBody, [
+        "token",
+        "event.token",
+        "action.token",
+        "action.value.actionToken",
+      ]);
+      const action = this.readString(normalizedBody, [
+        "event.action.value.action",
+        "event.action.action",
+        "action.value.action",
+        "action.action",
+        "actionValue.action",
+      ]);
+      const approvalInstanceId = this.readNumber(normalizedBody, [
+        "event.action.value.approvalInstanceId",
+        "event.action.approvalInstanceId",
+        "action.value.approvalInstanceId",
+        "action.approvalInstanceId",
+        "approvalInstanceId",
+      ]);
+      businessType = this.readString(normalizedBody, [
+        "event.action.value.businessType",
+        "event.action.businessType",
+        "action.value.businessType",
+        "action.businessType",
+      ]);
+      businessId = this.readNumber(normalizedBody, [
+        "event.action.value.businessId",
+        "event.action.businessId",
+        "action.value.businessId",
+        "action.businessId",
+      ]);
+      const comment = this.readString(normalizedBody, [
+        "event.action.value.comment",
+        "event.action.formValue.comment",
+        "action.value.comment",
+        "action.formValue.comment",
+        "comment",
+      ]);
+
+      callbackLog.actionToken = actionToken || callbackLog.actionToken;
+      callbackLog.eventId =
+        this.readString(normalizedBody, ["event_id", "header.event_id"]) ||
+        callbackLog.eventId;
+      callbackLog.operatorOpenId = operatorOpenId || callbackLog.operatorOpenId;
+      callbackLog.businessType = businessType || callbackLog.businessType;
+      callbackLog.businessId = businessId ?? callbackLog.businessId;
+      await this.feishuCallbackLogRepository.save(callbackLog);
 
       const challenge =
-        typeof body.challenge === "string" ? body.challenge : undefined;
+        typeof normalizedBody.challenge === "string"
+          ? normalizedBody.challenge
+          : undefined;
       if (challenge) {
         const challengeResult = { challenge };
         await this.finishCallbackLog(callbackLog, "processed", challengeResult);
@@ -327,12 +416,10 @@ export class FeishuService {
           order: { id: "DESC" },
         });
         if (processed && processed.id !== callbackLog.id) {
-          const duplicateResult = {
-            toast: {
-              type: "warning",
-              content: "该卡片动作已处理，请刷新最新卡片状态。",
-            },
-          };
+          const duplicateResult = this.buildFeishuCallbackToastResult(
+            "warning",
+            "该卡片动作已处理，请刷新最新卡片状态。",
+          );
           await this.logOutboundMessage({
             receiverId: operatorOpenId || "unknown",
             messageType: "interactive",
@@ -368,23 +455,10 @@ export class FeishuService {
       await this.feishuCallbackLogRepository.save(callbackLog);
 
       if (action === "open_detail") {
-        const openResult = {
-          toast: {
-            type: "success",
-            content: "请在平台中继续处理详情。",
-          },
-          action: {
-            url:
-              typeof businessId === "number" && businessType
-                ? `/${businessType === "solution" ? "solutions" : "opportunities"}?highlight=${
-                    this.formatBusinessCode(
-                      businessType === "solution" ? "SOL" : "OPP",
-                      businessId,
-                    )
-                  }`
-                : "/",
-          },
-        };
+        const openResult = this.buildFeishuCallbackToastResult(
+          "success",
+          "请在平台中继续处理详情。",
+        );
         await this.logOutboundMessage({
           receiverId: operatorOpenId,
           messageType: "interactive",
@@ -410,24 +484,79 @@ export class FeishuService {
         where: { id: approvalInstanceId },
       });
       if (!approvalInstance || !["pending", "in_progress"].includes(approvalInstance.status)) {
-        const staleResult = {
-          toast: {
-            type: "warning",
-            content: "当前卡片已失效，请重新获取最新审批卡片。",
-          },
-        };
+        const staleCardView = approvalInstance
+          ? await this.buildApprovalCardViewFromInstance(approvalInstance, false)
+          : undefined;
+        const staleInteractiveCard = staleCardView
+          ? this.toInteractiveCardJson(staleCardView, {
+              approvalInstanceId,
+              businessType,
+              businessId,
+              actionToken,
+              requestId: `feishu-card-action-${callbackLog.id}`,
+            })
+          : undefined;
+        const staleResult = this.buildFeishuCallbackCardResult({
+          type: "warning",
+          content: "当前卡片已失效，请重新获取最新审批卡片。",
+          card: staleInteractiveCard,
+        });
         await this.logOutboundMessage({
           receiverId: operatorOpenId,
           messageType: "interactive",
           businessType,
           businessId,
           templateKey: "card_action_stale",
-          payloadJson: staleResult,
+          payloadJson: {
+            callbackResult: staleResult,
+            debugCardView: staleCardView,
+            interactiveCard: staleInteractiveCard,
+          },
           responseJson: { callbackLogId: callbackLog.id },
           sendStatus: "sent",
         });
         await this.finishCallbackLog(callbackLog, "ignored", staleResult);
         return staleResult;
+      }
+
+      const operatorApprovalView = await this.approvalsService.findOne(
+        approvalInstanceId,
+        {
+          id: binding.platformUserId,
+          username: binding.platformUsername,
+          role: binding.platformUser.role,
+        },
+      );
+      if (!operatorApprovalView.canCurrentUserHandleCurrentNode) {
+        const disabledCardView = await this.buildApprovalCardView(operatorApprovalView);
+        const disabledInteractiveCard = this.toInteractiveCardJson(disabledCardView, {
+          approvalInstanceId,
+          businessType,
+          businessId,
+          actionToken,
+          requestId: `feishu-card-action-${callbackLog.id}`,
+        });
+        const forbiddenResult = this.buildFeishuCallbackCardResult({
+          type: "warning",
+          content: "当前节点已由其他审批人处理，或这张卡片已不是你的可操作节点。",
+          card: disabledInteractiveCard,
+        });
+        await this.logOutboundMessage({
+          receiverId: operatorOpenId,
+          messageType: "interactive",
+          businessType,
+          businessId,
+          templateKey: "card_action_forbidden",
+          payloadJson: {
+            callbackResult: forbiddenResult,
+            debugCardView: disabledCardView,
+            interactiveCard: disabledInteractiveCard,
+          },
+          responseJson: { callbackLogId: callbackLog.id },
+          sendStatus: "sent",
+        });
+        await this.finishCallbackLog(callbackLog, "ignored", forbiddenResult);
+        return forbiddenResult;
       }
 
       const approvalResult = await this.approvalsService.executeAction(
@@ -443,33 +572,44 @@ export class FeishuService {
         },
       );
 
+      const refreshedApprovalView = await this.approvalsService.findOne(
+        approvalInstanceId,
+        {
+          id: binding.platformUserId,
+          username: binding.platformUsername,
+          role: binding.platformUser.role,
+        },
+      );
+
       const currentNodeName =
         approvalResult.currentNode?.nodeName || "已完成";
-      const cardView = await this.buildApprovalCardView(approvalResult);
-      const result = {
-        toast: {
-          type: "success",
-          content:
-            action === "approve"
-              ? `审批已通过，当前节点：${currentNodeName}`
-              : "审批已驳回，平台状态已更新。",
-        },
-        card: cardView,
-        interactiveCard: this.toInteractiveCardJson(cardView, {
-          approvalInstanceId,
-          businessType,
-          businessId,
-          actionToken,
-          requestId: `feishu-card-action-${callbackLog.id}`,
-        }),
-      };
+      const cardView = await this.buildApprovalCardView(refreshedApprovalView);
+      const interactiveCard = this.toInteractiveCardJson(cardView, {
+        approvalInstanceId,
+        businessType,
+        businessId,
+        actionToken,
+        requestId: `feishu-card-action-${callbackLog.id}`,
+      });
+      const result = this.buildFeishuCallbackCardResult({
+        type: "success",
+        content:
+          action === "approve"
+            ? `审批已通过，当前节点：${currentNodeName}`
+            : "审批已驳回，平台状态已更新。",
+        card: interactiveCard,
+      });
       await this.logOutboundMessage({
         receiverId: operatorOpenId,
         messageType: "interactive",
         businessType,
         businessId,
         templateKey: action === "approve" ? "card_action_approve" : "card_action_reject",
-        payloadJson: result,
+        payloadJson: {
+          callbackResult: result,
+          debugCardView: cardView,
+          interactiveCard,
+        },
         responseJson: {
           callbackLogId: callbackLog.id,
           approvalStatus: approvalResult.status,
@@ -481,12 +621,7 @@ export class FeishuService {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "飞书卡片动作处理失败";
-      const failedResult = {
-        toast: {
-          type: "error",
-          content: message,
-        },
-      };
+      const failedResult = this.buildFeishuCallbackToastResult("error", message);
       await this.logOutboundMessage({
         receiverId: operatorOpenId || "unknown",
         messageType: "interactive",
@@ -501,6 +636,38 @@ export class FeishuService {
       await this.finishCallbackLog(callbackLog, "failed", failedResult, message);
       throw error;
     }
+  }
+
+  private buildFeishuCallbackToastResult(
+    type: "success" | "warning" | "error",
+    content: string,
+  ) {
+    return {
+      toast: {
+        type,
+        content,
+      },
+    };
+  }
+
+  private buildFeishuCallbackCardResult(
+    input: {
+      type: "success" | "warning" | "error";
+      content: string;
+      card?: FeishuInteractiveCard;
+    },
+  ) {
+    return {
+      ...this.buildFeishuCallbackToastResult(input.type, input.content),
+      ...(input.card
+        ? {
+            card: {
+              type: "raw",
+              data: input.card,
+            } satisfies FeishuCallbackCardPayload,
+          }
+        : {}),
+    };
   }
 
   listBindings() {
@@ -606,10 +773,10 @@ export class FeishuService {
     const limit =
       query.limit && query.limit > 0 ? Math.min(query.limit, 20) : 10;
     const instances = await this.approvalInstanceRepository.find({
-      where: { status: "pending" as any },
+      where: [{ status: "pending" as any }, { status: "in_progress" as any }],
       relations: ["workflowDefinition", "startedBy", "nodes"],
       order: { updatedAt: "DESC" },
-      take: limit * 2,
+      take: limit * 4,
     });
 
     const items = [];
@@ -618,7 +785,7 @@ export class FeishuService {
         continue;
       }
       const item = await this.mapPendingApprovalItem(instance, user);
-      if (item) {
+      if (item?.canApprove) {
         items.push(item);
       }
       if (items.length >= limit) {
@@ -900,7 +1067,18 @@ export class FeishuService {
     }
 
     const receiverBinding = await this.resolveReceiverBinding(input);
-    const cardView = await this.buildApprovalCardViewFromInstance(approvalInstance);
+    const receiverApprovalView = await this.approvalsService.findOne(
+      approvalInstance.id,
+      {
+        id: receiverBinding.platformUserId,
+        username: receiverBinding.platformUsername,
+        role: receiverBinding.platformUser.role,
+      },
+    );
+    const cardView = await this.buildApprovalCardViewFromInstance(
+      approvalInstance,
+      receiverApprovalView.canCurrentUserHandleCurrentNode,
+    );
     const interactiveCard = this.toInteractiveCardJson(cardView, {
       approvalInstanceId: approvalInstance.id,
       businessType: approvalInstance.businessType,
@@ -947,6 +1125,9 @@ export class FeishuService {
     instance: ApprovalInstance,
     user: AuthenticatedUser,
   ) {
+    const approvalView = await this.approvalsService.findOne(instance.id, user);
+    const canApprove = approvalView.canCurrentUserHandleCurrentNode;
+
     if (instance.businessType === "opportunity") {
       const opportunity = await this.opportunityRepository.findOne({
         where: { id: instance.businessId },
@@ -969,7 +1150,7 @@ export class FeishuService {
         stage: opportunity.stage,
         initiatorName:
           instance.startedBy?.displayName || instance.startedBy?.username || undefined,
-        canApprove: this.canUserHandleInstance(user, opportunity.owner?.id),
+        canApprove,
         updatedAt: instance.updatedAt.toISOString(),
         summary: `当前处于 ${opportunity.stage} 阶段，预计金额 ${
           opportunity.expectedValue || "待补充"
@@ -998,7 +1179,7 @@ export class FeishuService {
       stage: solution.status,
       initiatorName:
         instance.startedBy?.displayName || instance.startedBy?.username || undefined,
-      canApprove: this.canUserHandleInstance(user, solution.createdBy?.id),
+      canApprove,
       updatedAt: instance.updatedAt.toISOString(),
       summary: `当前方案版本 ${
         solution.versionTag || "未标记版本"
@@ -1007,11 +1188,15 @@ export class FeishuService {
     };
   }
 
-  private async buildApprovalCardViewFromInstance(instance: ApprovalInstance) {
+  private async buildApprovalCardViewFromInstance(
+    instance: ApprovalInstance,
+    canHandleCurrentNode = true,
+  ) {
     return this.buildApprovalCardView({
       businessType: instance.businessType,
       businessId: instance.businessId,
       status: instance.status,
+      canHandleCurrentNode,
       currentNode: {
         nodeName: this.findCurrentNodeName(instance),
       },
@@ -1302,6 +1487,12 @@ export class FeishuService {
         : Number(approvalResult.businessId || 0);
     const status =
       typeof approvalResult.status === "string" ? approvalResult.status : "in_progress";
+    const canHandleCurrentNode =
+      typeof approvalResult.canHandleCurrentNode === "boolean"
+        ? approvalResult.canHandleCurrentNode
+        : typeof approvalResult.canCurrentUserHandleCurrentNode === "boolean"
+          ? approvalResult.canCurrentUserHandleCurrentNode
+          : true;
     const currentNode = approvalResult.currentNode as
       | { nodeName?: string | null }
       | null
@@ -1362,14 +1553,14 @@ export class FeishuService {
             label: "通过",
             type: "action",
             action: "approve",
-            enabled: status === "in_progress",
+            enabled: status === "in_progress" && canHandleCurrentNode,
           },
           {
             key: "reject",
             label: "驳回",
             type: "action",
             action: "reject",
-            enabled: status === "in_progress",
+            enabled: status === "in_progress" && canHandleCurrentNode,
           },
         ],
       };
@@ -1418,22 +1609,22 @@ export class FeishuService {
       ],
       actions: [
         { key: "open", label: "打开平台", type: "link", action: "open_detail", enabled: true },
-        {
-          key: "approve",
-          label: "通过",
-          type: "action",
-          action: "approve",
-          enabled: status === "in_progress",
-        },
-        {
-          key: "reject",
-          label: "驳回",
-          type: "action",
-          action: "reject",
-          enabled: status === "in_progress",
-        },
-      ],
-    };
+      {
+        key: "approve",
+        label: "通过",
+        type: "action",
+        action: "approve",
+        enabled: status === "in_progress" && canHandleCurrentNode,
+      },
+      {
+        key: "reject",
+        label: "驳回",
+        type: "action",
+        action: "reject",
+        enabled: status === "in_progress" && canHandleCurrentNode,
+      },
+    ],
+  };
   }
 
   private toInteractiveCardJson(
@@ -1456,16 +1647,20 @@ export class FeishuService {
             card.subtitle,
           )}`,
         },
+        margin: "0px 0px 0px 0px",
       },
     ];
 
     if (card.tags.length > 0) {
       elements.push({
-        tag: "note",
-        elements: card.tags.map((tag) => ({
-          tag: "plain_text",
-          content: `#${tag}`,
-        })),
+        tag: "div",
+        text: {
+          tag: "lark_md",
+          content: card.tags
+            .map((tag) => `\`${this.escapeLarkMarkdown(tag)}\``)
+            .join(" "),
+        },
+        margin: "0px 0px 0px 0px",
       });
     }
 
@@ -1477,6 +1672,7 @@ export class FeishuService {
             tag: "lark_md",
             content: this.escapeLarkMarkdown(line),
           },
+          margin: "0px 0px 0px 0px",
         })),
       );
     }
@@ -1496,51 +1692,59 @@ export class FeishuService {
       });
     }
 
-    const actions = card.actions.map((item) =>
-      item.type === "link"
-        ? {
-            tag: "button",
-            text: {
-              tag: "plain_text",
-              content: item.label,
-            },
-            type: "default",
-            multi_url: {
-              url: this.buildPlatformDetailUrl(
-                context.businessType,
-                context.businessId,
-                card.businessCode,
-              ),
-            },
-          }
-        : {
-            tag: "button",
-            text: {
-              tag: "plain_text",
-              content: item.label,
-            },
-            type:
-              item.action === "approve"
-                ? "primary"
-                : item.action === "reject"
-                  ? "danger"
-                  : "default",
-            value: this.buildCardActionValue(item, card, context),
-            disabled: !item.enabled,
-          },
-    );
+    const actions = card.actions.map((item) => {
+      const button: Record<string, unknown> = {
+        tag: "button",
+        text: {
+          tag: "plain_text",
+          content: item.label,
+        },
+        type:
+          item.action === "approve"
+            ? "primary"
+            : item.action === "reject"
+              ? "danger"
+              : "default",
+        margin: "0px 0px 0px 0px",
+        behaviors:
+          item.type === "link"
+            ? [
+                {
+                  type: "open_url",
+                  default_url: this.buildPlatformDetailUrl(
+                    context.businessType,
+                    context.businessId,
+                    card.businessCode,
+                  ),
+                },
+              ]
+            : [
+                {
+                  type: "callback",
+                  value: this.buildCardActionValue(item, card, context),
+                },
+              ],
+      };
+
+      if (item.type === "action" && !item.enabled) {
+        button.disabled = true;
+        button.disabled_tips = {
+          tag: "plain_text",
+          content: "当前节点已处理或暂不可由你操作。",
+        };
+      }
+
+      return button;
+    });
 
     if (actions.length > 0) {
-      elements.push({
-        tag: "action",
-        actions,
-      });
+      elements.push(...actions);
     }
 
     return {
+      schema: "2.0",
       config: {
-        wide_screen_mode: true,
-        enable_forward: true,
+        update_multi: true,
       },
       header: {
         template: this.resolveCardHeaderTemplate(card),
@@ -1552,8 +1756,14 @@ export class FeishuService {
           tag: "plain_text",
           content: card.businessCode,
         },
+        padding: "12px 12px 12px 12px",
       },
-      elements,
+      body: {
+        direction: "vertical",
+        padding: "12px 12px 12px 12px",
+        vertical_spacing: "8px",
+        elements,
+      },
     };
   }
 
@@ -1745,6 +1955,43 @@ export class FeishuService {
     }
   }
 
+  private normalizeCallbackBody(body: Record<string, unknown>) {
+    const encrypt =
+      typeof body.encrypt === "string" ? body.encrypt.trim() : "";
+    if (!encrypt) {
+      return body;
+    }
+
+    const encryptKey = runtimeConfig.feishuEncryptKey.trim();
+    if (!encryptKey) {
+      throw new BadRequestException("飞书加密事件缺少 Encrypt Key 配置");
+    }
+
+    const key = createHash("sha256").update(encryptKey).digest();
+    const iv = key.subarray(0, 16);
+    const decipher = createDecipheriv("aes-256-cbc", key, iv);
+    const decryptedBuffer = Buffer.concat([
+      decipher.update(encrypt, "base64"),
+      decipher.final(),
+    ]);
+    const schemaMarker = Buffer.from('{"schema"');
+    const jsonStart = Math.max(
+      decryptedBuffer.indexOf(schemaMarker),
+      decryptedBuffer.indexOf(0x7b),
+    );
+    if (jsonStart === -1) {
+      throw new BadRequestException("飞书加密事件解密成功，但未找到有效 JSON 载荷");
+    }
+
+    try {
+      return JSON.parse(
+        decryptedBuffer.subarray(jsonStart).toString("utf8"),
+      ) as Record<string, unknown>;
+    } catch (error) {
+      throw new BadRequestException("飞书加密事件解密后的 JSON 解析失败");
+    }
+  }
+
   private assertCallbackSignature(request?: {
     headers?: Record<string, string | string[] | undefined>;
     rawBody?: string;
@@ -1764,18 +2011,16 @@ export class FeishuService {
       throw new BadRequestException("飞书签名头缺失");
     }
 
-    const timestampMs = Number(timestamp) * 1000;
-    if (!Number.isFinite(timestampMs)) {
-      throw new BadRequestException("飞书签名时间戳不合法");
-    }
-
-    const now = Date.now();
-    if (Math.abs(now - timestampMs) > 60 * 60 * 1000) {
-      throw new BadRequestException("飞书签名时间戳已过期");
+    const normalizedTimestampMs = this.parseFeishuHeaderTimestamp(timestamp);
+    if (typeof normalizedTimestampMs === "number") {
+      const now = Date.now();
+      if (Math.abs(now - normalizedTimestampMs) > 60 * 60 * 1000) {
+        throw new BadRequestException("飞书签名时间戳已过期");
+      }
     }
 
     const base = `${timestamp}${nonce}${encryptKey}${rawBody}`;
-    const expected = createHmac("sha256", encryptKey).update(base).digest("base64");
+    const expected = createHash("sha256").update(base).digest("hex");
     const receivedBuffer = Buffer.from(signature);
     const expectedBuffer = Buffer.from(expected);
     if (
@@ -1784,6 +2029,61 @@ export class FeishuService {
     ) {
       throw new BadRequestException("飞书回调签名校验失败");
     }
+  }
+
+  private parseFeishuHeaderTimestamp(timestamp: string) {
+    const trimmed = timestamp.trim();
+    const directNumeric = Number(trimmed);
+    if (Number.isFinite(directNumeric)) {
+      return trimmed.length > 10 ? directNumeric : directNumeric * 1000;
+    }
+
+    const structuredDateMatch = trimmed.match(
+      /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})(?:\.(\d+))? ([+-]\d{4})/,
+    );
+    if (structuredDateMatch) {
+      const [, datePart, timePart, fractionalPart, offsetPart] = structuredDateMatch;
+      const milliseconds = (fractionalPart || "0").slice(0, 3).padEnd(3, "0");
+      const normalizedOffset = `${offsetPart.slice(0, 3)}:${offsetPart.slice(3)}`;
+      const isoLikeText = `${datePart}T${timePart}.${milliseconds}${normalizedOffset}`;
+      const parsedIsoMs = Date.parse(isoLikeText);
+      if (Number.isFinite(parsedIsoMs)) {
+        return parsedIsoMs;
+      }
+    }
+
+    const normalizedDateText = trimmed.replace(/\s+m=\+.*$/, "");
+    const parsedDateMs = Date.parse(normalizedDateText);
+    if (Number.isFinite(parsedDateMs)) {
+      return parsedDateMs;
+    }
+
+    const unixSeconds = trimmed.match(/\b\d{10}\b/);
+    if (unixSeconds) {
+      return Number(unixSeconds[0]) * 1000;
+    }
+
+    const unixMilliseconds = trimmed.match(/\b\d{13}\b/);
+    if (unixMilliseconds) {
+      return Number(unixMilliseconds[0]);
+    }
+
+    const digitGroups = trimmed.match(/\d+/g);
+    if (!digitGroups?.length) {
+      return undefined;
+    }
+
+    const digits = digitGroups.join("");
+    if (digits.length > 13) {
+      return undefined;
+    }
+
+    const numeric = Number(digits);
+    if (!Number.isFinite(numeric)) {
+      return undefined;
+    }
+
+    return digits.length > 10 ? numeric : numeric * 1000;
   }
 
   private async logOutboundMessage(input: {
@@ -1819,6 +2119,7 @@ export class FeishuService {
     if (input.bindingId) {
       const binding = await this.feishuBindingRepository.findOne({
         where: { id: input.bindingId },
+        relations: ["platformUser"],
       });
       if (!binding || binding.status !== "active") {
         throw new NotFoundException("指定的飞书绑定不存在或未启用");
@@ -1829,6 +2130,7 @@ export class FeishuService {
     if (input.openId) {
       const binding = await this.feishuBindingRepository.findOne({
         where: { feishuOpenId: input.openId },
+        relations: ["platformUser"],
       });
       if (!binding || binding.status !== "active") {
         throw new NotFoundException("指定的飞书 Open ID 未绑定有效平台账号");
