@@ -51,6 +51,8 @@ type RequestRecord = {
   skillName: string;
   requestedAt: string;
   outcome: "success" | "error" | "blocked";
+  responseTitle: string;
+  responseDetail: string;
 };
 
 interface OpenClawPlaygroundViewProps {
@@ -200,6 +202,16 @@ function buildResultPreview(result: Record<string, unknown>, skillName?: string)
   };
 }
 
+function getOutcomeMeta(outcome: RequestRecord["outcome"]) {
+  if (outcome === "success") {
+    return { color: "green", label: "成功", dot: "#52c41a" };
+  }
+  if (outcome === "blocked") {
+    return { color: "gold", label: "已拦截", dot: "#faad14" };
+  }
+  return { color: "red", label: "失败", dot: "#ff4d4f" };
+}
+
 export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
   const { currentUser, accessToken } = props;
   const [queryText, setQueryText] = useState("给我今日简报");
@@ -303,6 +315,9 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
               skillName: "readonly_guard",
               requestedAt: formatDateTime(new Date()),
               outcome: "blocked",
+              responseTitle: "只读拦截已生效",
+              responseDetail:
+                errorPayload.message || "命中了 OpenClaw 只读保护，当前命令不会被执行。",
             },
             ...current,
           ].slice(0, 5));
@@ -318,6 +333,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
       }
 
       const payload = (await response.json()) as PlaygroundResponse;
+      const preview = buildResultPreview(payload.result, payload.intent?.skillName);
       setResult(payload);
       setBlockedResult(null);
       setRequestHistory((current) => [
@@ -327,6 +343,8 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
           skillName: payload.intent?.skillName || "unknown",
           requestedAt: formatDateTime(new Date()),
           outcome: "success",
+          responseTitle: preview.title,
+          responseDetail: preview.lines.join(" | "),
         },
         ...current,
       ].slice(0, 5));
@@ -345,6 +363,8 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
           skillName: "error",
           requestedAt: formatDateTime(new Date()),
           outcome: "error",
+          responseTitle: "联调请求失败",
+          responseDetail: nextMessage,
         },
         ...current,
       ].slice(0, 5));
@@ -678,8 +698,8 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
                     key={item.id}
                     style={{
                       border: "1px solid var(--app-border)",
-                      borderRadius: 12,
-                      padding: 12,
+                      borderRadius: 16,
+                      padding: 14,
                       background: "var(--app-surface-soft)",
                     }}
                   >
@@ -692,40 +712,70 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
                         marginBottom: 8,
                       }}
                     >
-                      <Text strong>{item.queryText}</Text>
-                      <Tag
-                        color={
-                          item.outcome === "success"
-                            ? "green"
-                            : item.outcome === "blocked"
-                              ? "gold"
-                              : "red"
-                        }
-                      >
-                        {item.outcome === "success"
-                          ? "成功"
-                          : item.outcome === "blocked"
-                            ? "已拦截"
-                            : "失败"}
+                      <Text strong>联调回放</Text>
+                      <Tag color={getOutcomeMeta(item.outcome).color}>
+                        {getOutcomeMeta(item.outcome).label}
                       </Tag>
                     </div>
-                    <div
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 999,
-                        marginBottom: 10,
-                        background:
-                          item.outcome === "success"
-                            ? "#52c41a"
-                            : item.outcome === "blocked"
-                              ? "#faad14"
-                              : "#ff4d4f",
-                      }}
-                    />
-                    <div style={{ display: "grid", gap: 4, fontSize: 12, color: "#595959" }}>
-                      <div>命中技能：{item.skillName}</div>
-                      <div>请求时间：{item.requestedAt}</div>
+
+                    <div style={{ display: "grid", gap: 10 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                        }}
+                      >
+                        <div
+                          style={{
+                            maxWidth: "88%",
+                            padding: "10px 12px",
+                            borderRadius: "14px 14px 4px 14px",
+                            background: "linear-gradient(135deg, #1677ff 0%, #4096ff 100%)",
+                            color: "#fff",
+                            fontSize: 13,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {item.queryText}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "flex-start",
+                          gap: 10,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 999,
+                            marginTop: 10,
+                            background: getOutcomeMeta(item.outcome).dot,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div
+                          style={{
+                            maxWidth: "88%",
+                            padding: "10px 12px",
+                            borderRadius: "14px 14px 14px 4px",
+                            background: "#fff",
+                            border: "1px solid var(--app-border)",
+                            fontSize: 13,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>{item.responseTitle}</div>
+                          <div style={{ color: "#595959", marginBottom: 6 }}>{item.responseDetail}</div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <Tag color="blue">{item.skillName}</Tag>
+                            <Tag>{item.requestedAt}</Tag>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
