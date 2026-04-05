@@ -412,6 +412,20 @@ MVP 阶段不让 OpenClaw 直接调飞书开放平台，而是只调平台后端
 | `get_solution_summary` | `GET /api/integrations/feishu/solutions/:code/summary` | 返回方案摘要 |
 | `get_daily_brief` | `GET /api/integrations/feishu/me/daily-brief` | 返回今日简报 |
 
+当前仓库内已落地一层 OpenClaw 后端只读封装：
+
+| OpenClaw 接口 | 方法 | 说明 |
+| --- | --- | --- |
+| `/api/integrations/openclaw/skills` | `GET` | 列出当前可用的 4 个只读 skill |
+| `/api/integrations/openclaw/skills/:name` | `POST` | 按 skill 名执行结构化查询 |
+| `/api/integrations/openclaw/query` | `POST` | 将自然语言映射到上述只读 skill |
+
+请求头约束：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `x-openclaw-token` | string | 是 | 服务端共享令牌，需与 `OPENCLAW_SHARED_TOKEN` / `BACKEND_OPENCLAW_SHARED_TOKEN` 一致 |
+
 ### 8.2 OpenClaw 请求上下文
 
 | 字段 | 类型 | 必填 | 说明 |
@@ -526,6 +540,8 @@ MVP 阶段不让 OpenClaw 直接调飞书开放平台，而是只调平台后端
   - `FEISHU_ENCRYPT_KEY`
   - `FEISHU_BOT_NAME`
   - `FEISHU_BASE_URL`
+- 明确 OpenClaw 服务端共享配置：
+  - `OPENCLAW_SHARED_TOKEN`
 - 明确平台外链前缀：
   - `PLATFORM_WEB_BASE_URL`
   - `PLATFORM_API_BASE_URL`
@@ -583,6 +599,17 @@ MVP 阶段不让 OpenClaw 直接调飞书开放平台，而是只调平台后端
 - 将 4 个聚合接口封装为 OpenClaw skill
 - 加一层用户上下文注入与权限继承
 - 补充自然语言意图到结构化接口的映射
+
+当前已落地的最小实现：
+
+- 已新增 `backend/src/integrations/openclaw/openclaw.module.ts`
+- 已新增 `backend/src/integrations/openclaw/openclaw.controller.ts`
+- 已新增 `backend/src/integrations/openclaw/openclaw.service.ts`
+- 已新增 `GET /api/integrations/openclaw/skills`
+- 已新增 `POST /api/integrations/openclaw/skills/:name`
+- 已新增 `POST /api/integrations/openclaw/query`
+- 已实现 `platformUserId / feishuOpenId` 上下文解析与绑定一致性校验
+- 已实现写意图拦截，命中审批/修改/删除等动词时直接返回 `OPENCLAW_READONLY_ONLY`
 
 交付标准：
 

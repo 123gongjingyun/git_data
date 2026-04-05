@@ -12,6 +12,7 @@ import { WorkflowsModule } from "./workflows/workflows.module";
 import { UsersModule } from "./users/users.module";
 import { ApprovalsModule } from "./approvals/approvals.module";
 import { FeishuModule } from "./integrations/feishu/feishu.module";
+import { OpenClawModule } from "./integrations/openclaw/openclaw.module";
 import { runtimeConfig } from "./config/runtime";
 
 // DB_TYPE 支持:
@@ -57,6 +58,7 @@ const dbRelatedFeatureModules =
         UsersModule,
         ApprovalsModule,
         FeishuModule,
+        OpenClawModule,
       ]
     : [];
 

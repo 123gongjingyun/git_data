@@ -56,4 +56,6 @@ export const runtimeConfig = {
   feishuBotName: readEnv("FEISHU_BOT_NAME", "BACKEND_FEISHU_BOT_NAME") || "售前助手",
   feishuBaseUrl:
     readEnv("FEISHU_BASE_URL", "BACKEND_FEISHU_BASE_URL") || "https://open.feishu.cn",
+  openClawSharedToken:
+    readEnv("OPENCLAW_SHARED_TOKEN", "BACKEND_OPENCLAW_SHARED_TOKEN") || "",
 };

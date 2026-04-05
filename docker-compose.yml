@@ -44,6 +44,7 @@ services:
       FEISHU_ENCRYPT_KEY: ${BACKEND_FEISHU_ENCRYPT_KEY}
       FEISHU_BOT_NAME: ${BACKEND_FEISHU_BOT_NAME}
       FEISHU_BASE_URL: ${BACKEND_FEISHU_BASE_URL}
+      OPENCLAW_SHARED_TOKEN: ${BACKEND_OPENCLAW_SHARED_TOKEN}
     depends_on:
       mysql:
         condition: service_healthy
