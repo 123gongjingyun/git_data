@@ -751,3 +751,40 @@
 - 下次会话建议直接从这里继续：
   - 以 `feishu_callback_logs.id=82` 为基线，对比飞书官方要求的卡片动作回包格式，重点验证当前返回的 `card` JSON 是否需要使用不同包装结构、不同字段名或更保守的返回体；
   - 不必再次排查审批落库、角色映射、节点推进或“只有当前节点处理人可执行”的老问题，这些链路本轮已被再次验证为正常。
+
+### 飞书卡片回调最终收口（2026-04-05）
+
+- 本轮继续执行任务 10“飞书 / OpenClaw MVP”，重点完成飞书审批卡片动作回包协议的最终兼容修正与真实账号闭环验证。
+- 本次新增内容（本地 `/Users/gjy/presales-platform` + 云服务器 `/opt/presales-platform`）：
+  - 已将 `backend/src/integrations/feishu/feishu.service.ts` 中的卡片动作回包统一调整为飞书 JSON 2.0 兼容格式，回调成功时不再直接返回旧版 `config/header/elements`，而是返回 `card: { type: "raw", data: <JSON 2.0 card> }`；
+  - 已将交互卡片结构统一迁移到 JSON 2.0 语义：补齐 `schema: "2.0"`、`config.update_multi`、`header`、`body.elements`，并移除真实联调中确认不兼容的旧写法；
+  - 已修正两个导致飞书客户端不能稳定刷新卡片的具体兼容问题：
+    - JSON 2.0 中不再使用 `note` 标签展示状态徽标，已改为 `div + lark_md`；
+    - JSON 2.0 中不再使用 `tag: "action"` 容器包按钮，已改为将 `button` 直接放入 `body.elements`，并按官方模式使用 `behaviors.callback` / `behaviors.open_url`。
+  - 已在卡片动作执行前补充“当前飞书操作者是否仍是当前节点处理人”的前置校验：若用户点击的是历史旧卡片，则不再向飞书客户端抛出错误，而是返回“当前卡片已失效，请重新获取最新审批卡片。”的黄色提示，并同步回写为禁用态卡片；
+  - 已在本地完成验证：
+    - `cd /Users/gjy/presales-platform/backend && npm run build`
+    - `cd /Users/gjy/presales-platform/backend && npm test -- --runInBand`
+  - 已将上述修正同步部署到云端并完成容器重建，当前后端健康检查保持正常。
+- 本轮真实飞书验证结果：
+  - 旧卡片失效场景已经按预期处理：
+    - 云端 `feishu_callback_logs.id=85` 记录状态为 `ignored`；
+    - `feishu_message_logs.id=90` 模板为 `card_action_forbidden`；
+    - 用户确认点击历史旧卡时，飞书端不再出现致命报错，而是提示卡片已失效并刷新为不可继续操作状态。
+  - 新卡片审批成功场景已经按预期处理：
+    - 为验证“最终审批”节点，曾临时将真实飞书绑定从 `manager_demo` 切换到 `admin_demo`，向实例 `20` 补发最新审批卡，消息 `message_id=om_x100b52155db550a0c35b78d6b2c1599`；
+    - 用户在真实飞书中点击“通过”后，云端 `feishu_callback_logs.id=86` 状态为 `processed`；
+    - `approval_instances.id=20` 已成功推进为 `approved`，`currentNodeId=NULL`；
+    - `feishu_message_logs.id=92` 模板为 `card_action_approve`，`sendStatus=sent`；
+    - 用户确认飞书端点击后显示成功提示，按钮转灰，不再可重复点击。
+  - 验证完成后，真实绑定已恢复到业务正常口径：
+    - `feishu_user_bindings.id=1`
+    - `feishuOpenId=ou_04f5c38ef1840e7fe1fbdadd57b62e06`
+    - `platformUserId=2`
+    - `platformUsername=manager_demo`
+    - `department=售前管理部`
+    - `status=active`
+- 当前结论：
+  - 飞书审批卡片主链路已经完成真实闭环：私聊命令 -> 待审批查询 -> 审批卡片下发 -> 卡片动作回调 -> 平台审批执行 -> 飞书端结果提示与卡片失效保护，均已在真实环境完成验证；
+  - 当前代码分支 `docs/feishu-openclaw-dev-plan` 的最新提交为 `ab5b700 Stabilize Feishu approval card callbacks`，并已成功推送到 `origin/docs/feishu-openclaw-dev-plan`；
+  - 下次会话若继续本任务，应直接从“是否整理 PR 说明、补充飞书回调自动化测试，或在用户确认后执行合并 / 发版”开始，而不需要再回头排查审批执行链路本身。
