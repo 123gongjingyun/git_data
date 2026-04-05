@@ -146,6 +146,22 @@ test("handleEventCallback returns challenge after verification token check", asy
   assert.deepEqual(callbackRepo.items[0].resultJson, { challenge: "challenge-token" });
 });
 
+test("handleEventCallback rejects mismatched verification token", async () => {
+  const { service, callbackRepo } = createService();
+
+  await assert.rejects(
+    service.handleEventCallback({
+      challenge: "challenge-token",
+      token: "wrong-token",
+    }),
+    /飞书事件 token 校验失败/,
+  );
+
+  assert.equal(callbackRepo.items.length, 1);
+  assert.equal(callbackRepo.items[0].status, "failed");
+  assert.match(callbackRepo.items[0].errorMessage, /token 校验失败/);
+});
+
 test("handleCardAction returns stale-card warning and raw JSON 2.0 card for expired instances", async () => {
   const { service, callbackRepo, messageRepo } = createService({
     bindings: [
@@ -380,4 +396,125 @@ test("handleCardAction returns success with raw JSON 2.0 card after approval", a
   const rejectButton = findButton(result.card.data, "驳回");
   assert.equal(approveButton.disabled, true);
   assert.equal(rejectButton.disabled, true);
+});
+
+test("handleCardAction returns duplicate warning for repeated action token", async () => {
+  const { service, callbackRepo, messageRepo } = createService({
+    bindings: [
+      {
+        id: 1,
+        feishuOpenId: "ou_test_admin",
+        platformUserId: 1,
+        platformUsername: "admin_demo",
+        status: "active",
+        platformUser: {
+          id: 1,
+          username: "admin_demo",
+          role: "admin",
+        },
+      },
+    ],
+    opportunities: [
+      {
+        id: 10,
+        name: "教育云升级项目",
+        stage: "proposal",
+        expectedValue: "680万",
+        approvalOpinion: "建议通过",
+        customer: { name: "省教育厅" },
+        owner: { username: "sales_demo", displayName: "李四" },
+      },
+    ],
+    approvalInstances: [
+      {
+        id: 23,
+        businessType: "opportunity",
+        businessId: 10,
+        status: "in_progress",
+        currentNodeId: 301,
+        nodes: [{ id: 301, nodeNameSnapshot: "最终审批" }],
+      },
+    ],
+    approvalsService: {
+      async findOne() {
+        return {
+          businessType: "opportunity",
+          businessId: 10,
+          status: "approved",
+          currentNode: { nodeName: "已完成" },
+          canCurrentUserHandleCurrentNode: false,
+        };
+      },
+    },
+  });
+
+  callbackRepo.items.push({
+    id: 99,
+    callbackType: "card_action",
+    actionToken: "duplicate-token-1",
+    status: "processed",
+  });
+
+  const result = await service.handleCardAction({
+    open_id: "ou_test_admin",
+    token: "duplicate-token-1",
+    action: {
+      value: {
+        action: "approve",
+        approvalInstanceId: 23,
+        businessType: "opportunity",
+        businessId: 10,
+      },
+    },
+  });
+
+  assert.equal(result.toast.type, "warning");
+  assert.match(result.toast.content, /已处理/);
+  assert.equal(callbackRepo.items.at(-1).status, "ignored");
+  assert.equal(messageRepo.items.at(-1).templateKey, "card_action_duplicate");
+});
+
+test("handleCardAction returns success toast for open_detail without approval execution", async () => {
+  let executeActionCalled = false;
+  const { service, callbackRepo, messageRepo } = createService({
+    bindings: [
+      {
+        id: 1,
+        feishuOpenId: "ou_test_admin",
+        platformUserId: 1,
+        platformUsername: "admin_demo",
+        status: "active",
+        platformUser: {
+          id: 1,
+          username: "admin_demo",
+          role: "admin",
+        },
+      },
+    ],
+    approvalsService: {
+      async executeAction() {
+        executeActionCalled = true;
+        throw new Error("should not be called");
+      },
+    },
+  });
+
+  const result = await service.handleCardAction({
+    open_id: "ou_test_admin",
+    token: "open-detail-1",
+    action: {
+      value: {
+        action: "open_detail",
+        approvalInstanceId: 23,
+        businessType: "opportunity",
+        businessId: 10,
+      },
+    },
+  });
+
+  assert.equal(result.toast.type, "success");
+  assert.match(result.toast.content, /平台中继续处理详情/);
+  assert.equal(executeActionCalled, false);
+  assert.equal(callbackRepo.items[0].status, "processed");
+  assert.equal(messageRepo.items[0].templateKey, "card_action_open_detail");
 });
