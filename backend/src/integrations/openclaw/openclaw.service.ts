@@ -254,7 +254,7 @@ export class OpenClawService {
     }
 
     if (this.isReadonlyViolation(normalized)) {
-      throw new ForbiddenException("OPENCLAW_READONLY_ONLY: OpenClaw 当前只允许只读查询");
+      throw new ForbiddenException(this.buildReadonlyViolationMessage());
     }
 
     const opportunityCode = normalized.match(/OPP-\d{6}/i)?.[0]?.toUpperCase();
@@ -319,6 +319,14 @@ export class OpenClawService {
     return /(通过|驳回|审批通过|审批驳回|approve|reject|修改|更新|删除|创建|指派)/i.test(
       text,
     );
+  }
+
+  private buildReadonlyViolationMessage() {
+    return [
+      "OPENCLAW_READONLY_ONLY: OpenClaw 当前只接了只读能力，不能直接执行审批通过、驳回、修改、删除、创建或指派。",
+      "你现在可以让我继续帮你查：待我审批、今日简报、商机摘要、方案摘要。",
+      "如果要真正执行审批，请回到飞书审批卡片或平台页面操作。",
+    ].join(" ");
   }
 
   private readNumber(value: unknown) {

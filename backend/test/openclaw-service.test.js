@@ -202,6 +202,6 @@ test("query rejects write intents for readonly OpenClaw integration", async () =
       platformUserId: 2,
       queryText: "帮我审批通过 OPP-000123",
     }),
-    /OPENCLAW_READONLY_ONLY/,
+    /只接了只读能力/,
   );
 });

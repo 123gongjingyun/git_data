@@ -800,3 +800,17 @@
   - 远端临时分支 `pr/docs-feishu-openclaw-sync` 已删除；本地当前开发分支 `docs/feishu-openclaw-dev-plan` 已在 `5133a00 Merge origin/master after PR #2 sync` 中回合并 `origin/master`，两条历史已建立共同祖先；
   - 已新增第二轮飞书自动化回归测试 [backend/test/feishu-service.test.js](/Users/gjy/presales-platform/backend/test/feishu-service.test.js) 与首轮 OpenClaw 只读集成测试 [backend/test/openclaw-service.test.js](/Users/gjy/presales-platform/backend/test/openclaw-service.test.js)，并已通过本地 build + test；下次会话若继续本任务，应优先进入“云端配置 `BACKEND_OPENCLAW_SHARED_TOKEN` 并做真实 OpenClaw 联调”或“继续补更细粒度的飞书签名/加密边界测试”，而不需要再回头处理 GitHub PR 对齐、合并或历史连通问题。
   - 云端 OpenClaw 只读入口已经发布并通过最小联调验收，本机 OpenClaw skill 包装、真实会话验证、摘要参数兼容修复和回复文案收口也已完成；下次会话应直接从“继续扩展审批类自然语言拦截提示，或优化结果卡片/摘要模板内容密度”继续，而不需要再重复服务器发布、本机 skill 配置、4 类基础查询验证、摘要参数兼容修复或回复文案基础收口步骤。
+
+### OpenClaw 只读拒绝文案补强（2026-04-05）
+
+- 本轮继续执行任务 10“飞书 / OpenClaw MVP”，聚焦审批类自然语言请求的只读拒绝口径收口，避免真实会话中出现“像是要帮用户执行审批”的误导性前缀。
+- 本次新增内容：
+  - 已在 [backend/src/integrations/openclaw/openclaw.service.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts) 中将写操作拒绝文案从简单的“当前只允许只读查询”升级为明确指导语：OpenClaw 当前只接了只读能力，不能直接执行审批通过、驳回、修改、删除、创建或指派，并明确提示用户可继续查询“待我审批、今日简报、商机摘要、方案摘要”，真正执行审批需回到飞书审批卡片或平台页面。
+  - 已同步更新 [backend/test/openclaw-service.test.js](/Users/gjy/presales-platform/backend/test/openclaw-service.test.js) 断言，并重新完成本地 `backend` 的 build + test 验证，当前 OpenClaw 相关测试总数仍保持通过。
+  - 已将相同口径同步部署到云服务器 `101.43.78.27` 的运行态后端，并通过 `POST /api/integrations/openclaw/query` 实测确认：对“帮我审批通过 OPP-000001”会返回 `403 OPENCLAW_READONLY_ONLY`，且提示文案为更新后的完整三句指导语。
+  - 已补强本机 OpenClaw skill 文案约束 [~/.openclaw/skills/presales-platform-openclaw/SKILL.md](/Users/gjy/.openclaw/skills/presales-platform-openclaw/SKILL.md)：对审批通过、驳回、创建、删除、修改、指派等写请求，要求只输出最终拒绝答复，不再先说“我先确认”“我刚确认平台能力”“避免瞎点”等过程性前缀，也不再默认附带额外排障分析。
+- 当前结论：
+  - 平台后端的只读边界已经更清晰，真实或脚本调用都会稳定返回统一拒绝语，不会再落回过于笼统的“只允许只读查询”。
+  - 最新一轮真实 OpenClaw 会话已确认：后端拒绝链路和只读保护文案均已生效；但在本轮补强前，模型侧仍曾输出“我先确认这个平台有没有审批通过的可用接口”这类过程性前缀。
+  - 本轮补强后的再次真实复测，因本机 OpenClaw 网关回退到 embedded 模式后出现 LLM request timed out，暂未拿到新的有效回复文本；因此当前仍需以下一轮真实会话为准，继续确认“过程性前缀是否已完全消失”。
+  - 因此，下次会话若继续本任务，应直接从“复测本机 OpenClaw 最新 skill 约束是否已消除过程前缀，并根据真实会话结果继续压缩拒绝话术”开始，而不需要再回头处理后端只读拦截、云端部署或摘要参数兼容问题。
