@@ -1,0 +1,441 @@
+.app-shell,
+body[data-theme="light"] {
+  --app-surface: #ffffff;
+  --app-surface-soft: #f8fbfd;
+  --app-surface-strong: #eef4f8;
+  --app-surface-muted: #f3f7fb;
+  --app-border: #dbe5ef;
+  --app-border-strong: #c7d4df;
+  --app-text-primary: #0f172a;
+  --app-text-secondary: #64748b;
+  --app-text-muted: #94a3b8;
+  --app-accent: #14b8a6;
+  --app-accent-soft: rgba(20, 184, 166, 0.12);
+  --app-info-surface: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, #f8fbfd 100%);
+  --app-info-border: rgba(37, 99, 235, 0.18);
+  --app-success-surface: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, #f8fbfd 100%);
+  --app-success-border: rgba(34, 197, 94, 0.18);
+  --app-warning-surface: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, #f8fbfd 100%);
+  --app-warning-border: rgba(245, 158, 11, 0.2);
+  --app-danger-surface: linear-gradient(135deg, rgba(239, 68, 68, 0.14) 0%, #f8fbfd 100%);
+  --app-danger-border: rgba(239, 68, 68, 0.22);
+  --app-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  --app-control-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  --app-focus-ring: 0 0 0 4px color-mix(in srgb, var(--app-accent-soft) 70%, transparent);
+}
+
+.app-shell[data-theme="dark"],
+body[data-theme="dark"] {
+  --app-surface: #111b30;
+  --app-surface-soft: #162235;
+  --app-surface-strong: #1b2940;
+  --app-surface-muted: #20314c;
+  --app-border: rgba(148, 163, 184, 0.16);
+  --app-border-strong: rgba(148, 163, 184, 0.22);
+  --app-text-primary: #e5eefb;
+  --app-text-secondary: #94a3b8;
+  --app-text-muted: #64748b;
+  --app-accent: #2dd4bf;
+  --app-accent-soft: rgba(45, 212, 191, 0.14);
+  --app-info-surface: linear-gradient(135deg, color-mix(in srgb, rgba(59,130,246,0.18) 72%, var(--app-surface) 28%) 0%, var(--app-surface-soft) 100%);
+  --app-info-border: rgba(59, 130, 246, 0.28);
+  --app-success-surface: linear-gradient(135deg, color-mix(in srgb, rgba(34,197,94,0.18) 72%, var(--app-surface) 28%) 0%, var(--app-surface-soft) 100%);
+  --app-success-border: rgba(34, 197, 94, 0.3);
+  --app-warning-surface: linear-gradient(135deg, color-mix(in srgb, rgba(245,158,11,0.18) 72%, var(--app-surface) 28%) 0%, var(--app-surface-soft) 100%);
+  --app-warning-border: rgba(245, 158, 11, 0.3);
+  --app-danger-surface: linear-gradient(135deg, color-mix(in srgb, rgba(239,68,68,0.18) 72%, var(--app-surface) 28%) 0%, var(--app-surface-soft) 100%);
+  --app-danger-border: rgba(239, 68, 68, 0.3);
+  --app-shadow: 0 20px 42px rgba(2, 6, 23, 0.34);
+  --app-control-shadow: 0 10px 22px rgba(2, 6, 23, 0.24);
+  --app-focus-ring: 0 0 0 4px color-mix(in srgb, var(--app-accent-soft) 72%, transparent);
+}
+
+.app-shell .ant-card {
+  position: relative;
+  border-color: transparent;
+  box-shadow: var(--app-shadow);
+}
+
+.app-shell .ant-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--app-border);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.app-shell .ant-card-hoverable:hover,
+.app-shell .ant-card-hoverable:focus-within {
+  box-shadow: var(--app-shadow) !important;
+  transform: none !important;
+}
+
+.app-shell .ant-input,
+.app-shell .ant-input-affix-wrapper,
+.app-shell .ant-input-number,
+.app-shell .ant-select-selector,
+.app-shell .ant-picker {
+  border-color: var(--app-border) !important;
+  box-shadow: var(--app-control-shadow) !important;
+}
+
+.app-shell .ant-input-affix-wrapper .ant-input,
+.app-shell .ant-input-password .ant-input,
+.app-shell .ant-input-search .ant-input,
+.app-shell .ant-input-group-addon,
+.app-shell .ant-input-search-button {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.app-shell .ant-input:hover,
+.app-shell .ant-input-affix-wrapper:hover,
+.app-shell .ant-input-number:hover,
+.app-shell .ant-select:hover .ant-select-selector,
+.app-shell .ant-picker:hover {
+  border-color: var(--app-border-strong) !important;
+}
+
+.app-shell .ant-input:focus,
+.app-shell .ant-input-focused,
+.app-shell .ant-input-affix-wrapper-focused,
+.app-shell .ant-input-number-focused,
+.app-shell .ant-select-focused .ant-select-selector,
+.app-shell .ant-picker-focused {
+  border-color: var(--app-accent) !important;
+  box-shadow: var(--app-focus-ring), var(--app-control-shadow) !important;
+}
+
+body[data-theme="dark"] {
+  background: #07101f;
+  color: var(--app-text-primary);
+}
+
+.app-shell[data-theme="dark"] .ant-card,
+.app-shell[data-theme="dark"] .ant-card .ant-card-head,
+.app-shell[data-theme="dark"] .ant-card .ant-card-body {
+  background: var(--app-surface);
+  color: var(--app-text-primary);
+}
+
+.app-shell[data-theme="dark"] .ant-card {
+  box-shadow: var(--app-shadow) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-card::before {
+  border-color: color-mix(in srgb, var(--app-border-strong) 72%, transparent);
+}
+
+.app-shell[data-theme="dark"] .ant-card .ant-card-head {
+  border-bottom-color: var(--app-border);
+}
+
+.app-shell[data-theme="dark"] .ant-input,
+.app-shell[data-theme="dark"] .ant-input-affix-wrapper,
+.app-shell[data-theme="dark"] .ant-input-number,
+.app-shell[data-theme="dark"] .ant-select-selector,
+.app-shell[data-theme="dark"] .ant-picker {
+  border-color: color-mix(in srgb, var(--app-border-strong) 72%, transparent) !important;
+  box-shadow: var(--app-control-shadow) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-input:hover,
+.app-shell[data-theme="dark"] .ant-input-affix-wrapper:hover,
+.app-shell[data-theme="dark"] .ant-input-number:hover,
+.app-shell[data-theme="dark"] .ant-select:hover .ant-select-selector,
+.app-shell[data-theme="dark"] .ant-picker:hover {
+  border-color: color-mix(in srgb, var(--app-border-strong) 92%, var(--app-accent) 8%) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-tabs-tab,
+.app-shell[data-theme="dark"] .ant-tabs-tab-btn,
+.app-shell[data-theme="dark"] .ant-collapse > .ant-collapse-item > .ant-collapse-header,
+.app-shell[data-theme="dark"] .ant-collapse-content-box,
+.app-shell[data-theme="dark"] .ant-checkbox-wrapper,
+.app-shell[data-theme="dark"] .ant-radio-wrapper,
+.app-shell[data-theme="dark"] .ant-btn-link,
+.app-shell[data-theme="dark"] .ant-tag:not(.ant-tag-has-color) {
+  color: var(--app-text-primary) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-tabs-ink-bar {
+  background: var(--app-accent) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--app-accent) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-collapse {
+  background: transparent !important;
+}
+
+.app-shell[data-theme="dark"] .ant-checkbox-wrapper,
+.app-shell[data-theme="dark"] .ant-radio-wrapper,
+.app-shell[data-theme="dark"] .ant-tag {
+  color: var(--app-text-secondary);
+}
+
+.app-shell[data-theme="dark"] .ant-typography,
+.app-shell[data-theme="dark"] .ant-typography-copy,
+.app-shell[data-theme="dark"] .ant-card-meta-description,
+.app-shell[data-theme="dark"] .ant-descriptions-item-label,
+.app-shell[data-theme="dark"] .ant-descriptions-item-content {
+  color: var(--app-text-primary);
+}
+
+.app-shell[data-theme="dark"] .ant-typography.ant-typography-secondary,
+.app-shell[data-theme="dark"] .ant-form-item-explain,
+.app-shell[data-theme="dark"] .ant-form-item-extra,
+.app-shell[data-theme="dark"] .ant-empty-description,
+.app-shell[data-theme="dark"] .ant-card-head-title,
+.app-shell[data-theme="dark"] .ant-select-selection-placeholder,
+.app-shell[data-theme="dark"] .ant-select-arrow,
+.app-shell[data-theme="dark"] .ant-input::placeholder,
+.app-shell[data-theme="dark"] .ant-input-affix-wrapper input::placeholder {
+  color: var(--app-text-secondary) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-input,
+.app-shell[data-theme="dark"] .ant-input-affix-wrapper,
+.app-shell[data-theme="dark"] .ant-input-number,
+.app-shell[data-theme="dark"] .ant-select-selector,
+.app-shell[data-theme="dark"] .ant-picker,
+.app-shell[data-theme="dark"] .ant-mentions,
+.app-shell[data-theme="dark"] .ant-btn-default,
+.app-shell[data-theme="dark"] .ant-btn-text {
+  background: var(--app-surface-soft) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text-primary) !important;
+}
+
+.app-shell input:-webkit-autofill,
+.app-shell input:-webkit-autofill:hover,
+.app-shell input:-webkit-autofill:focus,
+.app-shell .ant-input:-webkit-autofill,
+.app-shell .ant-input:-webkit-autofill:hover,
+.app-shell .ant-input:-webkit-autofill:focus,
+.app-shell .ant-input-affix-wrapper input:-webkit-autofill,
+.app-shell .ant-input-affix-wrapper input:-webkit-autofill:hover,
+.app-shell .ant-input-affix-wrapper input:-webkit-autofill:focus,
+body[data-theme] input:-webkit-autofill,
+body[data-theme] input:-webkit-autofill:hover,
+body[data-theme] input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--app-text-primary) !important;
+  transition: background-color 9999s ease-out 0s;
+  caret-color: var(--app-text-primary);
+  box-shadow: 0 0 0 1000px var(--app-surface-soft) inset !important;
+}
+
+.app-shell[data-theme="dark"] .ant-btn-default:hover,
+.app-shell[data-theme="dark"] .ant-btn-text:hover,
+.app-shell[data-theme="dark"] .ant-input:hover,
+.app-shell[data-theme="dark"] .ant-input-affix-wrapper:hover,
+.app-shell[data-theme="dark"] .ant-select-selector:hover {
+  border-color: var(--app-accent) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-btn-primary {
+  box-shadow: 0 10px 22px rgba(20, 184, 166, 0.18);
+}
+
+.app-shell[data-theme="dark"] .ant-menu {
+  background: transparent !important;
+  color: var(--app-text-secondary) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-menu-item,
+.app-shell[data-theme="dark"] .ant-menu-submenu-title {
+  color: var(--app-text-secondary) !important;
+  border-radius: 14px;
+  margin-inline: 0 !important;
+  width: calc(100% - 0px) !important;
+}
+
+.app-shell .ant-menu-item-selected {
+  background: var(--app-accent-soft) !important;
+  color: var(--app-accent) !important;
+}
+
+.app-shell .ant-menu-item-selected .anticon,
+.app-shell .ant-menu-item-selected .ant-menu-title-content {
+  color: var(--app-accent) !important;
+  font-weight: 700;
+}
+
+.app-shell[data-theme="dark"] .ant-menu-item:hover,
+.app-shell[data-theme="dark"] .ant-menu-submenu-title:hover {
+  color: var(--app-text-primary) !important;
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-table-wrapper .ant-table,
+.app-shell[data-theme="dark"] .ant-table-wrapper .ant-table-container,
+.app-shell[data-theme="dark"] .ant-table-wrapper .ant-table-thead > tr > th,
+.app-shell[data-theme="dark"] .ant-table-wrapper .ant-table-tbody > tr > td {
+  background: var(--app-surface) !important;
+  color: var(--app-text-primary) !important;
+  border-color: var(--app-border) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-table-wrapper .ant-table-thead > tr > th {
+  background: var(--app-surface-strong) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-table-wrapper .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: var(--app-surface-soft) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-pagination,
+.app-shell[data-theme="dark"] .ant-pagination .ant-pagination-item a,
+.app-shell[data-theme="dark"] .ant-pagination .ant-pagination-total-text {
+  color: var(--app-text-secondary) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-pagination .ant-pagination-item,
+.app-shell[data-theme="dark"] .ant-pagination .ant-pagination-prev button,
+.app-shell[data-theme="dark"] .ant-pagination .ant-pagination-next button {
+  background: var(--app-surface-soft) !important;
+  border-color: var(--app-border) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-dropdown .ant-dropdown-menu,
+.app-shell[data-theme="dark"] .ant-select-dropdown,
+.app-shell[data-theme="dark"] .ant-picker-dropdown,
+.app-shell[data-theme="dark"] .ant-modal-content,
+.app-shell[data-theme="dark"] .ant-modal-header,
+.app-shell[data-theme="dark"] .ant-popover .ant-popover-inner {
+  background: #132038 !important;
+  color: var(--app-text-primary) !important;
+  border: 1px solid var(--app-border);
+}
+
+body[data-theme="dark"] .ant-dropdown .ant-dropdown-menu,
+body[data-theme="dark"] .ant-dropdown-menu,
+body[data-theme="dark"] .ant-select-dropdown,
+body[data-theme="dark"] .ant-select-item,
+body[data-theme="dark"] .ant-picker-dropdown,
+body[data-theme="dark"] .ant-picker-panel-container,
+body[data-theme="dark"] .ant-picker-header,
+body[data-theme="dark"] .ant-picker-content th,
+body[data-theme="dark"] .ant-picker-cell,
+body[data-theme="dark"] .ant-modal-content,
+body[data-theme="dark"] .ant-modal-header,
+body[data-theme="dark"] .ant-modal-footer,
+body[data-theme="dark"] .ant-popover .ant-popover-inner,
+body[data-theme="dark"] .ant-tooltip .ant-tooltip-inner,
+body[data-theme="dark"] .ant-drawer-content,
+body[data-theme="dark"] .ant-drawer-header,
+body[data-theme="dark"] .ant-drawer-body,
+body[data-theme="dark"] .ant-message-notice .ant-message-notice-content,
+body[data-theme="dark"] .ant-notification-notice,
+body[data-theme="dark"] .ant-tour .ant-tour-inner {
+  background: #132038 !important;
+  color: var(--app-text-primary) !important;
+  border-color: var(--app-border) !important;
+}
+
+body[data-theme="dark"] .ant-modal-mask,
+body[data-theme="dark"] .ant-drawer-mask {
+  background: rgba(2, 6, 23, 0.68) !important;
+}
+
+body[data-theme="dark"] .ant-modal-title,
+body[data-theme="dark"] .ant-modal-close,
+body[data-theme="dark"] .ant-modal-close-x,
+body[data-theme="dark"] .ant-dropdown-menu-title-content,
+body[data-theme="dark"] .ant-dropdown-menu-item,
+body[data-theme="dark"] .ant-select-item,
+body[data-theme="dark"] .ant-select-item-option-content,
+body[data-theme="dark"] .ant-picker-header button,
+body[data-theme="dark"] .ant-picker-content th,
+body[data-theme="dark"] .ant-picker-cell-inner,
+body[data-theme="dark"] .ant-popover-inner-content,
+body[data-theme="dark"] .ant-drawer-title,
+body[data-theme="dark"] .ant-drawer-close,
+body[data-theme="dark"] .ant-notification-notice-message,
+body[data-theme="dark"] .ant-notification-notice-description,
+body[data-theme="dark"] .ant-message-custom-content,
+body[data-theme="dark"] .ant-tour-title,
+body[data-theme="dark"] .ant-tour-description {
+  color: var(--app-text-primary) !important;
+}
+
+body[data-theme="dark"] .ant-dropdown-menu-item:hover,
+body[data-theme="dark"] .ant-dropdown-menu-item-active,
+body[data-theme="dark"] .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+body[data-theme="dark"] .ant-select-item-option-selected:not(.ant-select-item-option-disabled),
+body[data-theme="dark"] .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner,
+body[data-theme="dark"] .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
+body[data-theme="dark"] .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: var(--app-surface-strong) !important;
+  color: var(--app-text-primary) !important;
+}
+
+body[data-theme="dark"] .ant-picker-cell::before,
+body[data-theme="dark"] .ant-picker-time-panel-column > li.ant-picker-time-panel-cell-selected .ant-picker-time-panel-cell-inner {
+  background: rgba(45, 212, 191, 0.16) !important;
+}
+
+body[data-theme="dark"] .ant-picker-time-panel-column > li .ant-picker-time-panel-cell-inner,
+body[data-theme="dark"] .ant-picker-time-panel-column > li.ant-picker-time-panel-cell .ant-picker-time-panel-cell-inner,
+body[data-theme="dark"] .ant-picker-now-btn,
+body[data-theme="dark"] .ant-picker-ok button {
+  color: var(--app-text-primary) !important;
+}
+
+body[data-theme="dark"] .ant-empty-description,
+body[data-theme="dark"] .ant-select-selection-placeholder {
+  color: var(--app-text-secondary) !important;
+}
+
+body[data-theme="dark"] .ant-divider,
+body[data-theme="dark"] .ant-modal-header,
+body[data-theme="dark"] .ant-modal-footer,
+body[data-theme="dark"] .ant-drawer-header,
+body[data-theme="dark"] .ant-picker-header,
+body[data-theme="dark"] .ant-picker-panel,
+body[data-theme="dark"] .ant-notification-notice,
+body[data-theme="dark"] .ant-tour .ant-tour-inner {
+  border-color: var(--app-border) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-dropdown .ant-dropdown-menu-item,
+.app-shell[data-theme="dark"] .ant-dropdown .ant-dropdown-menu-title-content,
+.app-shell[data-theme="dark"] .ant-select-item,
+.app-shell[data-theme="dark"] .ant-modal-title,
+.app-shell[data-theme="dark"] .ant-popover-inner-content {
+  color: var(--app-text-primary) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-tabs-tab,
+.app-shell[data-theme="dark"] .ant-collapse,
+.app-shell[data-theme="dark"] .ant-collapse-item,
+.app-shell[data-theme="dark"] .ant-collapse-header,
+.app-shell[data-theme="dark"] .ant-collapse-content,
+.app-shell[data-theme="dark"] .ant-collapse-content-box {
+  background: transparent !important;
+  color: var(--app-text-primary) !important;
+  border-color: var(--app-border) !important;
+}
+
+.app-shell[data-theme="dark"] .ant-radio-wrapper,
+.app-shell[data-theme="dark"] .ant-checkbox-wrapper,
+.app-shell[data-theme="dark"] .ant-form-item-label > label,
+.app-shell[data-theme="dark"] .ant-switch + span {
+  color: var(--app-text-primary) !important;
+}
+
+.app-shell[data-theme="dark"] .settings-view,
+.app-shell[data-theme="dark"] .settings-view * {
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+
+.app-shell[data-theme="dark"] .settings-view .ant-card,
+.app-shell[data-theme="dark"] .settings-view .ant-card-body,
+.app-shell[data-theme="dark"] .settings-view .ant-card-head {
+  background: linear-gradient(180deg, rgba(17,27,48,0.98) 0%, rgba(22,34,53,0.98) 100%) !important;
+}

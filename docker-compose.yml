@@ -1,0 +1,64 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: presales-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: presales-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${BACKEND_NODE_ENV}
+      HOST: ${BACKEND_HOST}
+      PORT: ${BACKEND_PORT}
+      CORS_ORIGIN: ${BACKEND_CORS_ORIGIN}
+      JWT_SECRET: ${BACKEND_JWT_SECRET}
+      JWT_EXPIRES_IN: ${BACKEND_JWT_EXPIRES_IN}
+      DB_TYPE: ${BACKEND_DB_TYPE}
+      DB_HOST: ${BACKEND_DB_HOST}
+      DB_PORT: ${BACKEND_DB_PORT}
+      DB_USER: ${BACKEND_DB_USER}
+      DB_PASSWORD: ${BACKEND_DB_PASSWORD}
+      DB_NAME: ${BACKEND_DB_NAME}
+      DB_SYNCHRONIZE: ${BACKEND_DB_SYNCHRONIZE}
+      FEISHU_APP_ID: ${BACKEND_FEISHU_APP_ID}
+      FEISHU_APP_SECRET: ${BACKEND_FEISHU_APP_SECRET}
+      FEISHU_VERIFICATION_TOKEN: ${BACKEND_FEISHU_VERIFICATION_TOKEN}
+      FEISHU_ENCRYPT_KEY: ${BACKEND_FEISHU_ENCRYPT_KEY}
+      FEISHU_BOT_NAME: ${BACKEND_FEISHU_BOT_NAME}
+      FEISHU_BASE_URL: ${BACKEND_FEISHU_BASE_URL}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${FRONTEND_VITE_API_BASE_URL}
+    container_name: presales-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mysql_data:

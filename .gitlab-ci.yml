@@ -1,0 +1,50 @@
+stages:
+  - build
+  - package
+
+default:
+  image: node:20
+  before_script:
+    - node -v
+    - npm -v
+
+frontend_build:
+  stage: build
+  script:
+    - cd frontend
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 7 days
+
+backend_build:
+  stage: build
+  script:
+    - cd backend
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - backend/dist/
+    expire_in: 7 days
+
+package_release_bundle:
+  stage: package
+  image: alpine:3.20
+  needs:
+    - frontend_build
+    - backend_build
+  script:
+    - apk add --no-cache tar
+    - mkdir -p release
+    - tar -czf release/presales-platform-source.tar.gz README.md docker-compose.yml docs frontend backend .env.example .gitlab-ci.yml .gitignore
+  artifacts:
+    paths:
+      - release/presales-platform-source.tar.gz
+    expire_in: 14 days
+  only:
+    - main
+    - develop
+    - merge_requests
