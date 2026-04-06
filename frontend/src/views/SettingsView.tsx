@@ -17,17 +17,15 @@ import {
   Collapse,
   Tabs,
   Popover,
+  Spin,
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { LogoConfig } from "../logoConfig";
 import { buildApiUrl } from "../shared/api";
 import type { CurrentUser } from "../shared/auth";
 import { hasActionAccess, hasPermission } from "../shared/auth";
-import { PluginLibraryView } from "./PluginLibraryView";
-import { FeishuIntegrationView } from "./FeishuIntegrationView";
-import { OpenClawPlaygroundView } from "./OpenClawPlaygroundView";
 import type {
   WorkflowDefinition,
   WorkflowNode,
@@ -53,6 +51,45 @@ import {
 const { Text } = Typography;
 const WORKFLOW_API_BASE_URL = buildApiUrl("");
 const USER_API_BASE_URL = buildApiUrl("");
+
+const LazyPluginLibraryView = lazy(async () => {
+  const module = await import("./PluginLibraryView");
+  return { default: module.PluginLibraryView };
+});
+
+const LazyFeishuIntegrationView = lazy(async () => {
+  const module = await import("./FeishuIntegrationView");
+  return { default: module.FeishuIntegrationView };
+});
+
+const LazyOpenClawPlaygroundView = lazy(async () => {
+  const module = await import("./OpenClawPlaygroundView");
+  return { default: module.OpenClawPlaygroundView };
+});
+
+function SettingsSectionLoadingCard(props: { title: string; description: string }) {
+  const { title, description } = props;
+
+  return (
+    <Card>
+      <div
+        style={{
+          minHeight: 240,
+          display: "grid",
+          placeItems: "center",
+          gap: 12,
+          textAlign: "center",
+        }}
+      >
+        <Spin size="large" />
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+          <Text type="secondary">{description}</Text>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 interface ApiWorkflowNodeApprover {
   id?: number;
@@ -5621,17 +5658,35 @@ export function SettingsView(props: SettingsViewProps) {
           )}
 
           {activeMenu === "feishuIntegration" && (
-            <FeishuIntegrationView
-              currentUser={currentUser}
-              accessToken={accessToken}
-            />
+            <Suspense
+              fallback={
+                <SettingsSectionLoadingCard
+                  title="正在加载飞书集成页"
+                  description="当前正在按需加载飞书集成模块，以降低系统设置首页的初始包体积。"
+                />
+              }
+            >
+              <LazyFeishuIntegrationView
+                currentUser={currentUser}
+                accessToken={accessToken}
+              />
+            </Suspense>
           )}
 
           {activeMenu === "openclawPlayground" && (
-            <OpenClawPlaygroundView
-              currentUser={currentUser}
-              accessToken={accessToken}
-            />
+            <Suspense
+              fallback={
+                <SettingsSectionLoadingCard
+                  title="正在加载 OpenClaw 联调页"
+                  description="当前正在按需加载联调模块，以降低系统设置首页的初始包体积。"
+                />
+              }
+            >
+              <LazyOpenClawPlaygroundView
+                currentUser={currentUser}
+                accessToken={accessToken}
+              />
+            </Suspense>
           )}
 
           {activeMenu === "plugins" && (
@@ -5650,11 +5705,20 @@ export function SettingsView(props: SettingsViewProps) {
                   资源。
                 </Text>
               </div>
-              <PluginLibraryView
-                currentLogo={logoConfig}
-                onChangeLogo={onChangeLogo}
-                readOnly={!canManagePluginLibrary}
-              />
+              <Suspense
+                fallback={
+                  <SettingsSectionLoadingCard
+                    title="正在加载图标/Logo插件库"
+                    description="当前正在按需加载插件资源模块，以降低系统设置首页的初始包体积。"
+                  />
+                }
+              >
+                <LazyPluginLibraryView
+                  currentLogo={logoConfig}
+                  onChangeLogo={onChangeLogo}
+                  readOnly={!canManagePluginLibrary}
+                />
+              </Suspense>
             </Card>
           )}
 
