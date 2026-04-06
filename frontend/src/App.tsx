@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Avatar,
   Badge,
@@ -8,6 +16,7 @@ import {
   Dropdown,
   Layout,
   Menu,
+  Spin,
   message,
   theme,
   Typography,
@@ -33,16 +42,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { LoginView } from "./views/LoginView";
-import { BidsView } from "./views/BidsView";
-import { ContractsView } from "./views/ContractsView";
-import { KnowledgeView } from "./views/KnowledgeView";
-import { AnalyticsView } from "./views/AnalyticsView";
-import { SettingsView } from "./views/SettingsView";
-import { SolutionsView } from "./views/SolutionsView";
 import { WorkbenchView } from "./views/WorkbenchView";
-import { ProjectsView } from "./views/ProjectsView";
-import { OpportunitiesDemoView } from "./views/OpportunitiesDemoView";
-import { HelpSupportView } from "./views/HelpSupportView";
 import { defaultLogoConfig, type LogoConfig } from "./logoConfig";
 import { hasMenuAccess, type CurrentUser } from "./shared/auth";
 import {
@@ -59,6 +59,79 @@ import { buildApiUrl } from "./shared/api";
 
 const { Header, Content, Footer, Sider } = Layout;
 const { Title, Paragraph } = Typography;
+
+const LazyBidsView = lazy(async () => {
+  const module = await import("./views/BidsView");
+  return { default: module.BidsView };
+});
+
+const LazyContractsView = lazy(async () => {
+  const module = await import("./views/ContractsView");
+  return { default: module.ContractsView };
+});
+
+const LazyKnowledgeView = lazy(async () => {
+  const module = await import("./views/KnowledgeView");
+  return { default: module.KnowledgeView };
+});
+
+const LazyAnalyticsView = lazy(async () => {
+  const module = await import("./views/AnalyticsView");
+  return { default: module.AnalyticsView };
+});
+
+const LazySettingsView = lazy(async () => {
+  const module = await import("./views/SettingsView");
+  return { default: module.SettingsView };
+});
+
+const LazySolutionsView = lazy(async () => {
+  const module = await import("./views/SolutionsView");
+  return { default: module.SolutionsView };
+});
+
+const LazyProjectsView = lazy(async () => {
+  const module = await import("./views/ProjectsView");
+  return { default: module.ProjectsView };
+});
+
+const LazyOpportunitiesDemoView = lazy(async () => {
+  const module = await import("./views/OpportunitiesDemoView");
+  return { default: module.OpportunitiesDemoView };
+});
+
+const LazyHelpSupportView = lazy(async () => {
+  const module = await import("./views/HelpSupportView");
+  return { default: module.HelpSupportView };
+});
+
+function AppSectionLoading(props: { title: string; description: string }) {
+  const { title, description } = props;
+
+  return (
+    <Card
+      style={{
+        minHeight: 320,
+      }}
+    >
+      <div
+        style={{
+          minHeight: 240,
+          display: "grid",
+          placeItems: "center",
+          gap: 12,
+          textAlign: "center",
+        }}
+      >
+        <Spin size="large" />
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+          <Typography.Text type="secondary">{description}</Typography.Text>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 type MainMenuKey =
   | "workbench"
@@ -601,7 +674,7 @@ function App() {
         );
       case "opportunities":
         return (
-          <OpportunitiesDemoView
+          <LazyOpportunitiesDemoView
             accessToken={accessToken}
             currentUsername={currentUsername}
             currentUser={currentUser}
@@ -619,7 +692,7 @@ function App() {
         );
       case "projects":
         return (
-          <ProjectsView
+          <LazyProjectsView
             currentUser={currentUser}
             onNavigateToOpportunities={(
               customerName?: string,
@@ -646,7 +719,7 @@ function App() {
         );
       case "solutions":
         return (
-          <SolutionsView
+          <LazySolutionsView
             currentUser={currentUser}
             initialProjectKeyword={solutionsKeyword}
             onNavigateToProjects={(projectName?: string) => {
@@ -657,7 +730,7 @@ function App() {
         );
       case "bids":
         return (
-          <BidsView
+          <LazyBidsView
             currentUser={currentUser}
             initialKeyword={bidsKeyword}
             onNavigateToProjects={(projectName?: string) => {
@@ -668,7 +741,7 @@ function App() {
         );
       case "contracts":
         return (
-          <ContractsView
+          <LazyContractsView
             currentUser={currentUser}
             initialKeyword={contractsKeyword}
             onNavigateToProjects={(projectName?: string) => {
@@ -678,12 +751,12 @@ function App() {
           />
         );
       case "knowledge":
-        return <KnowledgeView currentUser={currentUser} />;
+        return <LazyKnowledgeView currentUser={currentUser} />;
       case "analytics":
-        return <AnalyticsView currentUser={currentUser} themeMode={themeMode} />;
+        return <LazyAnalyticsView currentUser={currentUser} themeMode={themeMode} />;
       case "settings":
         return (
-          <SettingsView
+          <LazySettingsView
             appName={appName}
             logoConfig={logoConfig}
             onChangeAppName={setAppName}
@@ -695,7 +768,7 @@ function App() {
           />
         );
       case "help":
-        return <HelpSupportView />;
+        return <LazyHelpSupportView />;
       default:
         return null;
     }
@@ -1085,7 +1158,16 @@ function App() {
                     margin: "0 auto",
                   }}
                 >
-                  {renderMainContent()}
+                  <Suspense
+                    fallback={
+                      <AppSectionLoading
+                        title="正在加载页面"
+                        description="当前页面按需加载中，以减少平台主入口的初始包体积。"
+                      />
+                    }
+                  >
+                    {renderMainContent()}
+                  </Suspense>
                 </div>
               </Content>
               <Footer

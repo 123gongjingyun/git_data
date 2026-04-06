@@ -367,7 +367,10 @@
 - [x] 第八轮增强：结果区组件拆分后已再次通过 `frontend npm run build` 验证，当前结构更适合多 agent 按卡片边界并行修改
 - [x] 第九轮增强：已在系统设置页对飞书集成、OpenClaw 联调、图标/Logo插件库启用按需加载，降低系统设置主包首屏体积
 - [x] 第九轮增强：构建产物已拆出独立 chunk `FeishuIntegrationView`、`OpenClawPlaygroundView`、`PluginLibraryView`，说明懒加载生效
-- [ ] 下一轮增强：继续评估 `App.tsx` 层面的路由/视图懒加载或 `manualChunks` 策略，进一步压缩剩余大 chunk
+- [x] 第十轮增强：已在 `App.tsx` 对项目、商机、方案、投标、合同、知识库、数据分析、系统设置、帮助等页面启用页面级按需加载，并补统一 Suspense 占位
+- [x] 第十轮增强：构建产物已进一步拆出 `ProjectsView`、`SolutionsView`、`BidsView`、`ContractsView`、`KnowledgeView`、`AnalyticsView`、`SettingsView`、`OpportunitiesDemoView` 等独立 chunk
+- [x] 第十轮增强：最大主 chunk 已进一步从约 `1467 kB` 降到约 `1047 kB`，说明页面级懒加载已产生明显收益
+- [ ] 下一轮增强：继续评估 `manualChunks` 策略，重点处理仍超过 500 kB 的公共依赖 chunk
 
 ## 11. 后续汇报格式
 
