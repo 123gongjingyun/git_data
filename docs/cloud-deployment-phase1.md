@@ -142,7 +142,7 @@ tar --exclude='frontend/node_modules' \
 上传到服务器：
 
 ```bash
-scp /Users/gjy/presales-platform-phase1.tar.gz deploy@101.43.78.27:/opt/presales-platform/
+scp /Users/gjy/Projects-mygetpre/presales-platform-phase1.tar.gz deploy@101.43.78.27:/opt/presales-platform/
 ```
 
 服务器上解压：

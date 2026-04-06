@@ -46,9 +46,9 @@
 1. 在本地 `/Users/gjy` 阅读 `README.md`，确认当前任务与最新约束。
 2. 在本地完成代码修改。
 3. 在本地执行最相关验证，例如：
-   - `cd /Users/gjy/frontend && npm run build`
-   - `cd /Users/gjy/backend && npm run build`
-   - `cd /Users/gjy/backend && npm test`
+   - `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build`
+   - `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build`
+   - `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm test`
 4. 本地同步更新 `README.md`。
 5. 整理最小上传包并发布到云服务器。
 6. 在云服务器执行 `docker compose build`、`docker compose up -d`、健康检查和公网验收。
@@ -153,8 +153,8 @@
 ## 6. 当前服务器侧 Codex 文档位置
 
 本地源文档：
-- `/Users/gjy/docs/cloud-server-codex-AGENTS.md`
-- `/Users/gjy/docs/cloud-server-codex-SERVER_CONVENTIONS.md`
+- `/Users/gjy/Projects-mygetpre/presales-platform/docs/cloud-server-codex-AGENTS.md`
+- `/Users/gjy/Projects-mygetpre/presales-platform/docs/cloud-server-codex-SERVER_CONVENTIONS.md`
 
 云服务器目标文档：
 - `/opt/presales-platform/AGENTS.md`

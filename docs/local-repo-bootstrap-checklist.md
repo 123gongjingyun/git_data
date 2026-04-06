@@ -2,7 +2,8 @@
 
 ## 当前状态
 
-- 已创建独立目录：`/Users/gjy/presales-platform`
+- 已创建独立目录：`/Users/gjy/Projects-mygetpre/presales-platform`
+- 旧路径 `/Users/gjy/presales-platform` 已保留为软链接兼容入口
 - 已复制平台核心内容：
   - `README.md`
   - `docs/`

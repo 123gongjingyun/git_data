@@ -19,8 +19,8 @@
 ## 0. 飞书集成原型数据
 
 代码来源：
-- [feishuIntegrationMock.ts](/Users/gjy/presales-platform/frontend/src/shared/feishuIntegrationMock.ts)
-- [FeishuIntegrationView.tsx](/Users/gjy/presales-platform/frontend/src/views/FeishuIntegrationView.tsx)
+- [feishuIntegrationMock.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/feishuIntegrationMock.ts)
+- [FeishuIntegrationView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/FeishuIntegrationView.tsx)
 
 用途：
 - 作为“系统设置 > 飞书集成”页面的前端原型数据源。
@@ -35,13 +35,13 @@
 - `cards`: 飞书卡片预览，包含 `templateKey / title / subtitle / summaryLines / fields / actions`
 
 维护约束：
-- 这里的 Mock 字段必须对齐 [feishu-openclaw-interface-design.md](/Users/gjy/presales-platform/docs/feishu-openclaw-interface-design.md) 中的绑定、命令和卡片设计，不允许前端自行另起字段名。
+- 这里的 Mock 字段必须对齐 [feishu-openclaw-interface-design.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/feishu-openclaw-interface-design.md) 中的绑定、命令和卡片设计，不允许前端自行另起字段名。
 - 若后续真实接口字段有调整，必须同时更新此处 Mock 数据、原型页展示和接口设计文档。
 
 ## 1. 核心共享商机数据
 
 代码来源：
-- [opportunityDemoData.ts](/Users/gjy/frontend/src/shared/opportunityDemoData.ts)
+- [opportunityDemoData.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/opportunityDemoData.ts)
 
 用途：
 - 这是当前系统最核心的共享 Mock 数据源。
@@ -97,7 +97,7 @@
 ## 2. 销售与售前人员映射
 
 代码来源：
-- [opportunityDemoData.ts](/Users/gjy/frontend/src/shared/opportunityDemoData.ts)
+- [opportunityDemoData.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/opportunityDemoData.ts)
 
 用途：
 - 为共享商机、项目管理、解决方案、投标管理、合同管理等页面提供负责人中文展示名。
@@ -116,8 +116,8 @@
 ## 3. 共享派生数据规则
 
 代码来源：
-- [pipelineMock.ts](/Users/gjy/frontend/src/shared/pipelineMock.ts)
-- [projectNaming.ts](/Users/gjy/frontend/src/shared/projectNaming.ts)
+- [pipelineMock.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/pipelineMock.ts)
+- [projectNaming.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/projectNaming.ts)
 
 说明：
 - 下列页面的数据并不是独立维护，而是由“核心共享商机数据”派生得到。
@@ -126,7 +126,7 @@
 ### 3.1 项目管理派生规则
 
 代码来源：
-- [ProjectsView.tsx](/Users/gjy/frontend/src/views/ProjectsView.tsx)
+- [ProjectsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/ProjectsView.tsx)
 
 派生规则：
 - 项目列表按 `projectKey` 聚合，同一项目主线下的多条商机会合并为一条项目记录，不再按“每条商机各生成一个项目行”展示
@@ -147,7 +147,7 @@
 ### 3.2 解决方案列表派生规则
 
 代码来源：
-- [pipelineMock.ts](/Users/gjy/frontend/src/shared/pipelineMock.ts)
+- [pipelineMock.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/pipelineMock.ts)
 
 派生规则：
 - 每条共享商机生成一条解决方案记录
@@ -166,7 +166,7 @@
 ### 3.3 投标列表派生规则
 
 代码来源：
-- [pipelineMock.ts](/Users/gjy/frontend/src/shared/pipelineMock.ts)
+- [pipelineMock.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/pipelineMock.ts)
 
 派生规则：
 - 仅当商机阶段属于 `proposal / bidding / negotiation / won / lost` 时生成投标记录
@@ -183,7 +183,7 @@
 ### 3.4 合同列表派生规则
 
 代码来源：
-- [pipelineMock.ts](/Users/gjy/frontend/src/shared/pipelineMock.ts)
+- [pipelineMock.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/pipelineMock.ts)
 
 派生规则：
 - 仅当商机阶段属于 `negotiation / won` 时生成合同记录
@@ -200,7 +200,7 @@
 ### 3.5 知识库派生规则
 
 代码来源：
-- [pipelineMock.ts](/Users/gjy/frontend/src/shared/pipelineMock.ts)
+- [pipelineMock.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/pipelineMock.ts)
 
 派生规则：
 - 每条商机至少派生一条解决方案说明文档
@@ -212,7 +212,7 @@
 ## 4. 知识库基础 Mock 数据
 
 代码来源：
-- [KnowledgeView.tsx](/Users/gjy/frontend/src/views/KnowledgeView.tsx)
+- [KnowledgeView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/KnowledgeView.tsx)
 
 用途：
 - 作为知识库页面的静态基础文档，与共享商机派生文档合并展示。
@@ -247,8 +247,8 @@
 ## 5. 知识库目录树默认数据
 
 代码来源：
-- [KnowledgeView.tsx](/Users/gjy/frontend/src/views/KnowledgeView.tsx)
-- [SettingsView.tsx](/Users/gjy/frontend/src/views/SettingsView.tsx)
+- [KnowledgeView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/KnowledgeView.tsx)
+- [SettingsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SettingsView.tsx)
 
 本地存储：
 - `knowledgeCategoryTreeConfig`
@@ -269,7 +269,7 @@
 ## 6. 审批流程库默认数据
 
 代码来源：
-- [workflowTemplates.ts](/Users/gjy/frontend/src/shared/workflowTemplates.ts)
+- [workflowTemplates.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/workflowTemplates.ts)
 
 当前默认流程：
 - 标准商机审批流程
@@ -306,7 +306,7 @@
 ## 7. 系统设置团队成员默认数据
 
 代码来源：
-- [SettingsView.tsx](/Users/gjy/frontend/src/views/SettingsView.tsx)
+- [SettingsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SettingsView.tsx)
 
 用途：
 - 系统设置中的团队管理表格默认展示数据

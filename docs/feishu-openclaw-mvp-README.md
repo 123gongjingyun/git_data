@@ -261,7 +261,7 @@
 
 ## 16. 开发设计补充
 
-- 为进入实际开发，本仓库已新增字段级设计与实施方案文档：[feishu-openclaw-interface-design.md](/Users/gjy/presales-platform/docs/feishu-openclaw-interface-design.md)。
+- 为进入实际开发，本仓库已新增字段级设计与实施方案文档：[feishu-openclaw-interface-design.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/feishu-openclaw-interface-design.md)。
 - 后续接口、表结构、DTO、飞书卡片字段与 OpenClaw skill 设计，统一以该文档为实现基线；若字段调整，需先同步更新该文档与根 README。
 - 当前执行口径已确认调整为“前端优先、后端接口预留”：先在平台内完成飞书集成设置、绑定管理、命令预览和卡片预览，再进入后端真实回调与飞书联调。
 

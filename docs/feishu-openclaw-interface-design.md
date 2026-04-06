@@ -2,7 +2,7 @@
 
 ## 1. 文档定位
 
-- 本文用于把 [feishu-openclaw-mvp-README.md](/Users/gjy/presales-platform/docs/feishu-openclaw-mvp-README.md) 中的 MVP 目标收敛成可直接进入开发的接口与模块设计。
+- 本文用于把 [feishu-openclaw-mvp-README.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/feishu-openclaw-mvp-README.md) 中的 MVP 目标收敛成可直接进入开发的接口与模块设计。
 - 设计遵循当前仓库已落地的 NestJS + MySQL + TypeORM 模型，尽量复用现有 `users`、`opportunities`、`solution_versions`、`approval_instances`、`approval_instance_nodes`、`approval_actions` 能力。
 - MVP 范围固定为“飞书私聊机器人 + 平台后端 + OpenClaw 只读技能”，不引入旁路主数据源。
 

@@ -10,6 +10,18 @@
 
 > 说明：每次新会话开始前，Agent 必须先阅读本文件，确保了解最新状态和任务安排。
 
+## 协作约定
+
+以下协作方式已在本次会话中确认：
+- [x] 自 2026-04-06 起，默认采用“`1 个主 agent + 5 个子 agent`”的并行协作模式推进中等及以上复杂度任务；主 agent 负责需求拆分、契约冻结、公共层收口、进度汇总、验证与对外汇报。（确认日期：2026-04-06）
+- [x] 子 agent 默认按“模块 / 文件写入边界”分工，而非仅按“前端 / 后端 / 测试”等角色名分工；前端优先按页面文件或共享模块族拆分，后端优先按模块目录拆分。（确认日期：2026-04-06）
+- [x] 子 agent 之间默认不直接协商公共契约；出现字段、接口、权限、状态等阻塞时，统一回报主 agent，由主 agent 裁决并回传统一口径。（确认日期：2026-04-06）
+- [x] 前端公共入口与共享协议层（如 `App.tsx`、`shared/auth.ts`、`shared/api.ts`、`shared/opportunityDemoData.ts`）以及后端公共入口与实体/运行配置层（如 `app.module.ts`、`config/runtime.ts`、`domain/entities/*`、`users/user-access.ts`）默认仅允许主 agent 修改。（确认日期：2026-04-06）
+- [x] 本项目多 agent 并行作战手册已沉淀到 [`docs/multi-agent-team-playbook.md`](./docs/multi-agent-team-playbook.md)，后续新会话在执行复杂任务前应优先参考该文档。（确认日期：2026-04-06）
+- [x] 自 2026-04-06 起，默认执行“本地优先验证 -> 验证通过后再同步云上环境”的发布顺序；本地与云上配置、依赖与部署口径应尽量保持一致，避免只在云上临时修正。（确认日期：2026-04-06）
+- [x] 自 2026-04-06 起，如当天存在较大的版本功能变动，或即将上线的改动具有明显风险，需在关键变更前后尽快同步到 GitHub，形成可追溯、可回退的远端检查点；是否合并到主分支仍需先征得用户同意。（确认日期：2026-04-06）
+- [x] 自 2026-04-06 起，本项目本地统一工作目录切换为 `/Users/gjy/Projects-mygetpre/presales-platform`；为降低迁移期间的中断风险，旧路径 `/Users/gjy/presales-platform` 目前保留为指向新目录的兼容软链接，后续新增脚本、文档和命令应优先使用新路径。（确认日期：2026-04-06）
+
 ## 当前需求列表
 
 以下需求均已在本次会话中确认：
@@ -56,7 +68,7 @@
   - 补充约束（确认日期：2026-04-02）：OpenClaw 在 MVP 阶段仅提供自然语言理解、摘要整理和只读问答能力；审批等写操作仍必须通过平台后端执行并保留现有审批权限、审批实例和审计逻辑。
   - 补充约束（确认日期：2026-04-02）：MVP 第一阶段只做飞书私聊机器人，不先开放复杂群聊协同、飞书 Base 双向同步、自动建群、自动建日程和飞书文档深度写入。
   - 补充约束（确认日期：2026-04-02）：若后续需要将平台代码自动打包并同步到 GitHub，必须先将平台代码收敛为明确的 Git 仓库边界，再接入 GitHub 仓库与自动化构建；不得直接将整个家目录或与平台无关的目录纳入版本库。
-  - 补充约束（确认日期：2026-04-03）：已进入“字段级接口设计 + 开发方案”阶段；飞书 / OpenClaw MVP 的接口、表结构、卡片字段、OpenClaw skill 和开发拆分，统一以 [docs/feishu-openclaw-interface-design.md](/Users/gjy/presales-platform/docs/feishu-openclaw-interface-design.md) 为当前实现基线。
+  - 补充约束（确认日期：2026-04-03）：已进入“字段级接口设计 + 开发方案”阶段；飞书 / OpenClaw MVP 的接口、表结构、卡片字段、OpenClaw skill 和开发拆分，统一以 [docs/feishu-openclaw-interface-design.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/feishu-openclaw-interface-design.md) 为当前实现基线。
   - 补充约束（确认日期：2026-04-03）：当前开发策略调整为“前端优先、后端接口预留”。先在平台内完成“飞书集成”页面、绑定管理、命令预览和卡片预览，前端 Mock 字段必须严格对齐接口设计文档；后端本阶段先保证 DTO、接口签名和示例返回稳定，暂不急于接真实飞书回调与 OpenClaw 联调。
   - 补充约束（确认日期：2026-04-03）：云服务器 `101.43.78.27` 已完成飞书后端代码补同步、`presales-backend` 新镜像重建与运行态校验；当前容器内已确认存在 `dist/integrations/feishu`、`messages/approval-cards/send` 路由、`im.message.receive_v1` 私聊事件处理和“待我审批”命令逻辑。下一步若要真正联通飞书，需要继续补齐云端 `.env` 中的 `BACKEND_FEISHU_APP_ID / BACKEND_FEISHU_APP_SECRET / BACKEND_FEISHU_VERIFICATION_TOKEN / BACKEND_FEISHU_ENCRYPT_KEY` 实值。
 
@@ -82,28 +94,34 @@
 
 ## Mock 数据文档
 
-- 当前前端使用的核心 Mock 数据、派生规则、本地存储键和维护约束统一记录在 [docs/mock-data-catalog.md](/Users/gjy/docs/mock-data-catalog.md)。
+- 当前前端使用的核心 Mock 数据、派生规则、本地存储键和维护约束统一记录在 [docs/mock-data-catalog.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/mock-data-catalog.md)。
 - 后续凡是新增、修改、删除 Mock 数据，必须同步更新该文档；不得只改代码不改文档。
 - 补充约束（确认日期：2026-03-27）：所有后续开发必须建立在“当前已开发版本”的基础上推进，包括当前代码实现、当前页面交互和当前 Mock 数据基线；禁止将浏览器 `localStorage` 中临时操作出来的状态误当作新的产品基线。
-- 补充约束（确认日期：2026-03-27）：前端流程库 Mock 数据的基线以 [workflowTemplates.ts](/Users/gjy/frontend/src/shared/workflowTemplates.ts) 中的默认模板为准；若浏览器本地流程库数据与代码基线不一致，应优先回滚到代码默认模板，再继续后续功能开发与联调。
+- 补充约束（确认日期：2026-03-27）：前端流程库 Mock 数据的基线以 [workflowTemplates.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/workflowTemplates.ts) 中的默认模板为准；若浏览器本地流程库数据与代码基线不一致，应优先回滚到代码默认模板，再继续后续功能开发与联调。
 
 ## 部署文档
 
-- 平台上云一期部署手册见 [docs/cloud-deployment-phase1.md](/Users/gjy/docs/cloud-deployment-phase1.md)。
-- 最小上传包与检查清单见 [docs/cloud-upload-checklist-phase1.md](/Users/gjy/docs/cloud-upload-checklist-phase1.md)。
-- 本地开发、云端发布与应急修复回传约定见 [docs/release-runbook.md](/Users/gjy/docs/release-runbook.md)。
-- 域名 HTTPS 接入任务清单与实施方案见 [docs/https-rollout-plan.md](/Users/gjy/docs/https-rollout-plan.md)；当前 `www.getpre.cn` 仍在备案中，先完成准备，不执行正式切换。
-- 云服务器项目目录使用的 Codex 约定源文档见 [docs/cloud-server-codex-AGENTS.md](/Users/gjy/docs/cloud-server-codex-AGENTS.md)，其已同步到服务器 `/opt/presales-platform/AGENTS.md`。
-- 云服务器 `deploy` 用户下的 Codex 运维约定源文档见 [docs/cloud-server-codex-SERVER_CONVENTIONS.md](/Users/gjy/docs/cloud-server-codex-SERVER_CONVENTIONS.md)，其已同步到服务器 `/home/deploy/.codex/SERVER_CONVENTIONS.md`。
-- 飞书 / OpenClaw 最小 MVP 独立任务文档见 [docs/feishu-openclaw-mvp-README.md](/Users/gjy/docs/feishu-openclaw-mvp-README.md)。
-- 飞书 / OpenClaw MVP 接口字段设计与开发方案见 [docs/feishu-openclaw-interface-design.md](/Users/gjy/presales-platform/docs/feishu-openclaw-interface-design.md)。
-- GitHub 代码托管与自动打包落地方案见 [docs/github-rollout-plan.md](/Users/gjy/docs/github-rollout-plan.md)。
+- 平台上云一期部署手册见 [docs/cloud-deployment-phase1.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/cloud-deployment-phase1.md)。
+- 最小上传包与检查清单见 [docs/cloud-upload-checklist-phase1.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/cloud-upload-checklist-phase1.md)。
+- 本地开发、云端发布与应急修复回传约定见 [docs/release-runbook.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/release-runbook.md)。
+- 域名 HTTPS 接入任务清单与实施方案见 [docs/https-rollout-plan.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/https-rollout-plan.md)；当前 `www.getpre.cn` 仍在备案中，先完成准备，不执行正式切换。
+- 云服务器项目目录使用的 Codex 约定源文档见 [docs/cloud-server-codex-AGENTS.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/cloud-server-codex-AGENTS.md)，其已同步到服务器 `/opt/presales-platform/AGENTS.md`。
+- 云服务器 `deploy` 用户下的 Codex 运维约定源文档见 [docs/cloud-server-codex-SERVER_CONVENTIONS.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/cloud-server-codex-SERVER_CONVENTIONS.md)，其已同步到服务器 `/home/deploy/.codex/SERVER_CONVENTIONS.md`。
+- 飞书 / OpenClaw 最小 MVP 独立任务文档见 [docs/feishu-openclaw-mvp-README.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/feishu-openclaw-mvp-README.md)。
+- 飞书 / OpenClaw MVP 接口字段设计与开发方案见 [docs/feishu-openclaw-interface-design.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/feishu-openclaw-interface-design.md)。
+- GitHub 代码托管与自动打包落地方案见 [docs/github-rollout-plan.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/github-rollout-plan.md)。
 
 ### 本地仓库收口进展（2026-04-02）
 
-- 已在本机新建独立目录 `/Users/gjy/presales-platform`，作为后续 GitHub 托管的本地候选仓库根目录。
+- 已在本机新建独立目录 `/Users/gjy/Projects-mygetpre/presales-platform`，作为后续 GitHub 托管的本地候选仓库根目录。
 - 当前采取“复制收口、非破坏式准备”策略：不移动 `/Users/gjy` 下现有开发目录，先将平台相关内容复制到独立目录，避免影响当前业务开发、联调与云端修复节奏。
 - 已在独立目录补齐 `.gitignore`、`.env.example`、`.gitlab-ci.yml` 和本地仓库收口清单 `docs/local-repo-bootstrap-checklist.md`；其中 `.gitlab-ci.yml` 当前仅作为构建思路样板，接入 GitHub 时需迁移为 GitHub Actions 工作流。当前可继续进入 `git init / GitHub origin / 首次推送` 阶段。
+
+### 本地目录迁移补记（2026-04-06）
+
+- 已将平台主项目实际迁移到 `/Users/gjy/Projects-mygetpre/presales-platform`，便于在 `/Users/gjy` 下集中管理与快速定位。
+- 旧路径 `/Users/gjy/presales-platform` 当前保留为软链接，用于兼容部分历史命令、文档引用和工具配置；后续应逐步以新路径为唯一主路径。
+- 部署压缩包 `presales-platform-phase1.tar.gz` 已同步收口到 `/Users/gjy/Projects-mygetpre/presales-platform-artifacts/`，旧位置保留软链接兼容入口。
 
 ### 云端联调收口补充（2026-04-02）
 
@@ -265,15 +283,15 @@
 - [ ] 任务 6：售前工程师工作台视图，实现待办提醒与关键节点列表。（预计完成时间：待定）
 - [ ] 任务 7：基础权限与角色控制（简单角色 + 接口鉴权）。（预计完成时间：待定）
 - [ ] 任务 8：审批流程库与审批实例基础能力。（当前进度：已确认需求范围与总体设计方案；前端 `SettingsView` 中已有基于 `localStorage` 的流程库 Mock 雏形，支持维护流程名称、目标模块与节点列表，但尚不支持真实后端持久化、节点审批人绑定模型、审批实例生成及“通过 / 驳回”动作落库；后端尚未建立流程定义、节点、审批实例、审批动作等实体与接口。）（预计完成时间：待定）
-- [ ] 任务 9：平台上云一期（单机 Docker Compose 部署 + 云服务器联调）。（负责人：Agent + 你，确认日期：2026-03-28，当前进度：已完成首轮可用部署和公网联调；服务器为 `101.43.78.27`、`Ubuntu 22.04`、`2C2G/50GB`，当前按 `Nginx + frontend + backend + MySQL` 的轻量拓扑运行，`http://101.43.78.27/` 可访问前端，`http://101.43.78.27/api/health` 返回 `{\"status\":\"ok\"}`。本期已完成前端 API 基地址环境变量化、后端端口/CORS/JWT/数据库配置环境变量化，并落地 `frontend/Dockerfile`、`backend/Dockerfile`、项目级 `docker-compose.yml`、`frontend/nginx.conf` 与 `.env.example` 模板；云端 MySQL 8.4 启动参数问题与 TypeORM `simple-array` 默认值问题已修正并同步回本地代码，管理员账号 `admin_demo / Admin@123` 登录与访客权限限制也已完成线上验收。最新已进一步确认双斜杠问题根因为云端前端源码未同步到本地修复版本；现已将修复后的 [frontend/src/shared/api.ts](/Users/gjy/frontend/src/shared/api.ts) 同步到服务器、重建 `frontend` 容器，并通过浏览器网络请求复测确认 `GET /api/workflow-definitions` 返回 `200`，原 `GET /api//workflow-definitions` 已消失。当前又已补充完成权限中心线上真链路验收：`PATCH /api/users/4/action-permissions` 保存成功、`POST /api/users/4/action-permissions/reset` 恢复成功；同时以 `sales_demo / Sales@123` 复测角色模板，确认“项目管理”仅保留查看、`+ 新建项目` 与行内 `编辑` 被禁用，“商机管理”保留 `+ 新建商机`，但行内 `审批 / 编辑` 被禁用。另已确认流程库接口读链路正常，但线上当前仍为未种子化空库状态，页面显示 `No data` 属数据缺省而非接口异常。当前已补充沉淀 [docs/release-runbook.md](/Users/gjy/docs/release-runbook.md) 以及服务器侧 Codex 文档路径，后续进入任务 9 的剩余稳定性验收时，应继续遵循“本地优先开发、云端部署验收、云端应急修复必须回传本地”的流程。）（预计完成时间：待定）
-- [ ] 任务 10：飞书 / OpenClaw MVP 接口字段设计与进入开发方案。（负责人：Agent + 你，确认日期：2026-04-03，当前进度：已完成第一版开发设计文档 [docs/feishu-openclaw-interface-design.md](/Users/gjy/presales-platform/docs/feishu-openclaw-interface-design.md)，并确认本阶段执行口径为“前端优先、后端接口预留”。前端已在系统设置中新增“飞书集成”原型页，现已支持绑定管理、命令预览与卡片预览，并进一步打通“优先请求后端、失败回退本地 Mock”的前端联动层：绑定列表支持关键字搜索与状态筛选，`GET /integrations/feishu/bindings` 加载，新增绑定支持 `POST /integrations/feishu/bindings`，启用/停用支持 `PATCH /integrations/feishu/bindings/:id`；命令页支持调用后端只读示例接口刷新展示，并补齐执行成功 / 失败 / 空结果三类状态区；卡片页支持按当前卡片类型从后端刷新示例，同时新增“页面字段 -> 接口字段”映射表，便于按接口设计文档逐项验收。2026-04-03 已将本地运行中验证通过的飞书集成前端增强同步回独立仓库：补齐绑定列表统计卡、排序、分页，命令区“最近请求信息”，以及卡片区“动作载荷预览”，从而使仓库代码与 `http://localhost:5173` 的当前验收页面保持一致。后端已新增 `backend/src/integrations/feishu` 模块骨架，补齐 `bindings` 管理接口、`me/pending-approvals`、商机摘要、方案摘要、今日简报以及事件 / 卡片回调占位接口；并已进一步新增 `feishu_user_bindings` 实体，将绑定管理从内存种子切换为数据库持久化实现，空表时自动补默认绑定种子。当前又已新增 `feishu_callback_logs` 与 `feishu_message_logs` 两类实体，并将 `POST /integrations/feishu/cards/action` 接到平台现有审批执行服务：已支持按飞书 `open_id` 映射平台用户、对 `approve / reject / open_detail` 动作做最小解析、记录回调日志、记录出站消息结果、执行审批权限校验与真实审批写入；同时已将卡片动作幂等从“仅 processed”收紧为同 `actionToken` 的重复请求统一识别。最新又已补充 `FEISHU_*` 运行配置项、`/integrations/feishu/events` 的 challenge / verification token 基础校验、基于原始 `rawBody` 的回调签名校验，以及过期审批卡片的失效提示处理；并已将审批成功后的返回结构升级为更完整的卡片回写对象，统一包含标题、副标题、摘要、字段、标签和动作集合。2026-04-03 当前已继续补上内部 `card` 视图到飞书 `interactive card` JSON 的映射层，审批成功回调会同时返回平台内部卡片视图与可直接发往飞书的 `interactiveCard`，动作载荷字段已对齐 `approvalInstanceId / businessType / businessId / businessCode / actionToken / requestId` 口径；同时修正了事件回调成功文案中的“签名校验待实现”过期描述。最新又已继续补上真实飞书发送通道的最小实现：后端新增管理员联调接口 `POST /integrations/feishu/messages/approval-cards/send`，支持按 `approvalInstanceId + bindingId/openId` 发送审批卡片，`dryRun=true` 时返回本次发送的卡片预览，关闭 dry-run 后会按官方服务端接口获取 `tenant_access_token` 并调用 `POST /open-apis/im/v1/messages?receive_id_type=open_id` 发送 interactive card；同时已补充 token 内存缓存、根目录 `docker-compose.yml` 的飞书环境变量透传，以及 `runtimeConfig` 对 `FEISHU_* / BACKEND_FEISHU_*` 双口径兼容，避免本地与云上配置命名不一致导致发送链路失效。最新又已将 `im.message.receive_v1` 私聊文本命令链路真正接通：`POST /integrations/feishu/events` 现在会按飞书官方 `message_id` 做消息幂等，校验仅处理 `p2p` 文本消息，并支持白名单命令 `待我审批`、`今日简报`、`商机摘要 OPP-000001`、`方案摘要 SOL-000001`；收到命令后会按飞书绑定映射平台账号，调用现有只读聚合接口生成文本回复，其中“待我审批”还会继续附带前 3 条 interactive approval cards，未绑定账号、非文本消息或非白名单命令则回发明确提示。当前前后端 build 均已在本地仓库通过。另已完成云端后端与前端的一轮发布核验：`presales-backend` 已确认包含 `dist/integrations/feishu`、`messages/approval-cards/send` 路由与 `im.message.receive_v1` 私聊命令处理；`presales-frontend` 也已重建上线，入口位置为“系统设置 -> 飞书集成”。同时已在飞书开放平台定位到正式应用 `claw机器人` 的当前凭据：`App ID=cli_a94bed4806381bd9`、`App Secret=gbocoGB5c1UieiPllB1Ucd7l2VS0aWZQ`、`Verification Token=ntHf9LlkYKYHr4NexGnOIhuxTsmeLhND`。2026-04-04 已继续完成云端 `.env` 写入与服务重启：`/opt/presales-platform/.env` 已补入 `BACKEND_FEISHU_APP_ID / BACKEND_FEISHU_APP_SECRET / BACKEND_FEISHU_VERIFICATION_TOKEN / BACKEND_FEISHU_ENCRYPT_KEY`，并已在飞书开放平台生成并发布新的 `Encrypt Key`：`MttEwq1R8RKbTlL1S0GKlcCTACvap3cO`；`presales-backend` 容器已重建并恢复健康，云端内网 `http://127.0.0.1/api/health` 与公网 `http://101.43.78.27/api/health` 均返回 `{\"status\":\"ok\"}`。同时已补上卡片回调 `challenge` 响应兼容，修复飞书“Challenge code没有返回”导致回调地址保存失败的问题；当前飞书后台“事件与回调”页已显示“当前修改均已发布”，版本 `1.0.1` 已发布通过。2026-04-04 当日晚间又继续完成真实加密回调联调修复：已修正飞书卡片/事件加密回调的 AES 解密与 `sha256(timestamp + nonce + encryptKey + rawBody)` 签名校验实现，放宽时间戳解析以兼容飞书实际 header 格式，并将卡片回调 headers 一并落库；真实私聊“帮助”消息已可稳定回包，真实失败卡片 payload 回放到云端接口已返回 `201` 成功并完成审批写入，证明此前点击“通过/驳回”弹出“出错了，请稍后重试”的根因已解除。为继续做最终验收，已新建审批实例 `17`、推进到“销售领导审批”节点，并向真实飞书账号再次发送新审批卡片（message_id=`om_x100b5227642d48a0c339ea4742fe8ff`）；当前剩余工作聚焦为让用户在这张新卡上完成一次真实点击并确认飞书端卡片状态同步。）
-  - OpenClaw 第四阶段补记（确认日期：2026-04-05）：后端已新增 [openclaw.module.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.module.ts)、[openclaw.controller.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.controller.ts)、[openclaw.service.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts)，落地 `GET /integrations/openclaw/skills`、`POST /integrations/openclaw/skills/:name`、`POST /integrations/openclaw/query` 三个只读入口；同时补入 `x-openclaw-token` 共享令牌校验、`platformUserId / feishuOpenId` 用户上下文注入与绑定一致性校验、自然语言到 4 个只读 skill 的最小映射，以及针对“审批通过 / 驳回 / 修改 / 删除”等写意图的 `OPENCLAW_READONLY_ONLY` 拦截。[docker-compose.yml](/Users/gjy/presales-platform/docker-compose.yml)、[.env.example](/Users/gjy/presales-platform/.env.example) 与 [backend/.env.example](/Users/gjy/presales-platform/backend/.env.example) 已同步补入 `OPENCLAW_SHARED_TOKEN / BACKEND_OPENCLAW_SHARED_TOKEN` 配置口径；新增 [backend/test/openclaw-service.test.js](/Users/gjy/presales-platform/backend/test/openclaw-service.test.js) 5 条自动化用例，覆盖绑定用户解析、上下文冲突拒绝、待审批意图识别、商机摘要意图识别和写操作拦截。本地已再次验证通过：`cd /Users/gjy/presales-platform/backend && npm run build`、`cd /Users/gjy/presales-platform/backend && npm test -- --runInBand`。
+- [ ] 任务 9：平台上云一期（单机 Docker Compose 部署 + 云服务器联调）。（负责人：Agent + 你，确认日期：2026-03-28，当前进度：已完成首轮可用部署和公网联调；服务器为 `101.43.78.27`、`Ubuntu 22.04`、`2C2G/50GB`，当前按 `Nginx + frontend + backend + MySQL` 的轻量拓扑运行，`http://101.43.78.27/` 可访问前端，`http://101.43.78.27/api/health` 返回 `{\"status\":\"ok\"}`。本期已完成前端 API 基地址环境变量化、后端端口/CORS/JWT/数据库配置环境变量化，并落地 `frontend/Dockerfile`、`backend/Dockerfile`、项目级 `docker-compose.yml`、`frontend/nginx.conf` 与 `.env.example` 模板；云端 MySQL 8.4 启动参数问题与 TypeORM `simple-array` 默认值问题已修正并同步回本地代码，管理员账号 `admin_demo / Admin@123` 登录与访客权限限制也已完成线上验收。最新已进一步确认双斜杠问题根因为云端前端源码未同步到本地修复版本；现已将修复后的 [frontend/src/shared/api.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/api.ts) 同步到服务器、重建 `frontend` 容器，并通过浏览器网络请求复测确认 `GET /api/workflow-definitions` 返回 `200`，原 `GET /api//workflow-definitions` 已消失。当前又已补充完成权限中心线上真链路验收：`PATCH /api/users/4/action-permissions` 保存成功、`POST /api/users/4/action-permissions/reset` 恢复成功；同时以 `sales_demo / Sales@123` 复测角色模板，确认“项目管理”仅保留查看、`+ 新建项目` 与行内 `编辑` 被禁用，“商机管理”保留 `+ 新建商机`，但行内 `审批 / 编辑` 被禁用。另已确认流程库接口读链路正常，但线上当前仍为未种子化空库状态，页面显示 `No data` 属数据缺省而非接口异常。当前已补充沉淀 [docs/release-runbook.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/release-runbook.md) 以及服务器侧 Codex 文档路径，后续进入任务 9 的剩余稳定性验收时，应继续遵循“本地优先开发、云端部署验收、云端应急修复必须回传本地”的流程。）（预计完成时间：待定）
+- [ ] 任务 10：飞书 / OpenClaw MVP 接口字段设计与进入开发方案。（负责人：Agent + 你，确认日期：2026-04-03，当前进度：已完成第一版开发设计文档 [docs/feishu-openclaw-interface-design.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/feishu-openclaw-interface-design.md)，并确认本阶段执行口径为“前端优先、后端接口预留”。前端已在系统设置中新增“飞书集成”原型页，现已支持绑定管理、命令预览与卡片预览，并进一步打通“优先请求后端、失败回退本地 Mock”的前端联动层：绑定列表支持关键字搜索与状态筛选，`GET /integrations/feishu/bindings` 加载，新增绑定支持 `POST /integrations/feishu/bindings`，启用/停用支持 `PATCH /integrations/feishu/bindings/:id`；命令页支持调用后端只读示例接口刷新展示，并补齐执行成功 / 失败 / 空结果三类状态区；卡片页支持按当前卡片类型从后端刷新示例，同时新增“页面字段 -> 接口字段”映射表，便于按接口设计文档逐项验收。2026-04-03 已将本地运行中验证通过的飞书集成前端增强同步回独立仓库：补齐绑定列表统计卡、排序、分页，命令区“最近请求信息”，以及卡片区“动作载荷预览”，从而使仓库代码与 `http://localhost:5173` 的当前验收页面保持一致。后端已新增 `backend/src/integrations/feishu` 模块骨架，补齐 `bindings` 管理接口、`me/pending-approvals`、商机摘要、方案摘要、今日简报以及事件 / 卡片回调占位接口；并已进一步新增 `feishu_user_bindings` 实体，将绑定管理从内存种子切换为数据库持久化实现，空表时自动补默认绑定种子。当前又已新增 `feishu_callback_logs` 与 `feishu_message_logs` 两类实体，并将 `POST /integrations/feishu/cards/action` 接到平台现有审批执行服务：已支持按飞书 `open_id` 映射平台用户、对 `approve / reject / open_detail` 动作做最小解析、记录回调日志、记录出站消息结果、执行审批权限校验与真实审批写入；同时已将卡片动作幂等从“仅 processed”收紧为同 `actionToken` 的重复请求统一识别。最新又已补充 `FEISHU_*` 运行配置项、`/integrations/feishu/events` 的 challenge / verification token 基础校验、基于原始 `rawBody` 的回调签名校验，以及过期审批卡片的失效提示处理；并已将审批成功后的返回结构升级为更完整的卡片回写对象，统一包含标题、副标题、摘要、字段、标签和动作集合。2026-04-03 当前已继续补上内部 `card` 视图到飞书 `interactive card` JSON 的映射层，审批成功回调会同时返回平台内部卡片视图与可直接发往飞书的 `interactiveCard`，动作载荷字段已对齐 `approvalInstanceId / businessType / businessId / businessCode / actionToken / requestId` 口径；同时修正了事件回调成功文案中的“签名校验待实现”过期描述。最新又已继续补上真实飞书发送通道的最小实现：后端新增管理员联调接口 `POST /integrations/feishu/messages/approval-cards/send`，支持按 `approvalInstanceId + bindingId/openId` 发送审批卡片，`dryRun=true` 时返回本次发送的卡片预览，关闭 dry-run 后会按官方服务端接口获取 `tenant_access_token` 并调用 `POST /open-apis/im/v1/messages?receive_id_type=open_id` 发送 interactive card；同时已补充 token 内存缓存、根目录 `docker-compose.yml` 的飞书环境变量透传，以及 `runtimeConfig` 对 `FEISHU_* / BACKEND_FEISHU_*` 双口径兼容，避免本地与云上配置命名不一致导致发送链路失效。最新又已将 `im.message.receive_v1` 私聊文本命令链路真正接通：`POST /integrations/feishu/events` 现在会按飞书官方 `message_id` 做消息幂等，校验仅处理 `p2p` 文本消息，并支持白名单命令 `待我审批`、`今日简报`、`商机摘要 OPP-000001`、`方案摘要 SOL-000001`；收到命令后会按飞书绑定映射平台账号，调用现有只读聚合接口生成文本回复，其中“待我审批”还会继续附带前 3 条 interactive approval cards，未绑定账号、非文本消息或非白名单命令则回发明确提示。当前前后端 build 均已在本地仓库通过。另已完成云端后端与前端的一轮发布核验：`presales-backend` 已确认包含 `dist/integrations/feishu`、`messages/approval-cards/send` 路由与 `im.message.receive_v1` 私聊命令处理；`presales-frontend` 也已重建上线，入口位置为“系统设置 -> 飞书集成”。同时已在飞书开放平台定位到正式应用 `claw机器人` 的当前凭据：`App ID=cli_a94bed4806381bd9`、`App Secret=gbocoGB5c1UieiPllB1Ucd7l2VS0aWZQ`、`Verification Token=ntHf9LlkYKYHr4NexGnOIhuxTsmeLhND`。2026-04-04 已继续完成云端 `.env` 写入与服务重启：`/opt/presales-platform/.env` 已补入 `BACKEND_FEISHU_APP_ID / BACKEND_FEISHU_APP_SECRET / BACKEND_FEISHU_VERIFICATION_TOKEN / BACKEND_FEISHU_ENCRYPT_KEY`，并已在飞书开放平台生成并发布新的 `Encrypt Key`：`MttEwq1R8RKbTlL1S0GKlcCTACvap3cO`；`presales-backend` 容器已重建并恢复健康，云端内网 `http://127.0.0.1/api/health` 与公网 `http://101.43.78.27/api/health` 均返回 `{\"status\":\"ok\"}`。同时已补上卡片回调 `challenge` 响应兼容，修复飞书“Challenge code没有返回”导致回调地址保存失败的问题；当前飞书后台“事件与回调”页已显示“当前修改均已发布”，版本 `1.0.1` 已发布通过。2026-04-04 当日晚间又继续完成真实加密回调联调修复：已修正飞书卡片/事件加密回调的 AES 解密与 `sha256(timestamp + nonce + encryptKey + rawBody)` 签名校验实现，放宽时间戳解析以兼容飞书实际 header 格式，并将卡片回调 headers 一并落库；真实私聊“帮助”消息已可稳定回包，真实失败卡片 payload 回放到云端接口已返回 `201` 成功并完成审批写入，证明此前点击“通过/驳回”弹出“出错了，请稍后重试”的根因已解除。为继续做最终验收，已新建审批实例 `17`、推进到“销售领导审批”节点，并向真实飞书账号再次发送新审批卡片（message_id=`om_x100b5227642d48a0c339ea4742fe8ff`）；当前剩余工作聚焦为让用户在这张新卡上完成一次真实点击并确认飞书端卡片状态同步。）
+  - OpenClaw 第四阶段补记（确认日期：2026-04-05）：后端已新增 [openclaw.module.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/integrations/openclaw/openclaw.module.ts)、[openclaw.controller.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/integrations/openclaw/openclaw.controller.ts)、[openclaw.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts)，落地 `GET /integrations/openclaw/skills`、`POST /integrations/openclaw/skills/:name`、`POST /integrations/openclaw/query` 三个只读入口；同时补入 `x-openclaw-token` 共享令牌校验、`platformUserId / feishuOpenId` 用户上下文注入与绑定一致性校验、自然语言到 4 个只读 skill 的最小映射，以及针对“审批通过 / 驳回 / 修改 / 删除”等写意图的 `OPENCLAW_READONLY_ONLY` 拦截。[docker-compose.yml](/Users/gjy/Projects-mygetpre/presales-platform/docker-compose.yml)、[.env.example](/Users/gjy/Projects-mygetpre/presales-platform/.env.example) 与 [backend/.env.example](/Users/gjy/Projects-mygetpre/presales-platform/backend/.env.example) 已同步补入 `OPENCLAW_SHARED_TOKEN / BACKEND_OPENCLAW_SHARED_TOKEN` 配置口径；新增 [backend/test/openclaw-service.test.js](/Users/gjy/Projects-mygetpre/presales-platform/backend/test/openclaw-service.test.js) 5 条自动化用例，覆盖绑定用户解析、上下文冲突拒绝、待审批意图识别、商机摘要意图识别和写操作拦截。本地已再次验证通过：`cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build`、`cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm test -- --runInBand`。
   - OpenClaw 云端发布补记（确认日期：2026-04-05）：已通过 `deploy@101.43.78.27` 将本轮最小后端变更包上传到 `/opt/presales-platform`，覆盖 `backend/src/integrations/openclaw/*`、`backend/src/app.module.ts`、`backend/src/config/runtime.ts` 与 `docker-compose.yml`，并在云端 `.env` 中新增 `BACKEND_OPENCLAW_SHARED_TOKEN` 实值后完成 `docker compose build backend && docker compose up -d backend`。发布后已完成最小验收：`curl http://127.0.0.1/api/health` 返回 `{\"status\":\"ok\"}`；`GET /api/integrations/openclaw/skills` 可返回 4 个只读 skill；`POST /api/integrations/openclaw/query` 以 `platformUserId=2`、查询“我今天有哪些待审批”返回成功，意图识别为 `get_my_pending_approvals`。这表明云端 OpenClaw 只读后端入口已具备真实联调条件，下一步可直接接真实 OpenClaw 侧配置，不需要再重复部署后端骨架。
   - OpenClaw 本机配置补记（确认日期：2026-04-05）：已在本机 `~/.openclaw` 下完成一层真实 skill 包装，新增本地 skill [SKILL.md](/Users/gjy/.openclaw/skills/presales-platform-openclaw/SKILL.md)、脚本 [presales-platform-openclaw.sh](/Users/gjy/.openclaw/skills/presales-platform-openclaw/scripts/presales-platform-openclaw.sh) 与私有 env 文件 `~/.openclaw/workspace/.openclaw/presales-platform-api.env`。当前 OpenClaw 可通过该 skill 直接调用平台 `http://101.43.78.27/api/integrations/openclaw/*`，并自动带上 `x-openclaw-token`；本机已完成两条真实验证：`bash ~/.openclaw/skills/presales-platform-openclaw/scripts/presales-platform-openclaw.sh skills` 可返回 4 个只读 skill，`bash ~/.openclaw/skills/presales-platform-openclaw/scripts/presales-platform-openclaw.sh query 2 '我今天有哪些待审批'` 可返回成功结果。至此，本机 OpenClaw 与云端平台只读接口都已打通，下一步可直接在真实对话中使用该 skill，而不需要再手工配置 header/token。
   - OpenClaw 真实会话验证补记（确认日期：2026-04-05）：已在本机直接通过 `openclaw agent` 对现有主会话 `7af4c7a1-88ae-4176-b2cb-6f1919bb86b5` 完成 4 类自然语言查询的真实联调验证，分别覆盖“我今天有哪些待审批”“给我今日简报”“看下商机摘要 OPP-000001”“看下方案摘要 SOL-000001”。实际返回结果已确认可读到平台真实数据：`manager_demo / platformUserId=2` 当前待审批为 `0`，今日简报返回 `12` 条负责或关注商机、`4` 条风险商机、`10` 个最近更新方案，商机与方案摘要也均返回成功。联调中同时确认两点当前限制：1）OpenClaw 主会话不适合并发压测，多条 `openclaw agent` 并发请求会触发 `session file locked`，后续联调需保持串行；2）商机摘要与方案摘要的专用摘要路径仍存在参数兼容问题，agent 当前会自动回退到通用查询，因此用户侧虽然能拿到正确结果，但回复中会出现“改走通用查询 / 重试”的过程话术。另已确认 `openclaw gateway probe` 在当前 Codex 沙箱内会误报 `EPERM 127.0.0.1:18789`，提权后 `openclaw gateway health` 与 `openclaw gateway status` 均正常，说明这不是 OpenClaw 服务故障，而是本地沙箱对 loopback WebSocket 的限制。
-  - OpenClaw 摘要兼容修复补记（确认日期：2026-04-05）：已继续定位并修复商机/方案摘要专用 skill 的参数兼容问题。根因是本地 OpenClaw skill 脚本调用 `POST /integrations/openclaw/skills/:name` 时，将 `code / limit / businessType` 放在顶层 body，而后端 `executeSkill()` 早前只读取 `payload.input`，导致 `get_opportunity_summary / get_solution_summary` 直调会报“缺少 OPP/SOL 编号”，真实 agent 因而回退到通用查询。当前已在 [openclaw.service.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts) 增加兼容归一化层，统一兼容顶层 `code / businessCode / opportunityCode / solutionCode / limit / businessType` 与嵌套 `input.*` 两种口径；并在 [backend/test/openclaw-service.test.js](/Users/gjy/presales-platform/backend/test/openclaw-service.test.js) 新增两条回归用例，覆盖“顶层 `code` 直调商机摘要”和“顶层 `limit/businessType` 直调待审批”。本地已再次验证通过：`cd /Users/gjy/presales-platform/backend && npm run build`、`cd /Users/gjy/presales-platform/backend && npm test -- --runInBand`；云端也已按最小范围覆盖 [openclaw.service.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts) 并重建 `backend` 容器，随后用内网接口直调验证 `POST /api/integrations/openclaw/skills/get_opportunity_summary` 和 `POST /api/integrations/openclaw/skills/get_solution_summary` 均已返回成功。修复后再次通过真实 `openclaw agent` 会话复测“看下商机摘要 OPP-000001”，回复中已不再出现“改走通用查询 / 重试”的过程话术，说明用户可见链路已恢复到专用摘要路径。
+  - OpenClaw 摘要兼容修复补记（确认日期：2026-04-05）：已继续定位并修复商机/方案摘要专用 skill 的参数兼容问题。根因是本地 OpenClaw skill 脚本调用 `POST /integrations/openclaw/skills/:name` 时，将 `code / limit / businessType` 放在顶层 body，而后端 `executeSkill()` 早前只读取 `payload.input`，导致 `get_opportunity_summary / get_solution_summary` 直调会报“缺少 OPP/SOL 编号”，真实 agent 因而回退到通用查询。当前已在 [openclaw.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts) 增加兼容归一化层，统一兼容顶层 `code / businessCode / opportunityCode / solutionCode / limit / businessType` 与嵌套 `input.*` 两种口径；并在 [backend/test/openclaw-service.test.js](/Users/gjy/Projects-mygetpre/presales-platform/backend/test/openclaw-service.test.js) 新增两条回归用例，覆盖“顶层 `code` 直调商机摘要”和“顶层 `limit/businessType` 直调待审批”。本地已再次验证通过：`cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build`、`cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm test -- --runInBand`；云端也已按最小范围覆盖 [openclaw.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts) 并重建 `backend` 容器，随后用内网接口直调验证 `POST /api/integrations/openclaw/skills/get_opportunity_summary` 和 `POST /api/integrations/openclaw/skills/get_solution_summary` 均已返回成功。修复后再次通过真实 `openclaw agent` 会话复测“看下商机摘要 OPP-000001”，回复中已不再出现“改走通用查询 / 重试”的过程话术，说明用户可见链路已恢复到专用摘要路径。
   - OpenClaw 回复文案收口补记（确认日期：2026-04-05）：已继续收紧本机本地 skill [SKILL.md](/Users/gjy/.openclaw/skills/presales-platform-openclaw/SKILL.md) 的输出约束，新增“查询成功时尽量只输出 1 条最终答复”“禁止使用 `我查一下 / 我拉一下 / 我先帮你` 这类过程开场”“首句直接进入 `今日简报 / 商机摘要 / 方案摘要` 结果本身”等规则。最新通过真实 `openclaw agent` 新会话复测两条口径：1）“给我今日简报”当前已稳定返回单条结果式回复，以 `今日简报：` 开头，不再拆成“过程消息 + 结果消息”；2）“看下方案摘要 SOL-000001”当前已稳定返回以 `` `SOL-000001` 方案摘要如下：`` 开头的直接结果式摘要。现阶段可认为 OpenClaw 本地回复风格已基本收口；若后续仍偶发残留一两句过程话术，应优先从本机 workspace prompt 或模型会话历史继续细调，而不是再回头排查平台后端接口。
-  - 自动化测试补记（确认日期：2026-04-05）：已新增 [backend/test/feishu-service.test.js](/Users/gjy/presales-platform/backend/test/feishu-service.test.js)，当前已覆盖 7 组高风险场景：1）事件 challenge 响应；2）事件 token 校验失败；3）过期审批卡片返回 stale warning + `raw` 卡片；4）当前节点非本人处理人时返回 forbidden warning + 禁用卡片；5）审批成功后返回 `card: { type: "raw", data: ... }` 的 JSON 2.0 回包结构；6）重复 `actionToken` 点击返回 duplicate warning；7）`open_detail` 分支仅返回 success toast、不触发审批写操作。当前本地 `cd /Users/gjy/presales-platform/backend && npm run build` 与 `cd /Users/gjy/presales-platform/backend && npm test -- --runInBand` 已再次通过，说明飞书回调主链路已具备第二轮自动化回归保护。
+  - 自动化测试补记（确认日期：2026-04-05）：已新增 [backend/test/feishu-service.test.js](/Users/gjy/Projects-mygetpre/presales-platform/backend/test/feishu-service.test.js)，当前已覆盖 7 组高风险场景：1）事件 challenge 响应；2）事件 token 校验失败；3）过期审批卡片返回 stale warning + `raw` 卡片；4）当前节点非本人处理人时返回 forbidden warning + 禁用卡片；5）审批成功后返回 `card: { type: "raw", data: ... }` 的 JSON 2.0 回包结构；6）重复 `actionToken` 点击返回 duplicate warning；7）`open_detail` 分支仅返回 success toast、不触发审批写操作。当前本地 `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build` 与 `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm test -- --runInBand` 已再次通过，说明飞书回调主链路已具备第二轮自动化回归保护。
   - 飞书卡片 2.0 结构补记（确认日期：2026-04-05）：已依据飞书官方 `card.action.trigger` 文档，将卡片回调响应从旧的裸 `config/header/elements` 结构切换为 `card: { type: "raw", data: <JSON 2.0 card> }`，并同步将消息发送卡片迁移到 JSON 2.0。联调中又进一步确认并修复两个 JSON 2.0 不兼容点：`note` 标签已改写为普通文本 `div + lark_md`，旧版交互容器 `tag: "action"` 已改为直接在 `body.elements` 中放置 `button`，并按官方 `behaviors` 语义分别输出 `callback` / `open_url`。本地 `npm run build`、`npm test -- --runInBand` 已再次通过，云端 `presales-backend` 已重建。当前真实发卡链路已恢复可用：对审批实例 `20` 发送的新卡消息 `om_x100b5229fbaf88a0c3d8af5b68cf400` 已出现在飞书 Web 会话中，最新卡面可正确展示“最终审批”且按钮禁用状态生效；剩余未完全收口的问题是，自动化浏览器点击旧卡片按钮未触发新的飞书回调日志，疑似飞书 Web 对自动化事件有限制，因此下次会话应优先基于人工点击继续验证“旧卡 stale 回刷”和“新卡真实回调”两个场景。
   - 飞书旧卡兼容补记（确认日期：2026-04-05）：你已手工复测“旧卡仍可点”的场景，现象已按预期从“飘红报错”收口为“warning 提示 + 卡片禁用回刷”。云端最新日志显示 `feishu_callback_logs.id=85` 已从此前的 `failed` 切换为 `ignored`，且不再带错误信息；对应出站消息 `feishu_message_logs.id=90` 的模板为 `card_action_forbidden`，说明后端已在真正执行审批前完成“当前用户是否仍可处理当前节点”的预判，并将旧卡回刷为只读禁用态，而不是继续抛出 `只有当前节点处理人可以执行此审批动作` 给飞书客户端。
   - 飞书最终审批联调补记（确认日期：2026-04-05）：进一步核对云端流程规则后，当前所有尚未结束的方案实例（`16/19/20/21`）都已处于“最终审批”节点，节点审批人规则统一为 `admin`；而你的飞书账号原先绑定的是 `manager_demo`，这也是旧卡在当前阶段继续点击会被平台拒绝的直接原因。为继续收口真正可操作的新卡场景，已将联调绑定临时调整为 `admin_demo`，并重新向实例 `20` 发送最新审批卡，消息 ID 为 `om_x100b52155db550a0c35b78d6b2c1599`。下一次会话应直接从“点击这张最新 `SOL-000006` 最终审批卡，确认成功回调时是否仍会飘红”继续，不再重复排查旧卡权限问题。
@@ -283,18 +301,18 @@
   - 补充收口（确认日期：2026-03-29）：本轮继续处理线上易用性与真库验收，包括团队管理表格补齐“序号 / 列设置 / 分页”，个人资料中的“团队角色”改为下拉选择，工作台“最近项目”默认每页 5 条且可调，“本月业绩趋势”中部图例与柱图区继续收紧并居中；后端补充轻量 MySQL 烟测脚本，通过真实接口完成“登录 -> 当前用户 -> 创建成员 -> 更新成员 -> 检索成员 -> 删除成员”的自动验证，确保云上真实 MySQL 链路可重复验收。
   - 补充收口（确认日期：2026-03-29）：继续优化工作台与数据分析联动体验。工作台“本月业绩趋势”中部图例需改为左侧上下堆叠，靠左贴边但整体在中间卡片内横向居中；点击跳转到“数据分析 > 业绩趋势”后，需优先读取后端真实 MySQL 商机数据，并补充可重复执行的趋势种子脚本，将示例分析数据直接写入数据库，确保每次跳转都能看到非空趋势图。
   - 补充需求（确认日期：2026-04-01）：云服务器当前已具备域名 `www.getpre.cn` 与现成免费证书，证书目录为 `/opt/presales-platform/getpre.cn_nginx`。本轮新增“域名 HTTPS 接入”收口项，实施口径固定为在现有 `frontend` 容器内 Nginx 直接终止 TLS，通过 `80 -> 443` 强制跳转、`443` 提供静态站点与 `/api/` 反向代理，不新增第二层反向代理；上线前需完成 DNS 解析、云安全组 `80/443` 放通、证书挂载、Nginx SSL 配置、后端 `CORS_ORIGIN` 调整，以及基于 `curl` 与浏览器的 HTTPS 验收。
-  - 当前状态更新（确认日期：2026-04-01）：经本轮确认，`www.getpre.cn` 当前仍在备案中，因此暂不在服务器执行 HTTPS 切换；本次仅完成任务清单与实施方案文档整理，作为备案完成后的执行基线。具体待办、配置改造思路、上线步骤、验收口径与回退策略统一见 [docs/https-rollout-plan.md](/Users/gjy/docs/https-rollout-plan.md)。
-  - 前端验收补记（确认日期：2026-04-01）：继续排查商机流程页数据来源后，已确认“商机审批流程定义”此前仍主要依赖前端本地流程模板与 localStorage。现已将 [frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/frontend/src/views/OpportunitiesDemoView.tsx) 调整为优先读取后端 `GET /workflow-definitions?targetType=opportunity&enabled=true` 的真实流程定义，并沿用“适用商机关键词优先，其次默认流程”的匹配规则；当后端流程库不可用时才回退到本地模板。同时在页面上明确标注当前流程来源与降级提示。当前审批动作与审批记录仍为前端占位数据，待后端补齐审批实例/审批动作接口后再继续改造成完整真实链路。
-  - 前端验收补记（确认日期：2026-04-01）：已继续修正商机/方案/权限中心三处前端问题。其一，[frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/frontend/src/views/OpportunitiesDemoView.tsx) 中“分配解决方案负责人”节点不再错误使用销售负责人字段兜底，避免出现流程未走到第 4 步但第 4 步色块提前点亮的情况；同时 [frontend/src/shared/opportunityDemoData.ts](/Users/gjy/frontend/src/shared/opportunityDemoData.ts) 已去除基于后置字段自动补前置审批通过状态的宽松推导，改为以显式流程记录/显式字段为准，收紧步骤条与审批记录的一致性。其二，[frontend/src/views/SolutionsView.tsx](/Users/gjy/frontend/src/views/SolutionsView.tsx) 已将原静态“方案审批流程”模态框调整为带当前节点说明、节点责任人标识和只读/可操作约束的动态前端规则：当前仅允许待处理节点责任人执行通过/驳回，其他成员保持只读查看；该页仍属前端规则层收口，尚未接入真实审批实例接口。其三，[frontend/src/views/SettingsView.tsx](/Users/gjy/frontend/src/views/SettingsView.tsx) 已为权限管理中心补充真实数字用户 ID 校验，避免页面刚打开时拿本地快照中的 `username` 去调用 `/users/:id/menu-permissions`、`/users/:id/action-permissions`，从而触发后端 `ParseIntPipe` 返回 `400`。
-  - 前端修复补记（确认日期：2026-04-01）：针对你反馈的“点击权限管理中心仍报用户菜单权限加载失败：400”，已继续在 [frontend/src/views/SettingsView.tsx](/Users/gjy/frontend/src/views/SettingsView.tsx) 做第二轮收口：权限中心成员条现已改为仅展示后端返回的真实数字用户 ID 成员，不再把本地快照成员带入单选区；当团队列表回退到本地快照时，页面会直接提示“需连接后端真实用户数据后才能维护权限”，并同步清空当前选中成员与草稿状态；菜单权限/操作权限的“全部允许、清空覆盖、恢复角色默认、保存”按钮也已统一改为基于 `isNumericUserId` 的二次校验。这样即使成员列表处于本地降级态，也不会再向 `/users/:id/menu-permissions`、`/users/:id/action-permissions` 发送带 `username` 的非法请求。
+  - 当前状态更新（确认日期：2026-04-01）：经本轮确认，`www.getpre.cn` 当前仍在备案中，因此暂不在服务器执行 HTTPS 切换；本次仅完成任务清单与实施方案文档整理，作为备案完成后的执行基线。具体待办、配置改造思路、上线步骤、验收口径与回退策略统一见 [docs/https-rollout-plan.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/https-rollout-plan.md)。
+  - 前端验收补记（确认日期：2026-04-01）：继续排查商机流程页数据来源后，已确认“商机审批流程定义”此前仍主要依赖前端本地流程模板与 localStorage。现已将 [frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpportunitiesDemoView.tsx) 调整为优先读取后端 `GET /workflow-definitions?targetType=opportunity&enabled=true` 的真实流程定义，并沿用“适用商机关键词优先，其次默认流程”的匹配规则；当后端流程库不可用时才回退到本地模板。同时在页面上明确标注当前流程来源与降级提示。当前审批动作与审批记录仍为前端占位数据，待后端补齐审批实例/审批动作接口后再继续改造成完整真实链路。
+  - 前端验收补记（确认日期：2026-04-01）：已继续修正商机/方案/权限中心三处前端问题。其一，[frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpportunitiesDemoView.tsx) 中“分配解决方案负责人”节点不再错误使用销售负责人字段兜底，避免出现流程未走到第 4 步但第 4 步色块提前点亮的情况；同时 [frontend/src/shared/opportunityDemoData.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/opportunityDemoData.ts) 已去除基于后置字段自动补前置审批通过状态的宽松推导，改为以显式流程记录/显式字段为准，收紧步骤条与审批记录的一致性。其二，[frontend/src/views/SolutionsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SolutionsView.tsx) 已将原静态“方案审批流程”模态框调整为带当前节点说明、节点责任人标识和只读/可操作约束的动态前端规则：当前仅允许待处理节点责任人执行通过/驳回，其他成员保持只读查看；该页仍属前端规则层收口，尚未接入真实审批实例接口。其三，[frontend/src/views/SettingsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SettingsView.tsx) 已为权限管理中心补充真实数字用户 ID 校验，避免页面刚打开时拿本地快照中的 `username` 去调用 `/users/:id/menu-permissions`、`/users/:id/action-permissions`，从而触发后端 `ParseIntPipe` 返回 `400`。
+  - 前端修复补记（确认日期：2026-04-01）：针对你反馈的“点击权限管理中心仍报用户菜单权限加载失败：400”，已继续在 [frontend/src/views/SettingsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SettingsView.tsx) 做第二轮收口：权限中心成员条现已改为仅展示后端返回的真实数字用户 ID 成员，不再把本地快照成员带入单选区；当团队列表回退到本地快照时，页面会直接提示“需连接后端真实用户数据后才能维护权限”，并同步清空当前选中成员与草稿状态；菜单权限/操作权限的“全部允许、清空覆盖、恢复角色默认、保存”按钮也已统一改为基于 `isNumericUserId` 的二次校验。这样即使成员列表处于本地降级态，也不会再向 `/users/:id/menu-permissions`、`/users/:id/action-permissions` 发送带 `username` 的非法请求。
   - 浏览器验收补记（确认日期：2026-04-01）：已在本地启动 `frontend preview + backend` 后，对最新改动做一轮真实浏览器复测。结果如下：1）“系统设置 > 权限管理中心”打开后，网络请求已变为 `GET /users/3/menu-permissions 200`，未再出现原 `400`；2）以管理员账号进入“解决方案 > 工业互联网平台升级项目解决方案 > 审批”时，当前节点显示为“商务评审”，页面明确提示“当前节点待经理处理”，通过/驳回按钮置灰；切换为经理账号后复测，同一节点下通过/驳回按钮恢复可用，说明节点责任人约束已生效；3）商机审批流程方面，`OPP-000004` 驳回场景下步骤条与“当前流程已驳回，后续节点仅支持查看”提示能够对齐，但 `OPP-000003` 本地数据仍存在“销售领导审批待审批、解决方案领导审批已通过、分配负责人已完成”的旧脏链路，说明仅靠当前字段收紧还未完全清理既有持久化样例数据，后续需继续补一轮本地 `workflowRecords` 迁移/重建逻辑。
-  - 前端迁移补记（确认日期：2026-04-01）：已继续在 [frontend/src/shared/opportunityDemoData.ts](/Users/gjy/frontend/src/shared/opportunityDemoData.ts) 中补齐商机审批缓存迁移逻辑：将 `sharedDemoOpportunitiesVersion` 从 `2` 升级到 `3`，对旧版本地缓存强制重建 `workflowRecords`；重建规则改为按节点顺序生成连续流程记录，并在销售领导驳回或解决方案领导驳回时截断后续节点，避免再出现“前序待审批、后序已完成”的历史脏链路。同时，最终用于页面展示的流程字段改为先清空再根据重建后的有效记录回填，使步骤条、节点状态与审批记录以同一套流程记录为真源。浏览器再次复测 `OPP-000003` 后，当前链路已修正为“线索确认 -> 销售领导审批通过 -> 解决方案领导审批通过 -> 分配解决方案负责人 -> 需求分析待上传”，不再出现旧的错位审批记录。
-  - 前端验收补记（确认日期：2026-04-01）：已继续完成一轮控制台与表单可用性收口。当前已在 [frontend/index.html](/Users/gjy/frontend/index.html) 中补充内联 `favicon`，消除页面首次加载时的静态资源 `404`；同时在 [frontend/src/views/LoginView.tsx](/Users/gjy/frontend/src/views/LoginView.tsx)、[frontend/src/views/SettingsView.tsx](/Users/gjy/frontend/src/views/SettingsView.tsx)、[frontend/src/views/KnowledgeView.tsx](/Users/gjy/frontend/src/views/KnowledgeView.tsx) 中为登录、密码修改、成员密码、平台名称及隐藏文件上传控件补齐 `name` / `autocomplete` 等表单属性，并保留 Ant Design 自身生成的字段 `id`，避免再次触发 `label for` 错配。最新浏览器复测下，工作台与系统设置页面控制台均已无 `favicon 404`、`autocomplete`、`id/name` 或 `label for` 相关告警。
+  - 前端迁移补记（确认日期：2026-04-01）：已继续在 [frontend/src/shared/opportunityDemoData.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/opportunityDemoData.ts) 中补齐商机审批缓存迁移逻辑：将 `sharedDemoOpportunitiesVersion` 从 `2` 升级到 `3`，对旧版本地缓存强制重建 `workflowRecords`；重建规则改为按节点顺序生成连续流程记录，并在销售领导驳回或解决方案领导驳回时截断后续节点，避免再出现“前序待审批、后序已完成”的历史脏链路。同时，最终用于页面展示的流程字段改为先清空再根据重建后的有效记录回填，使步骤条、节点状态与审批记录以同一套流程记录为真源。浏览器再次复测 `OPP-000003` 后，当前链路已修正为“线索确认 -> 销售领导审批通过 -> 解决方案领导审批通过 -> 分配解决方案负责人 -> 需求分析待上传”，不再出现旧的错位审批记录。
+  - 前端验收补记（确认日期：2026-04-01）：已继续完成一轮控制台与表单可用性收口。当前已在 [frontend/index.html](/Users/gjy/Projects-mygetpre/presales-platform/frontend/index.html) 中补充内联 `favicon`，消除页面首次加载时的静态资源 `404`；同时在 [frontend/src/views/LoginView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/LoginView.tsx)、[frontend/src/views/SettingsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SettingsView.tsx)、[frontend/src/views/KnowledgeView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/KnowledgeView.tsx) 中为登录、密码修改、成员密码、平台名称及隐藏文件上传控件补齐 `name` / `autocomplete` 等表单属性，并保留 Ant Design 自身生成的字段 `id`，避免再次触发 `label for` 错配。最新浏览器复测下，工作台与系统设置页面控制台均已无 `favicon 404`、`autocomplete`、`id/name` 或 `label for` 相关告警。
   - 前端回归补记（确认日期：2026-04-01）：已继续对商机审批页做指定单据回归。`OPP-000004` 驳回场景下，“解决方案领导审批”显示驳回且第 4 至第 6 节点保持只读查看；`OPP-000007` 当前停在“需求分析待处理”，第 4 步负责人已完成但第 6 步最终审批未提前点亮；`OPP-000009` 已完整闭环，线索确认、双审批、负责人分配、需求分析、最终审批与审批记录顺序一致，未再出现步骤条和历史记录错位。
-  - 后端审批链路补记（确认日期：2026-04-01）：已新增 [backend/src/approvals/approvals.module.ts](/Users/gjy/backend/src/approvals/approvals.module.ts)、[backend/src/approvals/approvals.controller.ts](/Users/gjy/backend/src/approvals/approvals.controller.ts)、[backend/src/approvals/approvals.service.ts](/Users/gjy/backend/src/approvals/approvals.service.ts)，打通真实审批实例基础能力：支持按业务对象启动审批实例、查询当前/指定审批实例，以及执行节点动作（`approve / reject / upload / assign / submit`）。同时已在 [backend/src/domain/entities/workflow-node.entity.ts](/Users/gjy/backend/src/domain/entities/workflow-node.entity.ts) 和 [backend/src/workflows/workflows.service.ts](/Users/gjy/backend/src/workflows/workflows.service.ts) 中补齐后端流程节点的 `nodeType / fieldKey / fieldLabel / actionButtonLabel` 字段，并增加默认机会流/方案流种子与“按 code 自修复”逻辑，避免空壳流程定义。为支撑真实商机流转，[backend/src/domain/entities/opportunity.entity.ts](/Users/gjy/backend/src/domain/entities/opportunity.entity.ts) 已补齐 `bizApprovalStatus / techApprovalStatus / requirementBriefDocName / researchDocName / solutionOwnerUsername / approvalOpinion` 等审批链字段；[backend/src/solution-versions/solution-versions.service.ts](/Users/gjy/backend/src/solution-versions/solution-versions.service.ts) 也已在创建方案版本时记录 `createdBy`，为后续方案审批责任人判定做准备。
+  - 后端审批链路补记（确认日期：2026-04-01）：已新增 [backend/src/approvals/approvals.module.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/approvals/approvals.module.ts)、[backend/src/approvals/approvals.controller.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/approvals/approvals.controller.ts)、[backend/src/approvals/approvals.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/approvals/approvals.service.ts)，打通真实审批实例基础能力：支持按业务对象启动审批实例、查询当前/指定审批实例，以及执行节点动作（`approve / reject / upload / assign / submit`）。同时已在 [backend/src/domain/entities/workflow-node.entity.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/domain/entities/workflow-node.entity.ts) 和 [backend/src/workflows/workflows.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/workflows/workflows.service.ts) 中补齐后端流程节点的 `nodeType / fieldKey / fieldLabel / actionButtonLabel` 字段，并增加默认机会流/方案流种子与“按 code 自修复”逻辑，避免空壳流程定义。为支撑真实商机流转，[backend/src/domain/entities/opportunity.entity.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/domain/entities/opportunity.entity.ts) 已补齐 `bizApprovalStatus / techApprovalStatus / requirementBriefDocName / researchDocName / solutionOwnerUsername / approvalOpinion` 等审批链字段；[backend/src/solution-versions/solution-versions.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/solution-versions/solution-versions.service.ts) 也已在创建方案版本时记录 `createdBy`，为后续方案审批责任人判定做准备。
   - 后端烟测补记（确认日期：2026-04-01）：已在临时端口 `3001` 上启动修复后的本地后端做审批接口烟测。实际验证链路为：`manager_demo` 登录 -> 创建“审批烟测商机-2” -> 启动 `/approval-instances/start` -> 以 `sales_demo` 执行首节点 `upload` -> 以 `manager_demo` 执行第二节点 `approve`。结果显示：1）实例启动后当前节点正确落在“线索确认”，销售账号 `canCurrentUserHandleCurrentNode=true`；2）上传需求说明后实例自动流转到“销售领导审批”；3）经理审批通过后实例继续流转到“解决方案领导审批”，动作历史中已记录 `upload` 与 `approve` 两条真实审批动作。当前前端页面尚未切换到这些新接口，商机/方案审批 UI 仍以前端占位链路为主，下一步需继续做前端对接。
-  - 前端审批对接补记（确认日期：2026-04-01）：已继续在 [frontend/src/shared/approvalInstances.ts](/Users/gjy/frontend/src/shared/approvalInstances.ts)、[frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/frontend/src/views/OpportunitiesDemoView.tsx)、[frontend/src/views/SolutionsView.tsx](/Users/gjy/frontend/src/views/SolutionsView.tsx)、[frontend/src/shared/pipelineMock.ts](/Users/gjy/frontend/src/shared/pipelineMock.ts) 中接入真实审批实例前端适配层。当前商机审批会优先调用 `GET /approval-instances/current` 与 `POST /approval-instances/start` 获取真实实例，方案审批会优先按商机关联方案版本解析真实 `solutionVersionId` 后再尝试接入真实实例；若本地后端未提供对应接口或真实方案版本尚未就绪，则页面会明确提示并回退到现有前端演示链路，而不是静默失败。
-  - 权限中心验收补记（确认日期：2026-04-01）：已再次针对你反馈的“点击权限管理中心仍报用户菜单权限加载失败：400”做真实浏览器复核。在当前本地运行态 `http://127.0.0.1:4173` 下，已确认“菜单权限”与“操作权限”初始加载分别命中 `GET /users/3/menu-permissions 200/304`、`GET /users/4/action-permissions 200`，未再复现 `400`；同时已实际验证 `sales_demo` 的两条保存/重置链路：1）操作权限页临时放开 `project.create` 后，`PATCH /users/4/action-permissions 200`，随后 `POST /users/4/action-permissions/reset 201`；2）菜单权限页临时放开 `menu.analytics` 后，`PATCH /users/4/menu-permissions 200`，随后 `POST /users/4/menu-permissions/reset 201`。结合本轮重新执行的 `cd /Users/gjy/frontend && ./node_modules/.bin/vite build` 已通过，当前判断你此前看到的 `400` 更可能来自旧预览包或旧页面缓存，而不是现源码路径仍在向 `/users/:id/...` 发送非法 `username` 参数。
+  - 前端审批对接补记（确认日期：2026-04-01）：已继续在 [frontend/src/shared/approvalInstances.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/approvalInstances.ts)、[frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpportunitiesDemoView.tsx)、[frontend/src/views/SolutionsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SolutionsView.tsx)、[frontend/src/shared/pipelineMock.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/pipelineMock.ts) 中接入真实审批实例前端适配层。当前商机审批会优先调用 `GET /approval-instances/current` 与 `POST /approval-instances/start` 获取真实实例，方案审批会优先按商机关联方案版本解析真实 `solutionVersionId` 后再尝试接入真实实例；若本地后端未提供对应接口或真实方案版本尚未就绪，则页面会明确提示并回退到现有前端演示链路，而不是静默失败。
+  - 权限中心验收补记（确认日期：2026-04-01）：已再次针对你反馈的“点击权限管理中心仍报用户菜单权限加载失败：400”做真实浏览器复核。在当前本地运行态 `http://127.0.0.1:4173` 下，已确认“菜单权限”与“操作权限”初始加载分别命中 `GET /users/3/menu-permissions 200/304`、`GET /users/4/action-permissions 200`，未再复现 `400`；同时已实际验证 `sales_demo` 的两条保存/重置链路：1）操作权限页临时放开 `project.create` 后，`PATCH /users/4/action-permissions 200`，随后 `POST /users/4/action-permissions/reset 201`；2）菜单权限页临时放开 `menu.analytics` 后，`PATCH /users/4/menu-permissions 200`，随后 `POST /users/4/menu-permissions/reset 201`。结合本轮重新执行的 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && ./node_modules/.bin/vite build` 已通过，当前判断你此前看到的 `400` 更可能来自旧预览包或旧页面缓存，而不是现源码路径仍在向 `/users/:id/...` 发送非法 `username` 参数。
 
 每完成一个任务：
 - 完成代码与测试；
@@ -324,13 +342,13 @@
   - 已完成深色模式关键弹窗视觉回归：在线复查知识库上传弹窗、团队管理删除确认框、审批流程编辑弹窗与流程节点删除确认框，当前均未发现白底残留、白边压阴影或输入框内层额外长方形描边问题；知识库上传弹窗中的待上传文件卡片、分类下拉框和底部操作区在深色模式下视觉表现正常。
   - 已完成团队管理 `401` 回退修复的线上验收：管理员正常登录进入“系统设置 > 团队管理”时，页面展示真实后端 5 个成员（`admin_demo / guest_demo / sales_demo / presales_demo / manager_demo`）；随后手动将浏览器 `accessToken` 改为无效值并重新进入团队管理，`GET /api/users` 返回 `401` 后，成员表格不再回退显示旧的本地中文 Mock 列表，而是清空为 `No data` 并提示“团队成员登录态已失效，请重新登录后再加载真实成员数据。”，确认本轮修复已在线生效。
   - 已完成注册功能线上修复与复测：确认根因是前端注册页此前仅保留“姓名 + 账号/企业邮箱 + 密码”三项输入，但后端 `/api/auth/register` 仍强制要求独立 `email` 字段，导致用户以普通账号注册时返回“用户名、邮箱和密码不能为空”。现已在注册态补回独立“企业邮箱”输入，并修正前端提交 payload；完成前端单容器最小发布后，线上 `http://101.43.78.27/` 已可使用 `reg_20260330_1 / reg_20260330_1@example.com / RegTest@123` 成功注册并立即登录，原报错未再复现。
-  - 已新增本地/云端协同约定文档 [docs/release-runbook.md](/Users/gjy/docs/release-runbook.md)，并已复制到云服务器 `/opt/presales-platform/docs/release-runbook.md`。
-  - 已将服务器侧 Codex 约定源文档 [docs/cloud-server-codex-AGENTS.md](/Users/gjy/docs/cloud-server-codex-AGENTS.md) 与 [docs/cloud-server-codex-SERVER_CONVENTIONS.md](/Users/gjy/docs/cloud-server-codex-SERVER_CONVENTIONS.md) 的本地/云端路径同步写入 `README.md`。
+  - 已新增本地/云端协同约定文档 [docs/release-runbook.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/release-runbook.md)，并已复制到云服务器 `/opt/presales-platform/docs/release-runbook.md`。
+  - 已将服务器侧 Codex 约定源文档 [docs/cloud-server-codex-AGENTS.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/cloud-server-codex-AGENTS.md) 与 [docs/cloud-server-codex-SERVER_CONVENTIONS.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/cloud-server-codex-SERVER_CONVENTIONS.md) 的本地/云端路径同步写入 `README.md`。
   - 已继续推进任务 9 收口：团队管理页新增表格序号列、列设置和分页；个人资料与成员编辑中的“团队角色”统一改为下拉框；工作台“最近项目”默认每页 5 条，分页档位调整为 `5/10/15/20`；“本月业绩趋势”中部图例改为居中布局并进一步压缩柱图区，降低线上溢出风险。
-  - 已新增 [backend/scripts/mysql-smoke-test.mjs](/Users/gjy/backend/scripts/mysql-smoke-test.mjs) 以及 `npm run test:mysql-smoke` 命令，用于在云服务器通过真实 MySQL 与现网接口做轻量自动验收；脚本使用管理员账号登录，创建临时成员、更新成员、校验 `/auth/me` 与 `/users/me`、关键字检索后再自动删除，尽量不污染线上数据。
+  - 已新增 [backend/scripts/mysql-smoke-test.mjs](/Users/gjy/Projects-mygetpre/presales-platform/backend/scripts/mysql-smoke-test.mjs) 以及 `npm run test:mysql-smoke` 命令，用于在云服务器通过真实 MySQL 与现网接口做轻量自动验收；脚本使用管理员账号登录，创建临时成员、更新成员、校验 `/auth/me` 与 `/users/me`、关键字检索后再自动删除，尽量不污染线上数据。
   - 已完成云端二次验收：前端新版本已重建并启动；云服务器执行 `cd /opt/presales-platform/backend && npm run test:mysql-smoke` 已通过，输出基线为 `apiBaseUrl=http://127.0.0.1/api`、`adminUsername=admin_demo`、`initialUserCount=5`，确认真实 MySQL 下的登录、当前用户、成员创建、成员更新、关键字检索与删除链路可用。
-  - 已继续完成工作台与数据分析联动收口：工作台“本月业绩趋势”中部图例已调整为左侧上下堆叠，整体不再压住柱图区；数据分析页已改为优先读取后端真实商机数据，并新增 [backend/scripts/seed-analytics-opportunities.mjs](/Users/gjy/backend/scripts/seed-analytics-opportunities.mjs) 与 `npm run seed:analytics-mock` 命令，将 6 条分析趋势种子直接写入 MySQL。
-  - 已修正 [frontend/src/shared/analyticsSync.ts](/Users/gjy/frontend/src/shared/analyticsSync.ts) 中“签约金额先格式化再解析导致全部归零”的旧问题；当前线上已复验通过：工作台“本月签约金额”显示 `2180万`，数据分析页“业绩趋势”显示 `10月 380万 / 11月 520万 / 12月 460万 / 1月 610万 / 2月 570万 / 3月 680万`，可稳定从真实 MySQL 种子数据生成页面。
+  - 已继续完成工作台与数据分析联动收口：工作台“本月业绩趋势”中部图例已调整为左侧上下堆叠，整体不再压住柱图区；数据分析页已改为优先读取后端真实商机数据，并新增 [backend/scripts/seed-analytics-opportunities.mjs](/Users/gjy/Projects-mygetpre/presales-platform/backend/scripts/seed-analytics-opportunities.mjs) 与 `npm run seed:analytics-mock` 命令，将 6 条分析趋势种子直接写入 MySQL。
+  - 已修正 [frontend/src/shared/analyticsSync.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/analyticsSync.ts) 中“签约金额先格式化再解析导致全部归零”的旧问题；当前线上已复验通过：工作台“本月签约金额”显示 `2180万`，数据分析页“业绩趋势”显示 `10月 380万 / 11月 520万 / 12月 460万 / 1月 610万 / 2月 570万 / 3月 680万`，可稳定从真实 MySQL 种子数据生成页面。
   - 已完成权限管理中心线上真实保存/重置验收：管理员在“操作权限”页对 `sales_demo` 临时放开 `project.create` 后，`PATCH /api/users/4/action-permissions` 返回 `200`，随后执行“恢复角色默认”，`POST /api/users/4/action-permissions/reset` 返回 `201`，页面提示均正常。
   - 已完成 `sales_demo / Sales@123` 角色模板线上复测：左侧菜单保留工作台、项目管理、商机管理、解决方案、知识库、系统设置；其中项目页 `+ 新建项目` 和行内 `编辑` 禁用，商机页保留 `+ 新建商机`，但行内 `审批 / 编辑` 禁用，符合销售角色“可建商机、只读项目”的预期。
   - 已确认审批流程库线上读接口已恢复正常，`GET /api/workflow-definitions` 返回 `200`；当前页面显示 `No data` 的原因是线上尚无流程定义种子数据，而非接口或前端路由异常。
@@ -346,12 +364,12 @@
   - 云服务器首页可返回前端入口 HTML。
   - 浏览器线上验收确认管理员、访客、销售三类演示账号的菜单/按钮权限已按角色模板生效。
   - 浏览器网络请求确认菜单权限与操作权限的查询、保存、重置接口均已跑通，状态码符合预期。
-  - 新增文档 [docs/release-runbook.md](/Users/gjy/docs/release-runbook.md) 已成功复制到 `/opt/presales-platform/docs/release-runbook.md` 并完成只读校验。
-  - 前端执行 `cd /Users/gjy/frontend && npm run build` 构建通过；本轮仅保留 Vite 构建产物体积告警，无新增 TypeScript 或样式编译错误。
-  - 后端执行 `cd /Users/gjy/backend && npm run build` 构建通过；本轮未改动数据库连接逻辑，仅确认当前代码仍支持本地双入口与云端 MySQL 正式口径并存。
+  - 新增文档 [docs/release-runbook.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/release-runbook.md) 已成功复制到 `/opt/presales-platform/docs/release-runbook.md` 并完成只读校验。
+  - 前端执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build` 构建通过；本轮仅保留 Vite 构建产物体积告警，无新增 TypeScript 或样式编译错误。
+  - 后端执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build` 构建通过；本轮未改动数据库连接逻辑，仅确认当前代码仍支持本地双入口与云端 MySQL 正式口径并存。
   - 云端执行前端单容器发布后，`presales-frontend` 已正常启动，公网页面 `http://101.43.78.27/?v=202603291530` 可访问。
   - 浏览器线上复测确认：登录后仅保留一条“欢迎回来，示例销售”成功提示，重复的“登录成功”提示已移除；深色模式下工作台与商机管理页面主卡片、搜索区与输入框表现正常，未再出现明显的内层长方形描边和白边被阴影覆盖问题。
-  - 第二轮本地验证已完成：系统设置左侧菜单点击不再触发“已切换到：xxx”提示；前端执行 `cd /Users/gjy/frontend && npm run build` 再次构建通过，准备进行下一次前端单容器发布与线上复测。
+  - 第二轮本地验证已完成：系统设置左侧菜单点击不再触发“已切换到：xxx”提示；前端执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build` 再次构建通过，准备进行下一次前端单容器发布与线上复测。
   - 第二轮云端前端单容器发布已完成，`presales-frontend` 正常启动；在线上 `http://101.43.78.27/?v=202603291615` 复测确认：系统设置菜单切换提示已移除，卡片白边已恢复为独立可见的描边效果，工作台“本月业绩趋势”中部区域未再出现明显溢出。
   - 已对 `README.md` 的任务列表做首轮去重整理，合并了 `任务 2A / 任务 2D / 任务 9` 的重复历史快照，保留最新有效状态，后续详细演进继续沉淀在本节会话记录中。
   - 已补充完成线上浏览器验收：管理员账号 `admin_demo / Admin@123` 可正常登录并访问 `项目管理 / 商机管理 / 解决方案 / 系统设置`；访客账号 `guest_demo / Guest@123` 登录后仅显示 `工作台 / 项目管理 / 知识库 / 系统设置`，系统设置内仅保留 `个人资料 / 安全设置 / 通知设置` 三项，权限收口符合预期。
@@ -420,7 +438,7 @@
   - 同步将 `SolutionsView`、`BidsView`、`ContractsView`、`AnalyticsView` 的顶部统计卡片切换为同一套紧凑参数，并把对应列表主卡片的边框、阴影、内边距和“列设置”按钮尺寸一起对齐；
   - 对 `WorkbenchView` 中“待办任务 / 本月业绩趋势”两张固定高内容卡做了温和收紧，将整体高度从原先的较高值下调，避免首页纵向占用过大，同时不改动内部业务内容与图表口径。
 - 本次会话验证结果：
-  - 前端执行 `cd /Users/gjy/frontend && npm run build` 构建通过；
+  - 前端执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build` 构建通过；
   - 本轮以样式收敛为主，已完成编译验证，暂未单独追加浏览器视觉截图回归。
 
 - 会话日期：2026-03-28
@@ -430,7 +448,7 @@
   - 将 `SolutionsView`、`BidsView`、`ContractsView` 原先裸露的顶部筛选条整体提升为与上述页面一致的卡片式筛选工具区，统一边框、阴影、内边距和换行规则；
   - 统一各页搜索输入框和下拉筛选的宽度节奏，收敛为接近一致的 `220 / 180 / 240` 宽度梯度，减少页面之间搜索框长短和按钮落位不一致的问题。
 - 本次会话验证结果：
-  - 前端执行 `cd /Users/gjy/frontend && npm run build` 构建通过；
+  - 前端执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build` 构建通过；
   - 本轮已完成代码层和构建层验证，待后续浏览器回归时再结合视觉效果做细调。
 
 - 会话日期：2026-03-28
@@ -441,7 +459,7 @@
   - 将行业分布中心摘要改为基于当前平台数据动态显示“活跃行业”数量，不再沿用固定文案；
   - 新增两套基于现有平台可选数据范围的仪表盘配置：`金融经营仪表盘` 与 `制造推进仪表盘`，分别复用当前已有的行业、趋势、漏斗、甘特等组件，并按不同数据范围填充。
 - 本次会话验证结果：
-  - 前端执行 `cd /Users/gjy/frontend && npm run build` 构建通过；
+  - 前端执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build` 构建通过；
   - 本轮已完成代码与构建验证，待后续浏览器回归时进一步确认悬浮提示交互与仪表盘切换视觉效果。
 
 - 会话日期：2026-03-28
@@ -451,7 +469,7 @@
   - 为菜单权限与操作权限模块展开状态补充有序差异比较，仅在展开模块集合确实变化时才执行 `setExpandedMenuModules` / `setExpandedActionModules`，阻断权限页展开态与渲染之间的重复更新链路；
   - 保留现有权限切换与成员加载行为不变，最小范围修复系统设置内部状态同步导致的循环更新问题。
 - 本次会话验证结果：
-  - 前端执行 `cd /Users/gjy/frontend && npm run build` 构建通过；
+  - 前端执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build` 构建通过；
   - 使用浏览器实际进入“系统设置”，先刷新页面清空旧告警，再依次验证“团队管理 -> 权限管理中心 -> 菜单权限 -> 操作权限”，并补做“菜单权限 / 操作权限 / 团队管理 / 权限管理中心 / 菜单权限”往返切换；
   - 控制台未再出现 `Maximum update depth exceeded`，当前仅剩既有的 Ant Design 弃用提示与一个静态资源 404，不属于本次循环更新问题。
 
@@ -499,7 +517,7 @@
   - 在项目列表右上角新增“选择显示列”多选控件，并补充“显示全部 / 恢复默认”操作，支持用户临时调整项目表格列显隐；
   - 为项目列表表头增加列宽拖拽能力，并将列宽和显示列偏好存入本地存储，刷新后保留上一次配置。
   - 抽出通用表格偏好工具，开始将列设置、显示全部、恢复默认、列宽拖拽、横向滚动和本地记忆能力复刻到商机、解决方案、投标、合同和知识库列表页面。
-  - 新增 [docs/mock-data-catalog.md](/Users/gjy/docs/mock-data-catalog.md)，统一记录共享商机数据、下游派生规则、知识库基础文档、知识库目录树、默认流程模板、团队成员默认数据以及相关本地存储键，作为后续 Mock 数据维护基线。
+  - 新增 [docs/mock-data-catalog.md](/Users/gjy/Projects-mygetpre/presales-platform/docs/mock-data-catalog.md)，统一记录共享商机数据、下游派生规则、知识库基础文档、知识库目录树、默认流程模板、团队成员默认数据以及相关本地存储键，作为后续 Mock 数据维护基线。
   - 调整商机管理的数据加载口径：当后端返回的商机数量少于前端共享 Mock 数据时，商机列表改为按共享 Mock 数据为基线合并展示，避免出现项目、关联商机与商机列表数量不一致的问题。
   - 修正项目详情时间线跳转到商机管理时的历史阶段过滤逻辑：点击已走过的“商机发现”节点时改为按项目名定位该项目，不再因强制附带 `discovery` 过滤导致同一项目在商机列表中被筛掉；仅当当前项目本身仍处于 `discovery` 阶段时才保留该阶段过滤。
 
@@ -561,7 +579,7 @@
   - 已修复默认大屏预览分支遗漏行业分布与甘特图的问题，当前标准销售仪表盘与制造推进仪表盘在预览态中都能完整展示并响应 hover tooltip；
   - 已保持数据分析页各仪表盘的数据来源仍统一复用平台内现有共享商机与阶段数据，未额外引入第二套静态口径。
 - 本次验证结果：
-  - 已执行 `cd /Users/gjy/frontend && npm run build`，构建通过；
+  - 已执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build`，构建通过；
   - 已在本地运行态 `http://127.0.0.1:5173/` 完成浏览器自动化验证，确认“管理层概览仪表盘”“金融经营仪表盘”“制造推进仪表盘”切换正常；
   - 已在浏览器中验证普通态 tooltip：漏斗、趋势、行业分布、甘特图均可显示对应数值或项目阶段说明；
   - 已在浏览器中验证预览态 tooltip：标准销售仪表盘与制造推进仪表盘的漏斗、趋势、行业分布、甘特图均可显示对应提示数据；
@@ -574,7 +592,7 @@
   - 已优化系统设置页左侧“设置菜单”的菜单项底板、边框和阴影逻辑，使默认态和激活态阴影风格统一；
   - 已按最新确认调整系统设置菜单顺序，将“知识库目录管理”移到“图标/Logo插件库”上方，并将“平台品牌与Logo设置”调整到最下方。
 - 本次验证结果：
-  - 已执行 `cd /Users/gjy/frontend && npm run build`，构建通过；
+  - 已执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build`，构建通过；
   - 已在本地运行态 `http://127.0.0.1:5173/` 通过浏览器截图回归检查工作台、项目管理、系统设置页面，确认浅色模式下卡片/搜索框顶部圆角亮边显示正常；
 - 已在深色模式下回归检查系统设置页，确认左侧菜单阴影与描边表现统一，菜单顺序正确。
 - 本轮继续对深色模式做第二次收口：
@@ -587,33 +605,33 @@
   - 已将右上角账户按钮补充下拉箭头，与下拉菜单交互保持一致；
   - 已将登录页“账号 / 企业邮箱”输入框补充下拉指示符，向参考站点的账户选择感知对齐。
 - 本轮自动化验证结果：
-  - 已执行 `cd /Users/gjy/frontend && npm run build`，构建通过；
+  - 已执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build`，构建通过；
   - 已在运行态 `http://127.0.0.1:5173/` 使用 `admin_demo / Admin@123` 登录；
   - 已在深色模式下逐页回归工作台、项目管理、商机管理、解决方案、投标管理、合同管理、知识库、数据分析，确认搜索框与卡片边线未再被阴影覆盖，圆角显示正常；
   - 已验证顶栏告警铃铛初始显示为联动值 `4`，其下拉列表与工作台当前四项待办一致；展开后未读角标已清零，且四条通知均带有对应类型标签色块；
   - 已验证点击通知项可直接跳转到对应业务页面；已验证右上角账户区显示下拉箭头并可展开菜单；
   - 已验证登录页账号输入框显示下拉指示符。
-  - 本轮同步启动“平台上云一期”基础改造：前端新增 [frontend/src/shared/api.ts](/Users/gjy/frontend/src/shared/api.ts) 统一管理 API 基地址，并将认证、商机、知识库、系统设置、方案版本、评审记录等写死的 `localhost:3000` 请求改为环境变量驱动；后端新增 [backend/src/config/runtime.ts](/Users/gjy/backend/src/config/runtime.ts) 统一收口端口、主机、CORS、JWT、数据库与 `DB_SYNCHRONIZE` 配置，并同步改造 [backend/src/main.ts](/Users/gjy/backend/src/main.ts)、[backend/src/app.module.ts](/Users/gjy/backend/src/app.module.ts)、[backend/src/auth/auth.module.ts](/Users/gjy/backend/src/auth/auth.module.ts)、[backend/src/auth/jwt.strategy.ts](/Users/gjy/backend/src/auth/jwt.strategy.ts)。
-  - 已新增上云部署所需文件：[frontend/Dockerfile](/Users/gjy/frontend/Dockerfile)、[backend/Dockerfile](/Users/gjy/backend/Dockerfile)、[frontend/nginx.conf](/Users/gjy/frontend/nginx.conf)、[docker-compose.yml](/Users/gjy/docker-compose.yml)、[.env.example](/Users/gjy/.env.example)、[frontend/.env.example](/Users/gjy/frontend/.env.example)、[backend/.env.example](/Users/gjy/backend/.env.example)，并补充 `.dockerignore` 以减小镜像上下文。
-  - 已在本地完成前后端构建验证：`cd /Users/gjy/frontend && npm run build`、`cd /Users/gjy/backend && npm run build` 均通过；由于当前开发机未安装 Docker，暂未执行 `docker compose config/up`，该步骤转移到云服务器执行。
+  - 本轮同步启动“平台上云一期”基础改造：前端新增 [frontend/src/shared/api.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/api.ts) 统一管理 API 基地址，并将认证、商机、知识库、系统设置、方案版本、评审记录等写死的 `localhost:3000` 请求改为环境变量驱动；后端新增 [backend/src/config/runtime.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/config/runtime.ts) 统一收口端口、主机、CORS、JWT、数据库与 `DB_SYNCHRONIZE` 配置，并同步改造 [backend/src/main.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/main.ts)、[backend/src/app.module.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/app.module.ts)、[backend/src/auth/auth.module.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/auth/auth.module.ts)、[backend/src/auth/jwt.strategy.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/auth/jwt.strategy.ts)。
+  - 已新增上云部署所需文件：[frontend/Dockerfile](/Users/gjy/Projects-mygetpre/presales-platform/frontend/Dockerfile)、[backend/Dockerfile](/Users/gjy/Projects-mygetpre/presales-platform/backend/Dockerfile)、[frontend/nginx.conf](/Users/gjy/Projects-mygetpre/presales-platform/frontend/nginx.conf)、[docker-compose.yml](/Users/gjy/docker-compose.yml)、[.env.example](/Users/gjy/.env.example)、[frontend/.env.example](/Users/gjy/Projects-mygetpre/presales-platform/frontend/.env.example)、[backend/.env.example](/Users/gjy/Projects-mygetpre/presales-platform/backend/.env.example)，并补充 `.dockerignore` 以减小镜像上下文。
+  - 已在本地完成前后端构建验证：`cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build`、`cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build` 均通过；由于当前开发机未安装 Docker，暂未执行 `docker compose config/up`，该步骤转移到云服务器执行。
 
 ## 最新进展补充（2026-03-29）
 
 - 当前处理的任务：任务 9“平台上云一期”，继续收口后端容器构建方案，优先解决 `backend` 镜像因 `sqlite3` 原生模块导致的构建不稳定问题。
 - 本次新增内容（部署配置）：
-  - 已将 [backend/Dockerfile](/Users/gjy/backend/Dockerfile) 从 `node:20-alpine` 三阶段构建调整为 `node:20-bookworm` + `node:20-bookworm-slim` 的 Debian 系列多阶段构建，避免 Alpine/musl 环境下 `sqlite3` 原生模块编译与运行兼容性问题；
+  - 已将 [backend/Dockerfile](/Users/gjy/Projects-mygetpre/presales-platform/backend/Dockerfile) 从 `node:20-alpine` 三阶段构建调整为 `node:20-bookworm` + `node:20-bookworm-slim` 的 Debian 系列多阶段构建，避免 Alpine/musl 环境下 `sqlite3` 原生模块编译与运行兼容性问题；
   - 已移除运行层的 `npm ci --omit=dev`，改为在构建层执行 `npm run build && npm prune --omit=dev`，并将裁剪后的 `node_modules` 直接复制到运行层，减少重复安装和二次触发原生模块处理的概率；
   - 已复核 `backend/.npmrc` 仍指向 `https://registry.npmmirror.com`，保持后续云端安装依赖时优先走国内镜像源。
 - 本次验证结果：
-  - 已执行 `cd /Users/gjy/backend && npm run build`，构建通过；
+  - 已执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build`，构建通过；
   - 当前开发机仍未安装 Docker，`docker --version` 返回 `command not found`，因此本轮无法在本机执行 `docker compose --progress plain build backend`；
   - 下一步应在云服务器上直接执行 `docker compose --progress plain build backend` 验证镜像是否已可构建，若通过再继续串行拉起 `mysql -> backend -> frontend` 并做公网 IP 联调验收。
   - 云服务器首次执行 `docker compose up -d mysql` 后，已进一步定位到 MySQL 启动失败根因为 `mysql:8.4` 不再接受 `--default-authentication-plugin=mysql_native_password`；对应报错为 `unknown variable 'default-authentication-plugin=mysql_native_password'`。现已从 [docker-compose.yml](/Users/gjy/docker-compose.yml) 中移除该启动参数，下一步需在服务器上重新拉起 MySQL 并继续验证 `backend -> frontend` 启动链路。
-  - 云服务器继续联调时，已进一步定位到后端建表失败根因为用户实体中的 `simple-array` 字段在 MySQL 8.4 下映射为 `TEXT`，而原配置带有 `default: ""`，触发 `BLOB, TEXT, GEOMETRY or JSON column 'mainIndustry' can't have a default value`。现已将 [backend/src/domain/entities/user.entity.ts](/Users/gjy/backend/src/domain/entities/user.entity.ts) 中 `mainIndustry / allowedMenuKeys / deniedMenuKeys / allowedActionKeys / deniedActionKeys` 五个数组列改为 `nullable: true`，并在代码层保留空数组初始化；本地 `cd /Users/gjy/backend && npm run build` 已再次通过。下一步需将同样修改同步到云服务器代码后重建 `backend` 镜像并重新启动服务。
+  - 云服务器继续联调时，已进一步定位到后端建表失败根因为用户实体中的 `simple-array` 字段在 MySQL 8.4 下映射为 `TEXT`，而原配置带有 `default: ""`，触发 `BLOB, TEXT, GEOMETRY or JSON column 'mainIndustry' can't have a default value`。现已将 [backend/src/domain/entities/user.entity.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/domain/entities/user.entity.ts) 中 `mainIndustry / allowedMenuKeys / deniedMenuKeys / allowedActionKeys / deniedActionKeys` 五个数组列改为 `nullable: true`，并在代码层保留空数组初始化；本地 `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build` 已再次通过。下一步需将同样修改同步到云服务器代码后重建 `backend` 镜像并重新启动服务。
   - 云服务器完成修正后，`mysql / backend / frontend` 三个容器均已成功启动；`curl http://127.0.0.1/api/health` 与 `curl http://101.43.78.27/api/health` 均返回 `{"status":"ok"}`，`http://101.43.78.27/` 可正常返回前端入口 HTML，说明 Nginx 静态站点与 `/api` 反向代理链路已打通。
   - 已通过浏览器对公网地址 `http://101.43.78.27/` 做线上验收：管理员账号 `admin_demo / Admin@123` 可成功登录，工作台、商机管理、系统设置页面正常加载；刷新后会调用 `/api/auth/me` 成功恢复登录态；浏览器控制台未发现 error/warning。
   - 已继续验证访客账号 `guest_demo / Guest@123`：左侧菜单已按权限收口为 `工作台 / 项目管理 / 知识库 / 系统设置 / 帮助与支持`，系统设置内部仅保留 `个人资料 / 安全设置 / 通知设置`，项目管理中的“新建项目”按钮为禁用态、列表“编辑”按钮也为禁用态，说明菜单与页面级权限控制在云上运行态已生效。
-  - 已继续收口一项低优先级问题：前端原先通过 `buildApiUrl("")` 取得基础地址后，再拼接 `/workflow-definitions`，会形成 `/api//workflow-definitions` 的双斜杠路径。现已在 [frontend/src/shared/api.ts](/Users/gjy/frontend/src/shared/api.ts) 中补充空路径分支：当 `path` 为空时直接返回不带尾斜杠的 `API_BASE_URL`，避免继续生成双斜杠请求；本地已执行前端构建验证。
+  - 已继续收口一项低优先级问题：前端原先通过 `buildApiUrl("")` 取得基础地址后，再拼接 `/workflow-definitions`，会形成 `/api//workflow-definitions` 的双斜杠路径。现已在 [frontend/src/shared/api.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/api.ts) 中补充空路径分支：当 `path` 为空时直接返回不带尾斜杠的 `API_BASE_URL`，避免继续生成双斜杠请求；本地已执行前端构建验证。
   - 已补充服务器侧工具与账户约定：当前云服务器继续维持 `root / deploy / claw` 三类账户分工，其中 `deploy` 负责 `/opt/presales-platform` 的部署、Docker Compose 运维与 Codex CLI 使用，`claw` 仅用于既有 `openclaw` 运行，`root` 只保留系统级安装与应急维护；不再新增第四个 `codex` 用户，避免与项目目录权限、Docker 权限和 `openclaw` 运行环境产生交叉复杂度。
   - 已在云服务器 `deploy` 用户下完成 Codex CLI 安装，当前命令路径为 `/home/deploy/.npm-global/bin/codex`，版本为 `codex-cli 0.117.0`；Codex 配置目录约定为 `/home/deploy/.codex/`，用户级配置文件为 `/home/deploy/.codex/config.toml`，API Key 环境文件约定为 `/home/deploy/.openai-env`。
   - 服务器侧 Codex 当前采用最小化配置：`model = gpt-5.4`、`approval_policy = on-request`、`sandbox_mode = workspace-write`、`multi_agent = false`；暂未将本机的完整 MCP 组合（如 `playwright / chrome-devtools / memory`）迁移到云服务器，仅保留后续按需补装 `uv/uvx` 与 `fetch/context7` 的空间，以降低与 `openclaw` 的环境耦合和维护复杂度。
@@ -641,13 +659,13 @@
 - 本次新增内容（前端，Mock 与本地持久化为主）：
   - 已为解决方案、投标管理、合同管理补充删除按钮与确认弹窗；删除按钮改为始终显示，无权限时统一置灰。项目管理、商机管理、知识库、数据分析、系统设置中的团队管理 / 流程库 / 知识库目录等删除入口也同步收口为“显示但禁用”的统一规则；
   - 已为解决方案、投标管理、合同管理新增本地删除记忆能力，删除后的记录会在当前浏览器本地保持移除状态，不会因页面刷新立即回到列表中；
-  - 已新增共享团队成员快照层：[frontend/src/shared/teamDirectory.ts](/Users/gjy/frontend/src/shared/teamDirectory.ts)。系统设置中的团队成员加载、编辑、新增后会同步写入本地快照；项目、商机、解决方案、投标管理、合同管理等页面的销售负责人 / 售前负责人展示与新建默认值会优先读取该快照，不再仅依赖硬编码示例账号；
+  - 已新增共享团队成员快照层：[frontend/src/shared/teamDirectory.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/teamDirectory.ts)。系统设置中的团队成员加载、编辑、新增后会同步写入本地快照；项目、商机、解决方案、投标管理、合同管理等页面的销售负责人 / 售前负责人展示与新建默认值会优先读取该快照，不再仅依赖硬编码示例账号；
   - 已增强共享商机归一化逻辑：若旧数据缺少客户、销售负责人或售前负责人，前端会优先从项目键与共享团队成员快照中补齐，减少项目、商机、解决方案、投标管理、合同管理中出现空白负责人字段的情况；
   - 已为审批流程库“恢复默认模板”补充持久化记忆：恢复后会记录为当前浏览器后续登录的默认展示内容；点击“重新加载”时才会主动从后端流程库刷新覆盖；
   - 已继续优化设置页缩放适配：平台品牌与 Logo 设置、审批流程库、知识库目录管理的顶部工具栏改为可换行布局；图标 / Logo 插件库的顶部卡片、筛选区、上传弹窗和表格补充了自适应与横向滚动保护；
   - 已修复帮助与支持在深色模式下“快速上手建议”出现浅色白块的问题，并顺手将总览卡、阶段卡和建议卡统一切到主题变量驱动，避免深色模式继续出现局部写死浅色背景。
 - 本次验证结果：
-  - 已执行 `cd /Users/gjy/frontend && npm run build`，由于 `dist` 清理权限受限，先失败后以提权方式重跑，最终构建通过；
+  - 已执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build`，由于 `dist` 清理权限受限，先失败后以提权方式重跑，最终构建通过；
   - 当前前端构建产物已包含本轮改动，后续如需继续云上联调，只需按既有策略做前端单独部署即可。
 
 ## 最新进展补充（2026-04-01）
@@ -673,27 +691,27 @@
 
 - 当前处理的任务：继续执行“云端真实数据收口”，将项目管理、商机管理、解决方案、投标管理、合同管理统一切到同一套后端真实业务数据主链路，并补齐缺失的真实业务样例。
 - 本次新增内容（本地代码已完成，待同步到云服务器 `/opt/presales-platform`）：
-  - 已在 [backend/src/users/users.service.ts](/Users/gjy/backend/src/users/users.service.ts) 补充真实业务账号种子，包括 `zhangsan_sales / lisi_sales / wangwu_sales / zhaoliu_sales / other_user`，用于承接真实商机负责人、售前负责人和后续审批链路；
-  - 已新增 [backend/src/opportunities/business-seed.service.ts](/Users/gjy/backend/src/opportunities/business-seed.service.ts)，在服务启动时幂等补齐客户、线索、商机、方案版本四类真实业务种子；当前内置 10 条业务样例，覆盖 `discovery / solution_design / proposal / negotiation / won` 等关键阶段，其中已补入此前线上提到的真实 `OPP-000010` 对应业务样例“城市生命线监测平台项目”；
-  - 已调整 [backend/src/opportunities/opportunities.module.ts](/Users/gjy/backend/src/opportunities/opportunities.module.ts) 挂载业务种子服务，并在 [backend/src/solution-versions/solution-versions.service.ts](/Users/gjy/backend/src/solution-versions/solution-versions.service.ts) 为方案列表查询补齐 `createdBy` 关联，便于前端展示真实方案负责人；
-  - 已新增统一真实商机加载层 [frontend/src/shared/realOpportunities.ts](/Users/gjy/frontend/src/shared/realOpportunities.ts)，约定前端优先通过 `/api/opportunities?page=1&pageSize=100` 拉取真实商机并回写共享快照，避免各页面继续各自读取本地演示切片；
-  - 已将 [frontend/src/views/ProjectsView.tsx](/Users/gjy/frontend/src/views/ProjectsView.tsx)、[frontend/src/views/BidsView.tsx](/Users/gjy/frontend/src/views/BidsView.tsx)、[frontend/src/views/ContractsView.tsx](/Users/gjy/frontend/src/views/ContractsView.tsx)、[frontend/src/views/WorkbenchView.tsx](/Users/gjy/frontend/src/views/WorkbenchView.tsx) 切换为启动时主动同步真实商机数据，因此项目、投标、合同、工作台四个页面后续会与商机管理保持同源；
-  - 已继续改造 [frontend/src/views/SolutionsView.tsx](/Users/gjy/frontend/src/views/SolutionsView.tsx)：解决方案列表不再只按商机阶段做前端推导，而是优先按每条商机关联的真实 `solution_versions` 生成列表项，审批状态、版本号、负责人和方案版本主键均来自后端真实数据；共享商机更新时也会同步刷新真实方案列表。
-  - 已进一步修复商机详情口径漂移：`[frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/frontend/src/views/OpportunitiesDemoView.tsx)` 的“跳转到项目管理”已从按客户过滤改为按项目名称过滤；详情页“商机转化流程”已改为优先读取真实审批实例节点状态，没有真实实例时仅按 `workflowRecords` 展示，不再从商机结果字段反推中间节点状态。
-  - 已修复共享商机归一化中的“真实数据被旧 demo 字段污染”问题：`[frontend/src/shared/opportunityDemoData.ts](/Users/gjy/frontend/src/shared/opportunityDemoData.ts)` 不再按 `id / opportunityCode` 套用默认演示商机，避免像真实 `OPP-000008` 这类记录错误继承旧 demo 的审批文档和审批状态。
+  - 已在 [backend/src/users/users.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/users/users.service.ts) 补充真实业务账号种子，包括 `zhangsan_sales / lisi_sales / wangwu_sales / zhaoliu_sales / other_user`，用于承接真实商机负责人、售前负责人和后续审批链路；
+  - 已新增 [backend/src/opportunities/business-seed.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/opportunities/business-seed.service.ts)，在服务启动时幂等补齐客户、线索、商机、方案版本四类真实业务种子；当前内置 10 条业务样例，覆盖 `discovery / solution_design / proposal / negotiation / won` 等关键阶段，其中已补入此前线上提到的真实 `OPP-000010` 对应业务样例“城市生命线监测平台项目”；
+  - 已调整 [backend/src/opportunities/opportunities.module.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/opportunities/opportunities.module.ts) 挂载业务种子服务，并在 [backend/src/solution-versions/solution-versions.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/solution-versions/solution-versions.service.ts) 为方案列表查询补齐 `createdBy` 关联，便于前端展示真实方案负责人；
+  - 已新增统一真实商机加载层 [frontend/src/shared/realOpportunities.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/realOpportunities.ts)，约定前端优先通过 `/api/opportunities?page=1&pageSize=100` 拉取真实商机并回写共享快照，避免各页面继续各自读取本地演示切片；
+  - 已将 [frontend/src/views/ProjectsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/ProjectsView.tsx)、[frontend/src/views/BidsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/BidsView.tsx)、[frontend/src/views/ContractsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/ContractsView.tsx)、[frontend/src/views/WorkbenchView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/WorkbenchView.tsx) 切换为启动时主动同步真实商机数据，因此项目、投标、合同、工作台四个页面后续会与商机管理保持同源；
+  - 已继续改造 [frontend/src/views/SolutionsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SolutionsView.tsx)：解决方案列表不再只按商机阶段做前端推导，而是优先按每条商机关联的真实 `solution_versions` 生成列表项，审批状态、版本号、负责人和方案版本主键均来自后端真实数据；共享商机更新时也会同步刷新真实方案列表。
+  - 已进一步修复商机详情口径漂移：`[frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpportunitiesDemoView.tsx)` 的“跳转到项目管理”已从按客户过滤改为按项目名称过滤；详情页“商机转化流程”已改为优先读取真实审批实例节点状态，没有真实实例时仅按 `workflowRecords` 展示，不再从商机结果字段反推中间节点状态。
+  - 已修复共享商机归一化中的“真实数据被旧 demo 字段污染”问题：`[frontend/src/shared/opportunityDemoData.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/shared/opportunityDemoData.ts)` 不再按 `id / opportunityCode` 套用默认演示商机，避免像真实 `OPP-000008` 这类记录错误继承旧 demo 的审批文档和审批状态。
 - 本次验证结果：
-  - 已执行 `cd /Users/gjy/backend && npm run build`，构建通过；
-  - 已执行 `cd /Users/gjy/frontend && npm run build`，构建通过；
+  - 已执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build`，构建通过；
+  - 已执行 `cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build`，构建通过；
   - 当前本地构建已确认“后端种子 + 前端统一数据源”方案可编译，下一步需要把这批改动同步到云服务器，重建 `backend / frontend` 容器，并在公网环境验证五条业务链路是否全部切换到真实数据。
 - 后续追加修复（2026-04-02 当日继续收口）：
-  - 已将 [frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/frontend/src/views/OpportunitiesDemoView.tsx) 的商机详情流程补充“业务阶段兜底”逻辑：当真实审批实例尚未启动、但商机业务进度已进入“需求分析”或更后阶段时，查看页与本地审批视图会将当前节点落到第 5 步“需求分析”或后续节点，而不再机械停留在前置节点；
-  - 已将 [frontend/src/views/SolutionsView.tsx](/Users/gjy/frontend/src/views/SolutionsView.tsx) 的解决方案审批入口统一为“所有状态都可查看审批流程”：`草稿 / 审核中 / 已批准 / 已驳回` 均保留“审批”入口；非当前节点责任人进入后保持只读查看，不能执行动作；
+  - 已将 [frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpportunitiesDemoView.tsx) 的商机详情流程补充“业务阶段兜底”逻辑：当真实审批实例尚未启动、但商机业务进度已进入“需求分析”或更后阶段时，查看页与本地审批视图会将当前节点落到第 5 步“需求分析”或后续节点，而不再机械停留在前置节点；
+  - 已将 [frontend/src/views/SolutionsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SolutionsView.tsx) 的解决方案审批入口统一为“所有状态都可查看审批流程”：`草稿 / 审核中 / 已批准 / 已驳回` 均保留“审批”入口；非当前节点责任人进入后保持只读查看，不能执行动作；
   - 已为解决方案“查看”弹窗补充审批过程摘要与“查看完整审批流程”入口，确保用户从查看详情也能进入审批过程，保持与商机模块一致的可见性口径；
   - 已统一商机与解决方案审批说明文案：所有成员均可查看流程进度与历史记录，仅当前节点责任人可执行上传、分配、通过或驳回。
 - 当前结论：
   - 本轮已把“共享数据保持一致”的关键问题从数据结构上收口为“商机真实数据主链路 + 真实方案版本列表”；
   - 云端待执行项已明确为“同步代码 -> 重建服务 -> 公网回归验收”，验收重点是 `项目管理 / 商机管理 / 解决方案 / 投标管理 / 合同管理` 五页展示数量、负责人、阶段和审批状态是否一致。
-  - 已继续收口商机查看/审批过程与真实业务字段脱节的问题：`[frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/frontend/src/views/OpportunitiesDemoView.tsx)` 现已在打开商机详情或审批弹窗时主动拉取 `/opportunities/:id` 真实详情字段，不再只使用列表页的精简快照；因此 `bizApprovalStatus / techApprovalStatus / requirementBriefDocName / researchDocName / solutionOwnerUsername / approvalOpinion` 等字段会参与流程展示与文档区渲染。
+  - 已继续收口商机查看/审批过程与真实业务字段脱节的问题：`[frontend/src/views/OpportunitiesDemoView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpportunitiesDemoView.tsx)` 现已在打开商机详情或审批弹窗时主动拉取 `/opportunities/:id` 真实详情字段，不再只使用列表页的精简快照；因此 `bizApprovalStatus / techApprovalStatus / requirementBriefDocName / researchDocName / solutionOwnerUsername / approvalOpinion` 等字段会参与流程展示与文档区渲染。
   - 已修正“仅查看审批流程却误创建后端审批实例”的问题：商机审批弹窗打开时改为先查询 `GET /approval-instances/current`，不再无条件 `start/ensure` 新实例；这样成员查看流程不会再把未发起商机错误推进成一个空白的第 1 节点实例。
   - 已补充“休眠审批实例”展示降级逻辑：若后端已存在审批实例但尚无任何动作记录，同时商机业务快照已进入更后阶段，则前端会按真实业务快照展示节点状态，并明确提示“当前仅支持查看”，避免把流程错误压回“线索确认待上传”。
   - 已继续修正商机驳回态的后置节点高亮问题：当业务快照或审批记录显示某个审批节点已驳回时，商机审批弹窗会将其后所有节点统一置灰为“未执行”，不再因为已有文档字段就把第 4/5/6 步提前点亮。
@@ -743,8 +761,8 @@
     - 卡片动作成功/失效回调不再只返回 `toast`，而是同时返回最新 `card` 与 `update_multi=true`，尝试让飞书直接刷新当前卡片；
     - 之前回调成功后生成的新卡片仍把按钮错误渲染为可点击，根因是 `buildApprovalCardView()` 读取的是 `canHandleCurrentNode`，而 `ApprovalsService.findOne()` 实际返回字段名为 `canCurrentUserHandleCurrentNode`；现已兼容两种字段名。
   - 本地验证已再次通过：
-    - `cd /Users/gjy/presales-platform/backend && npm run build`
-    - `cd /Users/gjy/presales-platform/backend && npm test -- --runInBand`
+    - `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build`
+    - `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm test -- --runInBand`
   - 云端已同步最新 `feishu.service.ts` 并多次重建 `presales-backend`，健康检查保持正常：`http://127.0.0.1/api/health -> {"status":"ok"}`。
 - 本轮真实飞书测试结果：
   - 真实实例 `20`、`16`、`19` 已先后被推进到“商务评审”节点，并分别向真实飞书账号 `ou_04f5c38ef1840e7fe1fbdadd57b62e06` 发送新卡；
@@ -762,7 +780,7 @@
 ### 飞书卡片回调最终收口（2026-04-05）
 
 - 本轮继续执行任务 10“飞书 / OpenClaw MVP”，重点完成飞书审批卡片动作回包协议的最终兼容修正与真实账号闭环验证。
-- 本次新增内容（本地 `/Users/gjy/presales-platform` + 云服务器 `/opt/presales-platform`）：
+- 本次新增内容（本地 `/Users/gjy/Projects-mygetpre/presales-platform` + 云服务器 `/opt/presales-platform`）：
   - 已将 `backend/src/integrations/feishu/feishu.service.ts` 中的卡片动作回包统一调整为飞书 JSON 2.0 兼容格式，回调成功时不再直接返回旧版 `config/header/elements`，而是返回 `card: { type: "raw", data: <JSON 2.0 card> }`；
   - 已将交互卡片结构统一迁移到 JSON 2.0 语义：补齐 `schema: "2.0"`、`config.update_multi`、`header`、`body.elements`，并移除真实联调中确认不兼容的旧写法；
   - 已修正两个导致飞书客户端不能稳定刷新卡片的具体兼容问题：
@@ -770,8 +788,8 @@
     - JSON 2.0 中不再使用 `tag: "action"` 容器包按钮，已改为将 `button` 直接放入 `body.elements`，并按官方模式使用 `behaviors.callback` / `behaviors.open_url`。
   - 已在卡片动作执行前补充“当前飞书操作者是否仍是当前节点处理人”的前置校验：若用户点击的是历史旧卡片，则不再向飞书客户端抛出错误，而是返回“当前卡片已失效，请重新获取最新审批卡片。”的黄色提示，并同步回写为禁用态卡片；
   - 已在本地完成验证：
-    - `cd /Users/gjy/presales-platform/backend && npm run build`
-    - `cd /Users/gjy/presales-platform/backend && npm test -- --runInBand`
+    - `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build`
+    - `cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm test -- --runInBand`
   - 已将上述修正同步部署到云端并完成容器重建，当前后端健康检查保持正常。
 - 本轮真实飞书验证结果：
   - 旧卡片失效场景已经按预期处理：
@@ -798,15 +816,15 @@
     - 包含当前完整项目快照、最终版 README、以及旧压缩包 `presales-platform.zip` 的移除；
   - [PR #2](https://github.com/123gongjingyun/git_data/pull/2) 已于 `2026-04-05` 成功合并到 `master`，GitHub 侧 merge commit 为 `f5f8185 Merge pull request #2 from 123gongjingyun/pr/docs-feishu-openclaw-sync`；
   - 远端临时分支 `pr/docs-feishu-openclaw-sync` 已删除；本地当前开发分支 `docs/feishu-openclaw-dev-plan` 已在 `5133a00 Merge origin/master after PR #2 sync` 中回合并 `origin/master`，两条历史已建立共同祖先；
-  - 已新增第二轮飞书自动化回归测试 [backend/test/feishu-service.test.js](/Users/gjy/presales-platform/backend/test/feishu-service.test.js) 与首轮 OpenClaw 只读集成测试 [backend/test/openclaw-service.test.js](/Users/gjy/presales-platform/backend/test/openclaw-service.test.js)，并已通过本地 build + test；下次会话若继续本任务，应优先进入“云端配置 `BACKEND_OPENCLAW_SHARED_TOKEN` 并做真实 OpenClaw 联调”或“继续补更细粒度的飞书签名/加密边界测试”，而不需要再回头处理 GitHub PR 对齐、合并或历史连通问题。
+  - 已新增第二轮飞书自动化回归测试 [backend/test/feishu-service.test.js](/Users/gjy/Projects-mygetpre/presales-platform/backend/test/feishu-service.test.js) 与首轮 OpenClaw 只读集成测试 [backend/test/openclaw-service.test.js](/Users/gjy/Projects-mygetpre/presales-platform/backend/test/openclaw-service.test.js)，并已通过本地 build + test；下次会话若继续本任务，应优先进入“云端配置 `BACKEND_OPENCLAW_SHARED_TOKEN` 并做真实 OpenClaw 联调”或“继续补更细粒度的飞书签名/加密边界测试”，而不需要再回头处理 GitHub PR 对齐、合并或历史连通问题。
   - 云端 OpenClaw 只读入口已经发布并通过最小联调验收，本机 OpenClaw skill 包装、真实会话验证、摘要参数兼容修复和回复文案收口也已完成；下次会话应直接从“继续扩展审批类自然语言拦截提示，或优化结果卡片/摘要模板内容密度”继续，而不需要再重复服务器发布、本机 skill 配置、4 类基础查询验证、摘要参数兼容修复或回复文案基础收口步骤。
 
 ### OpenClaw 只读拒绝文案补强（2026-04-05）
 
 - 本轮继续执行任务 10“飞书 / OpenClaw MVP”，聚焦审批类自然语言请求的只读拒绝口径收口，避免真实会话中出现“像是要帮用户执行审批”的误导性前缀。
 - 本次新增内容：
-  - 已在 [backend/src/integrations/openclaw/openclaw.service.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts) 中将写操作拒绝文案从简单的“当前只允许只读查询”升级为明确指导语：OpenClaw 当前只接了只读能力，不能直接执行审批通过、驳回、修改、删除、创建或指派，并明确提示用户可继续查询“待我审批、今日简报、商机摘要、方案摘要”，真正执行审批需回到飞书审批卡片或平台页面。
-  - 已同步更新 [backend/test/openclaw-service.test.js](/Users/gjy/presales-platform/backend/test/openclaw-service.test.js) 断言，并重新完成本地 `backend` 的 build + test 验证，当前 OpenClaw 相关测试总数仍保持通过。
+  - 已在 [backend/src/integrations/openclaw/openclaw.service.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/integrations/openclaw/openclaw.service.ts) 中将写操作拒绝文案从简单的“当前只允许只读查询”升级为明确指导语：OpenClaw 当前只接了只读能力，不能直接执行审批通过、驳回、修改、删除、创建或指派，并明确提示用户可继续查询“待我审批、今日简报、商机摘要、方案摘要”，真正执行审批需回到飞书审批卡片或平台页面。
+  - 已同步更新 [backend/test/openclaw-service.test.js](/Users/gjy/Projects-mygetpre/presales-platform/backend/test/openclaw-service.test.js) 断言，并重新完成本地 `backend` 的 build + test 验证，当前 OpenClaw 相关测试总数仍保持通过。
   - 已将相同口径同步部署到云服务器 `101.43.78.27` 的运行态后端，并通过 `POST /api/integrations/openclaw/query` 实测确认：对“帮我审批通过 OPP-000001”会返回 `403 OPENCLAW_READONLY_ONLY`，且提示文案为更新后的完整三句指导语。
   - 已补强本机 OpenClaw skill 文案约束 [~/.openclaw/skills/presales-platform-openclaw/SKILL.md](/Users/gjy/.openclaw/skills/presales-platform-openclaw/SKILL.md)：对审批通过、驳回、创建、删除、修改、指派等写请求，要求只输出最终拒绝答复，不再先说“我先确认”“我刚确认平台能力”“避免瞎点”等过程性前缀，也不再默认附带额外排障分析。
 - 当前结论：
@@ -837,8 +855,8 @@
       - `商机摘要 OPP-000001` -> 收敛为名称、阶段/金额、赢单概率、当前审批节点、核心风险、1 条下一步建议，不再展开多条并列建议；
       - `方案摘要 SOL-000001` -> 收敛为名称、版本/状态、关联商机、1 句摘要、最近评审、最近更新时间，不再堆叠审批状态、客户、创建人等次级字段。
   - 前端可验证入口补记（确认日期：2026-04-05）：
-    - 已在后端 [openclaw.controller.ts](/Users/gjy/presales-platform/backend/src/integrations/openclaw/openclaw.controller.ts) 新增 JWT 受保护的浏览器联调接口 `POST /integrations/openclaw/playground/query`，当前会直接复用登录用户 `req.user.id` 作为 `platformUserId` 转发到现有 `openclawService.query()`，从而避免浏览器侧暴露 `x-openclaw-token` 共享令牌。
-    - 已在前端 [OpenClawPlaygroundView.tsx](/Users/gjy/presales-platform/frontend/src/views/OpenClawPlaygroundView.tsx) 新增“OpenClaw 联调台”页面，并挂载到 [SettingsView.tsx](/Users/gjy/presales-platform/frontend/src/views/SettingsView.tsx) 的“系统设置 -> OpenClaw联调”菜单中。页面现已支持：
+    - 已在后端 [openclaw.controller.ts](/Users/gjy/Projects-mygetpre/presales-platform/backend/src/integrations/openclaw/openclaw.controller.ts) 新增 JWT 受保护的浏览器联调接口 `POST /integrations/openclaw/playground/query`，当前会直接复用登录用户 `req.user.id` 作为 `platformUserId` 转发到现有 `openclawService.query()`，从而避免浏览器侧暴露 `x-openclaw-token` 共享令牌。
+    - 已在前端 [OpenClawPlaygroundView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpenClawPlaygroundView.tsx) 新增“OpenClaw 联调台”页面，并挂载到 [SettingsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SettingsView.tsx) 的“系统设置 -> OpenClaw联调”菜单中。页面现已支持：
       - 输入任意测试命令并发送；
       - 一键快捷触发 `待我审批 / 今日简报 / 商机摘要 / 方案摘要 / 只读拦截` 5 类典型命令；
       - 同时展示“结果预览”和“原始响应 JSON”，并保留最近 5 次联调记录，便于你直接在平台页面验收当前 OpenClaw 能力，而不必再切到飞书或终端。
@@ -852,5 +870,7 @@
     - 本轮再次完成真实页面回归：在“系统设置 -> OpenClaw联调”中先生成 `今日简报` 与 `只读拦截` 两条回放，再点击第一条成功回放，已确认左侧结果区重新显示 `今日简报 / get_daily_brief / matched_daily_brief_keywords`，同时右侧“最近状态”也同步切换为成功结果，不再沿用后一次拦截状态。
     - 已继续补充结果区工具面板：顶部新增 `复制摘要 / 导出记录 / 展开JSON` 三个快捷操作；当前可一键复制左侧摘要文本、将本轮回放导出为本地 JSON 文件，并按需展开或收起成功/拦截结果的原始响应 JSON，默认不展开长 JSON。
     - 本轮再次完成真实页面回归：浏览器进入“系统设置 -> OpenClaw联调”后，已确认工具按钮 `复制摘要 / 导出记录 / 展开 JSON` 可见；点击 `今日简报` 后再点击 `展开 JSON`，按钮已切换为 `收起 JSON`，且结果区内已出现 `原始响应 JSON` 区块，说明折叠/展开逻辑生效。
+    - 已继续完成 5 轮前端增强并同步到当前 GitHub 分支 `docs/feishu-openclaw-dev-plan`，对应提交依次为：`810e616 Improve OpenClaw playground readonly error handling`、`b6c6641 Polish OpenClaw playground validation UI`、`c6ac482 Add chat-style OpenClaw playground history`、`1fc254d Link playground history back to result preview`、`2e662e5 Add playground export and payload controls`。至此，本地独立仓库 `/Users/gjy/Projects-mygetpre/presales-platform` 与远端分支已对齐，OpenClaw 联调页当前基线以该分支为准。
+    - 已补充一轮云端前端最小化同步：确认服务器目录 `/opt/presales-platform` 为上传式部署目录而非 Git 工作树后，按“只同步前端必要文件、不动 backend/mysql”的原则，将 [frontend/src/views/OpenClawPlaygroundView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpenClawPlaygroundView.tsx)、[frontend/src/views/SettingsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SettingsView.tsx) 与 [README.md](/Users/gjy/Projects-mygetpre/presales-platform/README.md) 回传到云端同路径，并执行 `docker compose build frontend` + `docker compose up -d frontend` 完成第二次前端容器重建。云端文件已确认包含 `OpenClaw联调` 菜单项与最新联调页代码；当前剩余唯一待办为继续做公网页面最终验收，确认 `http://101.43.78.27/` 登录后左侧菜单和 `复制摘要 / 导出记录 / 展开 JSON` 三个按钮均已可见。
     - 本轮已完成本地验证：`backend npm run build`、`backend npm test -- --runInBand`、`frontend npm run build` 全部通过。下次若要现场验收，应直接在本地启动前后端后进入“系统设置 -> OpenClaw联调”页面操作。
   - 因此，下次会话若继续本任务，应直接从“继续微调新摘要模板的字段取舍，例如是否去掉今日简报中的‘关注商机总数’、是否把商机金额格式化为带千分位和货币单位，或继续扩展更边缘的写操作别名（如作废、关闭、重开、提交变更）”开始，而不需要再回头处理当前这 4 类基础只读查询、基础写操作拒绝话术和摘要压缩生效路径的排查问题。

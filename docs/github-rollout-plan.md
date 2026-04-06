@@ -24,7 +24,7 @@
 
 建议新建单独项目根目录，例如：
 
-`/Users/gjy/presales-platform`
+`/Users/gjy/Projects-mygetpre/presales-platform`
 
 然后将以下内容收敛进去：
 

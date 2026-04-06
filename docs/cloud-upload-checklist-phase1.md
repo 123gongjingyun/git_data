@@ -59,19 +59,19 @@ tar --exclude='frontend/node_modules' \
 打包完成后，本地检查压缩包是否生成：
 
 ```bash
-ls -lh /Users/gjy/presales-platform-phase1.tar.gz
+ls -lh /Users/gjy/Projects-mygetpre/presales-platform-phase1.tar.gz
 ```
 
 ## 4. 上传命令
 
 ```bash
-scp /Users/gjy/presales-platform-phase1.tar.gz deploy@101.43.78.27:/opt/presales-platform/
+scp /Users/gjy/Projects-mygetpre/presales-platform-phase1.tar.gz deploy@101.43.78.27:/opt/presales-platform/
 ```
 
 如果服务器仍使用 `root` 上传，也可以：
 
 ```bash
-scp /Users/gjy/presales-platform-phase1.tar.gz root@101.43.78.27:/opt/presales-platform/
+scp /Users/gjy/Projects-mygetpre/presales-platform-phase1.tar.gz root@101.43.78.27:/opt/presales-platform/
 ```
 
 ## 5. 服务器解压命令
@@ -103,8 +103,8 @@ ls -la backend
 
 上传前逐项确认：
 
-- [ ] 本地前端构建已通过：`cd /Users/gjy/frontend && npm run build`
-- [ ] 本地后端构建已通过：`cd /Users/gjy/backend && npm run build`
+- [ ] 本地前端构建已通过：`cd /Users/gjy/Projects-mygetpre/presales-platform/frontend && npm run build`
+- [ ] 本地后端构建已通过：`cd /Users/gjy/Projects-mygetpre/presales-platform/backend && npm run build`
 - [ ] `frontend/src` 中没有残留写死的 `http://localhost:3000`
 - [ ] 项目根目录存在 `docker-compose.yml`
 - [ ] 项目根目录存在 `.env.example`
