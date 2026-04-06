@@ -373,7 +373,10 @@
 - [x] 第十一轮增强：已在 `vite.config.ts` 落地首版 `manualChunks` 策略，将 React、Ant Design、ECharts Core、ECharts GL 与其余公共依赖拆分为独立 vendor chunk
 - [x] 第十一轮增强：已确认 `vendor-echarts-gl` 独立拆出，避免图表 3D 能力继续与主入口公共包绑定
 - [x] 第十一轮增强：已完成本地构建验证，并移除中途试验版带来的循环 chunk 告警；当前剩余超大块主要集中在 `vendor-echarts-core`、`vendor-misc`、`vendor-antd`
-- [ ] 下一轮增强：继续按依赖图评估更细的 `manualChunks` 分桶，重点处理 `vendor-echarts-core` 和 `vendor-misc`
+- [x] 第十二轮增强：已继续按依赖家族细化 vendor 分桶，将 `@emotion/stylis` 独立为 `vendor-emotion`，并将 `claygl` 并入 `vendor-echarts-gl`
+- [x] 第十二轮增强：在保持构建稳定、无循环 chunk/空 chunk 警告的前提下，将 `vendor-misc` 进一步压缩到约 `411 kB`
+- [~] 当前残留较大 vendor chunk：`vendor-echarts-core` 约 `1042 kB`、`vendor-echarts-gl` 约 `600 kB`、`vendor-antd` 约 `557 kB`
+- [ ] 下一轮增强：继续评估 `vendor-echarts-core` 是否可按图表能力拆分，或进一步下沉到业务组件级动态导入
 
 ## 11. 后续汇报格式
 

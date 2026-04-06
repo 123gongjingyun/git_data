@@ -22,8 +22,16 @@ export default defineConfig({
             return "vendor-echarts-core";
           }
 
+          if (id.includes("/claygl/")) {
+            return "vendor-echarts-gl";
+          }
+
           if (id.includes("/antd/") || id.includes("@ant-design/icons")) {
             return "vendor-antd";
+          }
+
+          if (id.includes("@emotion") || id.includes("stylis")) {
+            return "vendor-emotion";
           }
 
           if (
