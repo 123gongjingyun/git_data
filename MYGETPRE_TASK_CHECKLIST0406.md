@@ -376,7 +376,9 @@
 - [x] 第十二轮增强：已继续按依赖家族细化 vendor 分桶，将 `@emotion/stylis` 独立为 `vendor-emotion`，并将 `claygl` 并入 `vendor-echarts-gl`
 - [x] 第十二轮增强：在保持构建稳定、无循环 chunk/空 chunk 警告的前提下，将 `vendor-misc` 进一步压缩到约 `411 kB`
 - [~] 当前残留较大 vendor chunk：`vendor-echarts-core` 约 `1042 kB`、`vendor-echarts-gl` 约 `600 kB`、`vendor-antd` 约 `557 kB`
-- [ ] 下一轮增强：继续评估 `vendor-echarts-core` 是否可按图表能力拆分，或进一步下沉到业务组件级动态导入
+- [x] 第十三轮增强：已将 `EChartsPreview` 从整包 `import(\"echarts\")` 调整为 `echarts/core + 明确注册所需 2D 图表/组件/渲染器`，3D 继续按需加载 `echarts-gl`
+- [x] 第十三轮增强：本地构建验证通过，`vendor-echarts-core` 进一步下降到约 `1023 kB`
+- [ ] 下一轮增强：继续评估 `AnalyticsView` 中 3D 图表场景是否可再下沉为更独立的懒加载边界，优先处理 `vendor-echarts-core`
 
 ## 11. 后续汇报格式
 

@@ -6,6 +6,57 @@ interface EChartsPreviewProps {
   height?: number;
 }
 
+let echartsCoreLoader: Promise<typeof import("echarts/core")> | null = null;
+let echartsGlLoader: Promise<unknown> | null = null;
+
+async function loadEChartsCore() {
+  if (!echartsCoreLoader) {
+    echartsCoreLoader = (async () => {
+      const [
+        echarts,
+        charts,
+        components,
+        renderers,
+      ] = await Promise.all([
+        import("echarts/core"),
+        import("echarts/charts"),
+        import("echarts/components"),
+        import("echarts/renderers"),
+      ]);
+
+      echarts.use([
+        charts.BarChart,
+        charts.LineChart,
+        charts.PieChart,
+        charts.ScatterChart,
+        charts.GraphChart,
+        charts.GaugeChart,
+        charts.SankeyChart,
+        components.GridComponent,
+        components.TooltipComponent,
+        components.LegendComponent,
+        components.TitleComponent,
+        components.DatasetComponent,
+        components.TransformComponent,
+        components.GeoComponent,
+        components.VisualMapComponent,
+        renderers.CanvasRenderer,
+      ]);
+
+      return echarts;
+    })();
+  }
+
+  return echartsCoreLoader;
+}
+
+async function loadEChartsGl() {
+  if (!echartsGlLoader) {
+    echartsGlLoader = import("echarts-gl").catch(() => null);
+  }
+  return echartsGlLoader;
+}
+
 /**
  * 轻量级 ECharts 预览组件（仅用于 AnalyticsView 中的 Mock 展示）。
  *
@@ -25,13 +76,9 @@ export function EChartsPreview(props: EChartsPreviewProps) {
     const mountChart = async () => {
       if (!containerRef.current) return;
       try {
-        const echarts = await import("echarts");
+        const echarts = await loadEChartsCore();
         if (enable3D) {
-          try {
-            await import("echarts-gl");
-          } catch {
-            // 在未安装 echarts-gl 时静默忽略，仍可渲染 2D 图表
-          }
+          await loadEChartsGl();
         }
         if (!mounted || !containerRef.current) return;
         chart = echarts.init(containerRef.current);
@@ -61,4 +108,3 @@ export function EChartsPreview(props: EChartsPreviewProps) {
     />
   );
 }
-
