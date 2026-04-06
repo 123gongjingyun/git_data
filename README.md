@@ -124,6 +124,8 @@
 - 旧路径 `/Users/gjy/presales-platform` 当前保留为软链接，用于兼容部分历史命令、文档引用和工具配置；后续应逐步以新路径为唯一主路径。
 - 部署压缩包 `presales-platform-phase1.tar.gz` 已同步收口到 `/Users/gjy/Projects-mygetpre/presales-platform-artifacts/`，旧位置保留软链接兼容入口。
 - 已补充确认一条本机 GitHub 联通约束：此前推送卡住的根因是 GitHub 访问未走本机正在使用的代理端口；当前口径固定为 `127.0.0.1:7890`，后续本机 `git push/fetch` 若异常，应优先按该端口排查代理配置。
+- 已在项目根目录生成平台效果关键词文档 `/Users/gjy/Projects-mygetpre/presales-platform/MYGETPRE_PLATFORM_KEYWORDS.md`，用于在后续多 agent 协作、OpenClaw 联调页优化和平台效果复现时，作为统一的高密度提示词/关键词基线。
+- 已在项目根目录生成按模块拆分的任务清单 `/Users/gjy/Projects-mygetpre/presales-platform/MYGETPRE_TASK_CHECKLIST0406.md`，后续迭代默认以该清单为主线汇报“已完成 / 进行中 / 未完成”状态，并据此拆分多 agent 任务。
 
 ### 云端联调收口补充（2026-04-02）
 
@@ -872,6 +874,12 @@
     - 本轮再次完成真实页面回归：在“系统设置 -> OpenClaw联调”中先生成 `今日简报` 与 `只读拦截` 两条回放，再点击第一条成功回放，已确认左侧结果区重新显示 `今日简报 / get_daily_brief / matched_daily_brief_keywords`，同时右侧“最近状态”也同步切换为成功结果，不再沿用后一次拦截状态。
     - 已继续补充结果区工具面板：顶部新增 `复制摘要 / 导出记录 / 展开JSON` 三个快捷操作；当前可一键复制左侧摘要文本、将本轮回放导出为本地 JSON 文件，并按需展开或收起成功/拦截结果的原始响应 JSON，默认不展开长 JSON。
     - 本轮再次完成真实页面回归：浏览器进入“系统设置 -> OpenClaw联调”后，已确认工具按钮 `复制摘要 / 导出记录 / 展开 JSON` 可见；点击 `今日简报` 后再点击 `展开 JSON`，按钮已切换为 `收起 JSON`，且结果区内已出现 `原始响应 JSON` 区块，说明折叠/展开逻辑生效。
+    - 已继续完成新一轮联调成功态诊断收口：在 [OpenClawPlaygroundView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpenClawPlaygroundView.tsx) 中新增成功诊断标签与提示卡，当前可区分 `业务空结果`、`结构待排查` 和 `结构完整` 三种成功态；其中“待我审批为空”会明确标记为成功空结果，“简报/商机/方案摘要缺关键字段”会标记为结构待排查，“结果体为空对象”也会单独提示后端 payload 为空。
+    - 本轮文档已同步更新到项目根目录任务清单 [MYGETPRE_TASK_CHECKLIST0406.md](/Users/gjy/Projects-mygetpre/presales-platform/MYGETPRE_TASK_CHECKLIST0406.md)，并把 OpenClaw 联调页当前下一步聚焦调整为“组件化拆分单文件、降低后续多 agent 并行冲突”。
+    - 已继续完成第六轮前端结构收口：把 OpenClaw 联调页从单一超大文件拆分为主编排文件 [OpenClawPlaygroundView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpenClawPlaygroundView.tsx) 和独立子模块 [sections.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/openclaw-playground/sections.tsx)、[helpers.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/openclaw-playground/helpers.tsx)、[types.ts](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/openclaw-playground/types.ts)。当前主文件只保留状态管理、请求发送、历史回放和数据组装逻辑，请求面板 / 结果面板 / 右侧状态栏 / 历史记录区都已具备独立写入边界，更适合后续多 agent 并行迭代。
+    - 本轮已完成本地验证：重新执行 `frontend npm run build` 通过；组件拆分后仍仅保留既有 Vite chunk size 警告，无新增 TypeScript 或打包错误。
+    - 已继续完成第七轮状态矩阵文案收口：当前前端已把“安全拦截”“权限不足”“鉴权异常”“网络连接失败”分开表达；只读命中不再沿用接近失败态的 `已拦截` 口径，而改为更明确的 `已安全拦截，未执行写操作`。同时，成功空结果、结构待排查和结构完整三类成功态的标签说明也进一步拉开，联调验收时更容易一眼识别是空业务态、权限问题还是接口返回结构问题。
+    - 本轮已再次完成本地验证：`frontend npm run build` 通过；当前仍只有既有的 Vite chunk size 警告，没有新增构建错误。
     - 已继续完成 5 轮前端增强并同步到当前 GitHub 分支 `docs/feishu-openclaw-dev-plan`，对应提交依次为：`810e616 Improve OpenClaw playground readonly error handling`、`b6c6641 Polish OpenClaw playground validation UI`、`c6ac482 Add chat-style OpenClaw playground history`、`1fc254d Link playground history back to result preview`、`2e662e5 Add playground export and payload controls`。至此，本地独立仓库 `/Users/gjy/Projects-mygetpre/presales-platform` 与远端分支已对齐，OpenClaw 联调页当前基线以该分支为准。
     - 已补充一轮云端前端最小化同步：确认服务器目录 `/opt/presales-platform` 为上传式部署目录而非 Git 工作树后，按“只同步前端必要文件、不动 backend/mysql”的原则，将 [frontend/src/views/OpenClawPlaygroundView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/OpenClawPlaygroundView.tsx)、[frontend/src/views/SettingsView.tsx](/Users/gjy/Projects-mygetpre/presales-platform/frontend/src/views/SettingsView.tsx) 与 [README.md](/Users/gjy/Projects-mygetpre/presales-platform/README.md) 回传到云端同路径，并执行 `docker compose build frontend` + `docker compose up -d frontend` 完成第二次前端容器重建。云端文件已确认包含 `OpenClaw联调` 菜单项与最新联调页代码；当前剩余唯一待办为继续做公网页面最终验收，确认 `http://101.43.78.27/` 登录后左侧菜单和 `复制摘要 / 导出记录 / 展开 JSON` 三个按钮均已可见。
     - 本轮已完成本地验证：`backend npm run build`、`backend npm test -- --runInBand`、`frontend npm run build` 全部通过。下次若要现场验收，应直接在本地启动前后端后进入“系统设置 -> OpenClaw联调”页面操作。
