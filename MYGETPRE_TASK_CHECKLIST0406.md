@@ -370,7 +370,10 @@
 - [x] 第十轮增强：已在 `App.tsx` 对项目、商机、方案、投标、合同、知识库、数据分析、系统设置、帮助等页面启用页面级按需加载，并补统一 Suspense 占位
 - [x] 第十轮增强：构建产物已进一步拆出 `ProjectsView`、`SolutionsView`、`BidsView`、`ContractsView`、`KnowledgeView`、`AnalyticsView`、`SettingsView`、`OpportunitiesDemoView` 等独立 chunk
 - [x] 第十轮增强：最大主 chunk 已进一步从约 `1467 kB` 降到约 `1047 kB`，说明页面级懒加载已产生明显收益
-- [ ] 下一轮增强：继续评估 `manualChunks` 策略，重点处理仍超过 500 kB 的公共依赖 chunk
+- [x] 第十一轮增强：已在 `vite.config.ts` 落地首版 `manualChunks` 策略，将 React、Ant Design、ECharts Core、ECharts GL 与其余公共依赖拆分为独立 vendor chunk
+- [x] 第十一轮增强：已确认 `vendor-echarts-gl` 独立拆出，避免图表 3D 能力继续与主入口公共包绑定
+- [x] 第十一轮增强：已完成本地构建验证，并移除中途试验版带来的循环 chunk 告警；当前剩余超大块主要集中在 `vendor-echarts-core`、`vendor-misc`、`vendor-antd`
+- [ ] 下一轮增强：继续按依赖图评估更细的 `manualChunks` 分桶，重点处理 `vendor-echarts-core` 和 `vendor-misc`
 
 ## 11. 后续汇报格式
 
