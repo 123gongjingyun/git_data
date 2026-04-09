@@ -779,12 +779,6 @@ export function loadSharedDemoOpportunities(): DemoOpportunity[] {
         (item) => !parsedIds.has(item.id),
       );
       const merged = [...parsed, ...missingDefaults];
-      if (
-        storedVersion < OPPORTUNITY_DEMO_STORAGE_VERSION ||
-        JSON.stringify(merged) !== JSON.stringify(JSON.parse(raw) as DemoOpportunity[])
-      ) {
-        saveSharedDemoOpportunities(merged);
-      }
       return merged;
     }
   } catch {
@@ -793,15 +787,50 @@ export function loadSharedDemoOpportunities(): DemoOpportunity[] {
   return normalizeDemoOpportunities(DEMO_OPPORTUNITIES);
 }
 
+export function ensureSharedDemoOpportunities(): DemoOpportunity[] {
+  const loaded = loadSharedDemoOpportunities();
+  if (typeof window === "undefined") {
+    return loaded;
+  }
+  try {
+    const currentStored = window.localStorage.getItem(OPPORTUNITY_DEMO_STORAGE_KEY);
+    const currentVersion = window.localStorage.getItem(
+      OPPORTUNITY_DEMO_STORAGE_VERSION_KEY,
+    );
+    const normalized = normalizeDemoOpportunities(loaded);
+    const normalizedJson = JSON.stringify(normalized);
+    if (
+      currentStored !== normalizedJson ||
+      currentVersion !== String(OPPORTUNITY_DEMO_STORAGE_VERSION)
+    ) {
+      saveSharedDemoOpportunities(normalized);
+    }
+  } catch {
+    // best-effort only
+  }
+  return loaded;
+}
+
 export function saveSharedDemoOpportunities(opportunities: DemoOpportunity[]): void {
   if (typeof window === "undefined") {
     return;
   }
   try {
     const normalized = normalizeDemoOpportunities(opportunities);
+    const normalizedJson = JSON.stringify(normalized);
+    const currentStored = window.localStorage.getItem(OPPORTUNITY_DEMO_STORAGE_KEY);
+    const currentVersion = window.localStorage.getItem(
+      OPPORTUNITY_DEMO_STORAGE_VERSION_KEY,
+    );
+    if (
+      currentStored === normalizedJson &&
+      currentVersion === String(OPPORTUNITY_DEMO_STORAGE_VERSION)
+    ) {
+      return;
+    }
     window.localStorage.setItem(
       OPPORTUNITY_DEMO_STORAGE_KEY,
-      JSON.stringify(normalized),
+      normalizedJson,
     );
     window.localStorage.setItem(
       OPPORTUNITY_DEMO_STORAGE_VERSION_KEY,
@@ -815,4 +844,13 @@ export function saveSharedDemoOpportunities(opportunities: DemoOpportunity[]): v
   } catch {
     // best-effort only
   }
+}
+
+export function hasSameDemoOpportunities(
+  current: DemoOpportunity[],
+  next: DemoOpportunity[],
+): boolean {
+  return JSON.stringify(normalizeDemoOpportunities(current)) === JSON.stringify(
+    normalizeDemoOpportunities(next),
+  );
 }

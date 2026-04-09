@@ -10,6 +10,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
 import {
+  hasSameDemoOpportunities,
   loadSharedDemoOpportunities,
   OPPORTUNITY_DEMO_UPDATED_EVENT,
   type DemoOpportunity,
@@ -130,7 +131,11 @@ export function WorkbenchView(props: WorkbenchViewProps = {}) {
     const handleUpdated = (event: Event) => {
       const customEvent = event as CustomEvent<DemoOpportunity[]>;
       if (Array.isArray(customEvent.detail)) {
-        setSharedOpportunities(customEvent.detail);
+        setSharedOpportunities((prev) =>
+          hasSameDemoOpportunities(prev, customEvent.detail)
+            ? prev
+            : customEvent.detail,
+        );
         return;
       }
       setSharedOpportunities(loadSharedDemoOpportunities());
@@ -402,7 +407,7 @@ export function WorkbenchView(props: WorkbenchViewProps = {}) {
             size="small"
             hoverable
             style={compactStatCardStyle}
-            bodyStyle={{ padding: "14px 16px" }}
+            styles={{ body: { padding: "14px 16px" } }}
             onClick={() => onNavigateToProjects?.()}
           >
             <div style={{ fontSize: 24, marginBottom: 6, color: "#1890ff" }}>
@@ -419,7 +424,7 @@ export function WorkbenchView(props: WorkbenchViewProps = {}) {
             size="small"
             hoverable
             style={compactStatCardStyle}
-            bodyStyle={{ padding: "14px 16px" }}
+            styles={{ body: { padding: "14px 16px" } }}
             onClick={() => onNavigateToOpportunities?.()}
           >
             <div style={{ fontSize: 24, marginBottom: 6, color: "#52c41a" }}>
@@ -436,7 +441,7 @@ export function WorkbenchView(props: WorkbenchViewProps = {}) {
             size="small"
             hoverable
             style={compactStatCardStyle}
-            bodyStyle={{ padding: "14px 16px" }}
+            styles={{ body: { padding: "14px 16px" } }}
             onClick={() => onNavigateToSolutions?.()}
           >
             <div style={{ fontSize: 24, marginBottom: 6, color: "#722ed1" }}>
@@ -453,7 +458,7 @@ export function WorkbenchView(props: WorkbenchViewProps = {}) {
             size="small"
             hoverable
             style={compactStatCardStyle}
-            bodyStyle={{ padding: "14px 16px" }}
+            styles={{ body: { padding: "14px 16px" } }}
             onClick={() => onNavigateToBids?.()}
           >
             <div style={{ fontSize: 24, marginBottom: 6, color: "#fa8c16" }}>
@@ -468,7 +473,7 @@ export function WorkbenchView(props: WorkbenchViewProps = {}) {
             size="small"
             hoverable
             style={compactStatCardStyle}
-            bodyStyle={{ padding: "14px 16px" }}
+            styles={{ body: { padding: "14px 16px" } }}
             onClick={() => onNavigateToAnalytics?.()}
           >
             <div style={{ fontSize: 24, marginBottom: 6, color: "#13c2c2" }}>
@@ -485,7 +490,7 @@ export function WorkbenchView(props: WorkbenchViewProps = {}) {
             size="small"
             hoverable
             style={compactStatCardStyle}
-            bodyStyle={{ padding: "14px 16px" }}
+            styles={{ body: { padding: "14px 16px" } }}
             onClick={() => onNavigateToContracts?.()}
           >
             <div style={{ fontSize: 24, marginBottom: 6, color: "#eb2f96" }}>

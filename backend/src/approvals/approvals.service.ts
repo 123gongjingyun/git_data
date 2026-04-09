@@ -153,32 +153,54 @@ export class ApprovalsService {
     return "in_review";
   }
 
+  private normalizeOpportunityNodeStatus(
+    status?: ApprovalInstanceNodeStatus | null,
+  ): "pending" | "approved" | "rejected" {
+    if (status === "approved") {
+      return "approved";
+    }
+    if (status === "rejected") {
+      return "rejected";
+    }
+    return "pending";
+  }
+
   private async syncBusinessApprovalState(
     context: ApprovalBusinessContext,
     instance: ApprovalInstance,
   ) {
     if (context.businessType === "opportunity" && context.opportunity) {
-      context.opportunity.currentApprovalInstanceId = instance.id;
-      context.opportunity.approvalStatus = this.normalizeOpportunityStatus(
-        instance.status,
+      const instanceNodes = Array.isArray(instance.nodes) ? instance.nodes : [];
+      const bizApprovalNode = instanceNodes.find(
+        (node) => node.fieldKeySnapshot === "bizApprovalStatus",
       );
-      await this.opportunityRepository.save(context.opportunity);
+      const techApprovalNode = instanceNodes.find(
+        (node) => node.fieldKeySnapshot === "techApprovalStatus",
+      );
+      await this.opportunityRepository.update(context.opportunity.id, {
+        currentApprovalInstanceId: instance.id,
+        approvalStatus: this.normalizeOpportunityStatus(instance.status),
+        bizApprovalStatus: bizApprovalNode
+          ? this.normalizeOpportunityNodeStatus(bizApprovalNode.status)
+          : context.opportunity.bizApprovalStatus ?? null,
+        techApprovalStatus: techApprovalNode
+          ? this.normalizeOpportunityNodeStatus(techApprovalNode.status)
+          : context.opportunity.techApprovalStatus ?? null,
+      });
       return;
     }
 
     if (context.solution) {
-      context.solution.currentApprovalInstanceId = instance.id;
-      context.solution.approvalStatus = this.normalizeSolutionApprovalStatus(
-        instance.status,
-      );
-      if (instance.status === "approved") {
-        context.solution.status = "approved";
-      } else if (instance.status === "rejected") {
-        context.solution.status = "rejected";
-      } else {
-        context.solution.status = "in_review";
-      }
-      await this.solutionRepository.save(context.solution);
+      await this.solutionRepository.update(context.solution.id, {
+        currentApprovalInstanceId: instance.id,
+        approvalStatus: this.normalizeSolutionApprovalStatus(instance.status),
+        status:
+          instance.status === "approved"
+            ? "approved"
+            : instance.status === "rejected"
+              ? "rejected"
+              : "in_review",
+      });
     }
   }
 
@@ -577,6 +599,11 @@ export class ApprovalsService {
       return null;
     }
     const instance = await this.findApprovalInstanceEntity(approvalInstance.id);
+    const businessContext = await this.loadBusinessContext(
+      instance.businessType,
+      instance.businessId,
+    );
+    await this.syncBusinessApprovalState(businessContext, instance);
     return this.buildApprovalInstanceView(
       instance,
       this.getActorUserId(currentUser),
@@ -585,6 +612,11 @@ export class ApprovalsService {
 
   async findOne(id: number, currentUser?: ApprovalActor) {
     const approvalInstance = await this.findApprovalInstanceEntity(id);
+    const businessContext = await this.loadBusinessContext(
+      approvalInstance.businessType,
+      approvalInstance.businessId,
+    );
+    await this.syncBusinessApprovalState(businessContext, approvalInstance);
     return this.buildApprovalInstanceView(
       approvalInstance,
       this.getActorUserId(currentUser),
@@ -655,6 +687,7 @@ export class ApprovalsService {
 
     const firstNode = savedNodes.slice().sort((a, b) => a.nodeOrder - b.nodeOrder)[0];
     savedInstance.currentNodeId = firstNode?.id || null;
+    savedInstance.nodes = savedNodes;
     await this.approvalInstanceRepository.save(savedInstance);
     await this.syncBusinessApprovalState(businessContext, savedInstance);
     return this.findOne(savedInstance.id, currentUser);
