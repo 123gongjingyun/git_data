@@ -7,16 +7,14 @@ import {
   Button,
   Table,
   Tag,
-  Modal,
   Typography,
   message,
-  Upload,
   Popover,
   Checkbox,
   Divider,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   loadSharedDemoOpportunities,
   OPPORTUNITY_DEMO_UPDATED_EVENT,
@@ -57,6 +55,18 @@ import {
 import { buildApiUrl } from "../shared/api";
 
 const { Paragraph, Text } = Typography;
+
+const SolutionSupportModals = lazy(() =>
+  import("./solutions/SolutionSupportModals").then((module) => ({
+    default: module.SolutionSupportModals,
+  })),
+);
+
+const SolutionApprovalModal = lazy(() =>
+  import("./solutions/SolutionApprovalModal").then((module) => ({
+    default: module.SolutionApprovalModal,
+  })),
+);
 
 const SOLUTIONS_TABLE_STORAGE_KEY = "solutionsTablePreference";
 const SOLUTIONS_OVERRIDE_STORAGE_KEY = "solutionsMockOverrides";
@@ -245,6 +255,14 @@ export function SolutionsView(props: SolutionsViewProps = {}) {
     Record<number, number | null>
   >({});
   const [apiSolutions, setApiSolutions] = useState<SolutionItem[] | null>(null);
+  const createOwnerOptions = useMemo(
+    () =>
+      getSelectableOwnerOptions("presales").map((item) => ({
+        value: item.label,
+        label: item.label,
+      })),
+    [],
+  );
 
   const mapApiSolutionStatus = (
     solution: ApiSolutionVersion,
@@ -916,6 +934,89 @@ export function SolutionsView(props: SolutionsViewProps = {}) {
     });
   };
 
+  const closeCreateModal = () => {
+    setCreateModalVisible(false);
+    setCreateDraft({});
+  };
+
+  const submitCreateModal = () => {
+    const name = (createDraft.name || "").trim();
+    const project = (createDraft.project || "").trim();
+    if (!name) {
+      message.error("请输入方案名称");
+      return;
+    }
+    if (!project) {
+      message.error("请输入关联项目");
+      return;
+    }
+    const now = new Date();
+    const createdAt = now.toISOString().slice(0, 10);
+    const newItem: SolutionItem = {
+      key: `solution-manual-${Date.now()}`,
+      name,
+      project,
+      owner: createDraft.owner || "标准售前（presales_demo）",
+      version: "v1.0",
+      type: createDraft.type || "技术方案",
+      status: "draft",
+      createdAt,
+      actions: buildSolutionActions("draft"),
+      fileName: createDraft.fileName,
+    };
+    setSolutionOverrides((prev) => [newItem, ...prev]);
+    if (createDraft.fileName) {
+      message.success(`已选择方案文件：${createDraft.fileName}`);
+    }
+    message.success("已创建方案");
+    closeCreateModal();
+  };
+
+  const closeViewModal = () => {
+    setViewModalVisible(false);
+    setViewSolution(null);
+  };
+
+  const closeApprovalModal = () => {
+    setApprovalModalVisible(false);
+    setSolutionApprovalInstance(null);
+    setSolutionApprovalError(null);
+    setSolutionApprovalSource("local");
+  };
+
+  const openApprovalFromView = (solution: SolutionItem) => {
+    closeViewModal();
+    void openSolutionApprovalModal(solution);
+  };
+
+  const submitLocalSolutionApproval = (status: SolutionItem["status"]) => {
+    if (!canApproveCurrentSolutionNode) {
+      message.warning(currentSolutionNodeDisabledReason);
+      return;
+    }
+    if (!activeSolution) {
+      return;
+    }
+    setSolutionOverrides((prev) => {
+      const nextItem: SolutionItem = {
+        ...activeSolution,
+        status,
+        actions: buildSolutionActions(status),
+      };
+      const exists = prev.some((item) => item.key === nextItem.key);
+      return exists
+        ? prev.map((item) => (item.key === nextItem.key ? nextItem : item))
+        : [nextItem, ...prev];
+    });
+    setApprovalModalVisible(false);
+    setApprovalOpinionDraft("");
+    if (status === "approved") {
+      message.success("已提交审批意见：通过");
+      return;
+    }
+    message.warning("已提交审批意见：驳回");
+  };
+
   const allColumns: ColumnsType<SolutionItem> = [
     {
       title: "序号",
@@ -1374,635 +1475,48 @@ export function SolutionsView(props: SolutionsViewProps = {}) {
       </div>
 
       {/* 新建方案（Mock） */}
-      <Modal
-        title="新建方案"
-        open={createModalVisible}
-        onCancel={() => {
-          setCreateModalVisible(false);
-          setCreateDraft({});
-        }}
-        onOk={() => {
-          const name = (createDraft.name || "").trim();
-          const project = (createDraft.project || "").trim();
-          if (!name) {
-            message.error("请输入方案名称");
-            return;
-          }
-          if (!project) {
-            message.error("请输入关联项目");
-            return;
-          }
-          const now = new Date();
-          const createdAt = now.toISOString().slice(0, 10);
-          const newItem: SolutionItem = {
-            key: `solution-manual-${Date.now()}`,
-            name,
-            project,
-            owner: createDraft.owner || "标准售前（presales_demo）",
-            version: "v1.0",
-            type: createDraft.type || "技术方案",
-            status: "draft",
-            createdAt,
-            actions: buildSolutionActions("draft"),
-            fileName: createDraft.fileName,
-          };
-          setSolutionOverrides((prev) => [newItem, ...prev]);
-          message.success("已创建方案");
-          setCreateDraft({});
-          setCreateModalVisible(false);
-        }}
-        okText="保存方案"
-        cancelText="取消"
-        destroyOnClose
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <Text>方案名称</Text>
-            <Input
-              style={{ marginTop: 4 }}
-              placeholder="例如：某行业统一安全接入方案"
-              value={createDraft.name}
-              onChange={(e) =>
-                setCreateDraft((prev) => ({ ...prev, name: e.target.value }))
-              }
-            />
-          </div>
-          <div>
-            <Text>关联项目</Text>
-            <Input
-              style={{ marginTop: 4 }}
-              placeholder="例如：某银行数字化转型项目"
-              value={createDraft.project}
-              onChange={(e) =>
-                setCreateDraft((prev) => ({ ...prev, project: e.target.value }))
-              }
-            />
-          </div>
-          <div>
-            <Text>解决方案负责人</Text>
-            <Select
-              allowClear
-              style={{ marginTop: 4, width: "100%" }}
-              placeholder="请选择售前负责人"
-              value={createDraft.owner}
-              onChange={(value) =>
-                setCreateDraft((prev) => ({ ...prev, owner: value || undefined }))
-              }
-              options={getSelectableOwnerOptions("presales").map((item) => ({
-                value: item.label,
-                label: item.label,
-              }))}
-            />
-          </div>
-          <div>
-            <Text>方案类型</Text>
-            <Select
-              allowClear
-              style={{ marginTop: 4, width: "100%" }}
-              placeholder="请选择方案类型"
-              value={createDraft.type}
-              onChange={(value) =>
-                setCreateDraft((prev) => ({ ...prev, type: value || undefined }))
-              }
-              options={[
-                { value: "技术方案", label: "技术方案" },
-                { value: "解决方案", label: "解决方案" },
-                { value: "投标方案", label: "投标方案" },
-              ]}
-            />
-          </div>
-          <div>
-            <Text>上传方案文件</Text>
-            <div style={{ marginTop: 4 }}>
-              <Upload
-                showUploadList={false}
-                beforeUpload={(file) => {
-                  setCreateDraft((prev) => ({ ...prev, fileName: file.name }));
-                  message.success(`已选择方案文件：${file.name}`);
-                  return false; // 阻止真实上传
-                }}
-              >
-                <Button size="small">选择文件</Button>
-              </Upload>
-              {createDraft.fileName && (
-                <div
-                  style={{
-                    marginTop: 6,
-                    fontSize: 12,
-                    color: "#595959",
-                  }}
-                >
-                  当前文件：{createDraft.fileName}
-                </div>
-              )}
-            </div>
-            <Paragraph type="secondary" style={{ fontSize: 12, marginTop: 4 }}>
-              当前仅记录文件名，后续接入后端后可替换为真实文件上传与下载。
-            </Paragraph>
-          </div>
-        </div>
-      </Modal>
-
-      {/* 查看方案详情（简要信息） */}
-      <Modal
-        title={viewSolution ? `方案详情：${viewSolution.name}` : "方案详情"}
-        open={viewModalVisible}
-        onCancel={() => {
-          setViewModalVisible(false);
-          setViewSolution(null);
-        }}
-        footer={
-          <Button
-            type="primary"
-            onClick={() => {
-              setViewModalVisible(false);
-              setViewSolution(null);
-            }}
-          >
-            关闭
-          </Button>
-        }
-      >
-        {viewSolution && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div>
-              <Text type="secondary">关联项目</Text>
-              <div>{viewSolution.project}</div>
-            </div>
-            <div>
-              <Text type="secondary">解决方案负责人</Text>
-              <div>{viewSolution.owner}</div>
-            </div>
-            <div>
-              <Text type="secondary">版本</Text>
-              <div>{viewSolution.version}</div>
-            </div>
-            <div>
-              <Text type="secondary">类型</Text>
-              <div>{viewSolution.type}</div>
-            </div>
-            <div>
-              <Text type="secondary">审批状态</Text>
-              <div>{renderStatusTag(viewSolution.status)}</div>
-            </div>
-            <div>
-              <Text type="secondary">创建时间</Text>
-              <div>{viewSolution.createdAt}</div>
-            </div>
-            <div>
-              <Text type="secondary">方案文件</Text>
-              <div>
-                {viewSolution.fileName || "尚未上传方案文件"}
-              </div>
-            </div>
-            <div>
-              <Text type="secondary">审批过程</Text>
-              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-                {getSolutionWorkflowSteps(viewSolution).map((step, index) => (
-                  <div
-                    key={`view_solution_step_${step.key}`}
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: 10,
-                      border: "1px solid var(--app-border)",
-                      background: "var(--app-surface-soft)",
-                    }}
-                  >
-                    <div style={{ fontWeight: 500, color: "var(--app-text-primary)" }}>
-                      {index + 1}. {step.title}
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--app-text-secondary)" }}>
-                      处理人：{step.approverLabel}
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--app-text-secondary)" }}>
-                      状态：{step.statusText}
-                    </div>
-                  </div>
-                ))}
-                <Button
-                  size="small"
-                  style={{ alignSelf: "flex-start" }}
-                  onClick={() => {
-                    setViewModalVisible(false);
-                    void openSolutionApprovalModal(viewSolution);
-                  }}
-                >
-                  查看完整审批流程
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* 方案审批流程模态框（复刻 demo.html） */}
-      <Modal
-        title="方案审批流程"
-        open={approvalModalVisible}
-        onCancel={() => {
-          setApprovalModalVisible(false);
-          setSolutionApprovalInstance(null);
-          setSolutionApprovalError(null);
-          setSolutionApprovalSource("local");
-        }}
-        footer={null}
-        width={720}
-      >
-        <div style={{ marginBottom: 24 }}>
-          <Typography.Title level={4} style={{ marginBottom: 16 }}>
-            {activeSolution?.name || "某银行数字化转型方案 v2.1"}
-          </Typography.Title>
-          <div
-            style={{
-              marginBottom: 16,
-              padding: 12,
-              borderRadius: 12,
-              background:
-                "linear-gradient(180deg, color-mix(in srgb, rgba(59,130,246,0.12) 58%, var(--app-surface) 42%) 0%, var(--app-surface-soft) 100%)",
-              border: "1px solid var(--app-border)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 6,
-                gap: 12,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "var(--app-text-primary)",
-                }}
-              >
-                当前方案审批节点：
-                {solutionWorkflowSteps.find(
-                  (item) => item.key === currentPendingSolutionNodeKey,
-                )?.title || "已完成 / 无待处理节点"}
-              </Text>
-              <Text
-                type="secondary"
-                style={{ fontSize: 12, color: "var(--app-text-secondary)" }}
-              >
-                流程来源：
-                {solutionApprovalSource === "api"
-                  ? "后端真实审批实例"
-                  : "前端演示链路"}
-              </Text>
-            </div>
-            <Text
-              type="secondary"
-              style={{ fontSize: 12, color: "var(--app-text-secondary)" }}
-            >
-              流程按节点责任人逐步流转。所有成员均可查看流程进度与历史记录，仅当前节点处理人可执行上传、分配、通过或驳回。
-            </Text>
-            {solutionApprovalLoading && (
-              <div style={{ marginTop: 8, fontSize: 12, color: "#2563eb" }}>
-                正在加载真实审批实例...
-              </div>
-            )}
-            {solutionApprovalError && (
-              <div style={{ marginTop: 8, fontSize: 12, color: "#d46b08" }}>
-                {solutionApprovalError}
-              </div>
-            )}
-            {!canApproveCurrentSolutionNode && activeSolution && (
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 12,
-                  color: "#d46b08",
-                }}
-              >
-                {currentSolutionNodeDisabledReason}
-              </div>
-            )}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 16,
-              flexWrap: "wrap",
-            }}
-          >
-            {solutionWorkflowSteps.map((step, index) => {
-              const accentColor =
-                step.tone === "success"
-                  ? "#52c41a"
-                  : step.tone === "warning"
-                    ? "#fa8c16"
-                    : step.tone === "danger"
-                      ? "#f5222d"
-                      : "#d9d9d9";
-              const borderColor =
-                step.tone === "default"
-                  ? "var(--app-border)"
-                  : `color-mix(in srgb, ${accentColor} 26%, var(--app-border) 74%)`;
-              const background =
-                step.tone === "default"
-                  ? "linear-gradient(135deg, var(--app-surface-soft) 0%, var(--app-surface) 100%)"
-                  : `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 10%, var(--app-surface) 90%) 0%, var(--app-surface-soft) 100%)`;
-              return (
-                <div
-                  key={step.key}
-                  style={{
-                    flex: 1,
-                    minWidth: 180,
-                    padding: 12,
-                    borderRadius: 10,
-                    border: `1px solid ${borderColor}`,
-                    background,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: accentColor,
-                      color: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 500,
-                      fontSize: 14,
-                    }}
-                  >
-                    {index + 1}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 500, color: "var(--app-text-primary)" }}>
-                      {step.title}
-                    </div>
-                    <div style={{ fontSize: 12, color: accentColor }}>
-                      {step.statusText}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--app-text-secondary)",
-                        marginTop: 2,
-                      }}
-                    >
-                      处理人：{step.approverLabel}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 审批记录 */}
-        <div style={{ marginBottom: 24 }}>
-          <Typography.Title level={5} style={{ marginBottom: 12 }}>
-            审批记录
-          </Typography.Title>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {solutionApprovalSource === "api" && solutionApprovalInstance ? (
-              <>
-                {solutionApprovalInstance.actions.length === 0 && (
-                  <div
-                    style={{
-                      padding: 12,
-                      borderRadius: 10,
-                      border: "1px solid var(--app-border)",
-                      background: "var(--app-surface-soft)",
-                      color: "var(--app-text-secondary)",
-                    }}
-                  >
-                    当前暂无审批记录，待首个节点处理后自动生成。
-                  </div>
-                )}
-                {[...solutionApprovalInstance.actions]
-                  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                  .map((record) => {
-                    const accentColor =
-                      record.actionType === "approve"
-                        ? "#52c41a"
-                        : record.actionType === "reject"
-                          ? "#f5222d"
-                          : "#fa8c16";
-                    return (
-                      <div
-                        key={`solution_action_${record.id}`}
-                        style={{
-                          padding: 12,
-                          background: `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 10%, var(--app-surface) 90%) 0%, var(--app-surface-soft) 100%)`,
-                          borderRadius: 10,
-                          border: `1px solid color-mix(in srgb, ${accentColor} 26%, var(--app-border) 74%)`,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            marginBottom: 4,
-                          }}
-                        >
-                          <strong>
-                            {record.operator?.displayName ||
-                              record.operator?.username ||
-                              "系统"}
-                          </strong>
-                          <span style={{ fontSize: 12, color: "var(--app-text-secondary)" }}>
-                            {new Date(record.createdAt).toLocaleString("zh-CN")}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 13, color: accentColor }}>
-                          {record.nodeName || "审批动作"} ·{" "}
-                          {getApiApprovalActionLabel(
-                            record,
-                            solutionApprovalInstance.nodes.find(
-                              (item) => item.id === record.approvalInstanceNodeId,
-                            ) || null,
-                          )}
-                        </div>
-                        {record.comment && (
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color: "var(--app-text-secondary)",
-                              marginTop: 4,
-                            }}
-                          >
-                            {record.comment}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </>
-            ) : (
-              <>
-                <div
-                  style={{
-                    padding: 12,
-                    background:
-                      "linear-gradient(135deg, color-mix(in srgb, #52c41a 10%, var(--app-surface) 90%) 0%, var(--app-surface-soft) 100%)",
-                    borderRadius: 10,
-                    border: "1px solid color-mix(in srgb, #52c41a 26%, var(--app-border) 74%)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: 4,
-                    }}
-                  >
-                    <strong>张三</strong>
-                    <span style={{ fontSize: 12, color: "var(--app-text-secondary)" }}>
-                      2024-01-15 14:30
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 13, color: "#52c41a" }}>
-                    ✓ 技术评审通过
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "var(--app-text-secondary)",
-                      marginTop: 4,
-                    }}
-                  >
-                    方案技术架构合理，符合客户需求。
-                  </div>
-                </div>
-                <div
-                  style={{
-                    padding: 12,
-                    background:
-                      "linear-gradient(135deg, color-mix(in srgb, #fa8c16 10%, var(--app-surface) 90%) 0%, var(--app-surface-soft) 100%)",
-                    borderRadius: 10,
-                    border: "1px solid color-mix(in srgb, #fa8c16 26%, var(--app-border) 74%)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: 4,
-                    }}
-                  >
-                    <strong>李四</strong>
-                    <span style={{ fontSize: 12, color: "var(--app-text-secondary)" }}>
-                      2024-01-16 10:15
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 13, color: "#fa8c16" }}>
-                    ⏳ 商务评审中
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "var(--app-text-secondary)",
-                      marginTop: 4,
-                    }}
-                  >
-                    正在审核报价和商务条款。
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* 添加审批意见 */}
-        <div style={{ marginBottom: 24 }}>
-          <Typography.Title level={5} style={{ marginBottom: 12 }}>
-            添加审批意见
-          </Typography.Title>
-          <Input.TextArea
-            rows={4}
-            placeholder="请输入审批意见..."
-            style={{ marginBottom: 12 }}
-            value={approvalOpinionDraft}
-            onChange={(event) => setApprovalOpinionDraft(event.target.value)}
+      <Suspense fallback={null}>
+        {(createModalVisible || viewModalVisible) && (
+          <SolutionSupportModals
+            createOpen={createModalVisible}
+            createDraft={createDraft}
+            canCreateSolutions={canCreateSolutions}
+            ownerOptions={createOwnerOptions}
+            onCreateDraftChange={setCreateDraft}
+            onCancelCreate={closeCreateModal}
+            onSubmitCreate={submitCreateModal}
+            viewOpen={viewModalVisible}
+            viewSolution={viewSolution}
+            onCloseView={closeViewModal}
+            onOpenApproval={openApprovalFromView}
+            renderStatusTag={renderStatusTag}
+            getSolutionWorkflowSteps={getSolutionWorkflowSteps}
           />
-          {!canApproveCurrentSolutionNode && activeSolution && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              当前仅允许当前待处理节点责任人执行审批动作，其他成员保持只读查看。
-            </Text>
-          )}
-          <div style={{ display: "flex", gap: 12 }}>
-            <Button
-              type="primary"
-              disabled={!canApproveCurrentSolutionNode}
-              onClick={() => {
-                if (!canApproveCurrentSolutionNode) {
-                  message.warning(currentSolutionNodeDisabledReason);
-                  return;
-                }
-                if (solutionApprovalSource === "api" && activeSolution) {
-                  void executeSolutionApproval(activeSolution, "approve");
-                  return;
-                }
-                if (activeSolution) {
-                  setSolutionOverrides((prev) => {
-                    const nextItem: SolutionItem = {
-                      ...activeSolution,
-                      status: "approved",
-                      actions: buildSolutionActions("approved"),
-                    };
-                    const exists = prev.some((item) => item.key === nextItem.key);
-                    return exists
-                      ? prev.map((item) =>
-                          item.key === nextItem.key ? nextItem : item,
-                        )
-                      : [nextItem, ...prev];
-                  });
-                }
-                setApprovalModalVisible(false);
-                setApprovalOpinionDraft("");
-                message.success("已提交审批意见：通过");
-              }}
-            >
-              ✓ 通过
-            </Button>
-            <Button
-              danger
-              disabled={!canApproveCurrentSolutionNode}
-              onClick={() => {
-                if (!canApproveCurrentSolutionNode) {
-                  message.warning(currentSolutionNodeDisabledReason);
-                  return;
-                }
-                if (solutionApprovalSource === "api" && activeSolution) {
-                  void executeSolutionApproval(activeSolution, "reject");
-                  return;
-                }
-                if (activeSolution) {
-                  setSolutionOverrides((prev) => {
-                    const nextItem: SolutionItem = {
-                      ...activeSolution,
-                      status: "rejected",
-                      actions: buildSolutionActions("rejected"),
-                    };
-                    const exists = prev.some((item) => item.key === nextItem.key);
-                    return exists
-                      ? prev.map((item) =>
-                          item.key === nextItem.key ? nextItem : item,
-                        )
-                      : [nextItem, ...prev];
-                  });
-                }
-                setApprovalModalVisible(false);
-                setApprovalOpinionDraft("");
-                message.warning("已提交审批意见：驳回");
-              }}
-            >
-              ✗ 驳回
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        )}
+      </Suspense>
+
+      <Suspense fallback={null}>
+        {approvalModalVisible && (
+          <SolutionApprovalModal
+            open={approvalModalVisible}
+            activeSolution={activeSolution}
+            solutionWorkflowSteps={solutionWorkflowSteps}
+            currentPendingSolutionNodeKey={currentPendingSolutionNodeKey}
+            solutionApprovalSource={solutionApprovalSource}
+            solutionApprovalLoading={solutionApprovalLoading}
+            solutionApprovalError={solutionApprovalError}
+            canApproveCurrentSolutionNode={canApproveCurrentSolutionNode}
+            currentSolutionNodeDisabledReason={currentSolutionNodeDisabledReason}
+            solutionApprovalInstance={solutionApprovalInstance}
+            approvalOpinionDraft={approvalOpinionDraft}
+            onApprovalOpinionDraftChange={setApprovalOpinionDraft}
+            onClose={closeApprovalModal}
+            onSubmitLocal={submitLocalSolutionApproval}
+            onExecuteApproval={executeSolutionApproval}
+            getApiApprovalActionLabel={getApiApprovalActionLabel}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

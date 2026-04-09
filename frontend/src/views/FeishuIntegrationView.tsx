@@ -16,13 +16,14 @@ import {
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { CurrentUser } from "../shared/auth";
 import {
   createDefaultFeishuIntegrationState,
   loadFeishuIntegrationMockState,
   saveFeishuIntegrationMockState,
   type FeishuCardActionPreview,
+  type FeishuCardPreview,
   type FeishuBindingRecord,
   type FeishuBindingStatus,
   type FeishuCommandPreview,
@@ -30,6 +31,24 @@ import {
 import { buildApiUrl } from "../shared/api";
 
 const { Text, Paragraph } = Typography;
+
+const FeishuBindingsPreviewPanel = lazy(() =>
+  import("./feishu/FeishuBindingsPreviewPanel").then((module) => ({
+    default: module.FeishuBindingsPreviewPanel,
+  })),
+);
+
+const FeishuCommandsPreviewPanel = lazy(() =>
+  import("./feishu/FeishuCommandsPreviewPanel").then((module) => ({
+    default: module.FeishuCommandsPreviewPanel,
+  })),
+);
+
+const FeishuCardsPreviewPanel = lazy(() =>
+  import("./feishu/FeishuCardsPreviewPanel").then((module) => ({
+    default: module.FeishuCardsPreviewPanel,
+  })),
+);
 
 type PreviewMode = "bindings" | "commands" | "cards";
 type CommandExecutionStatus = "idle" | "success" | "error" | "empty";
@@ -52,6 +71,9 @@ type CommandRequestInfo = {
   result: "success" | "error" | "empty";
   durationMs?: number;
 };
+type FeishuSummaryField = { label: string; value: string };
+const FEISHU_DEMO_OPPORTUNITY_CODE = "OPP-000003";
+const FEISHU_DEMO_SOLUTION_CODE = "SOL-000123";
 
 interface FeishuIntegrationViewProps {
   currentUser: CurrentUser | null;
@@ -273,15 +295,62 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
     }));
   }, [selectedCard]);
 
+  const getEffectiveAccessToken = () => {
+    if (accessToken) {
+      return accessToken;
+    }
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return window.localStorage.getItem("accessToken");
+  };
+
   const buildAuthHeaders = (withJson = true) => {
     const headers: Record<string, string> = {};
     if (withJson) {
       headers["Content-Type"] = "application/json";
     }
-    if (accessToken) {
-      headers.Authorization = `Bearer ${accessToken}`;
+    const token = getEffectiveAccessToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
     return headers;
+  };
+
+  const updateCardPreview = (
+    cardId: string,
+    updater: (currentCard: FeishuCardPreview) => FeishuCardPreview,
+  ) => {
+    setState((previousState) => {
+      const nextCards = previousState.cards.map((card) =>
+        card.id === cardId ? updater(card) : card,
+      );
+      const nextState = {
+        ...previousState,
+        cards: nextCards,
+      };
+      saveFeishuIntegrationMockState(nextState);
+      return nextState;
+    });
+  };
+
+  const buildSummaryFields = (payload: Record<string, unknown>) => {
+    const entries: FeishuSummaryField[] = [];
+    const candidateFields: Array<[string, string]> = [
+      ["客户", String(payload.customerName ?? "")],
+      ["阶段", String(payload.stage ?? "")],
+      ["状态", String(payload.status ?? "")],
+      ["当前节点", String(payload.currentApprovalNodeName ?? "")],
+      ["最近审批意见", String(payload.latestReviewConclusion ?? "")],
+    ];
+
+    candidateFields.forEach(([label, value]) => {
+      if (value && value !== "-") {
+        entries.push({ label, value });
+      }
+    });
+
+    return entries.slice(0, 3);
   };
 
   const bindingColumns: ColumnsType<FeishuBindingRecord> = [
@@ -393,7 +462,8 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
   ];
 
   const loadBindingsFromServer = async () => {
-    if (!accessToken) {
+    const token = getEffectiveAccessToken();
+    if (!token) {
       message.info("当前未检测到登录令牌，继续显示本地 Mock 数据。");
       return;
     }
@@ -433,7 +503,7 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
       status: "pending",
     };
 
-    if (accessToken) {
+    if (getEffectiveAccessToken()) {
       try {
         const response = await fetch(buildApiUrl("/integrations/feishu/bindings"), {
           method: "POST",
@@ -483,7 +553,7 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
     const nextStatus: FeishuBindingStatus =
       record.status === "disabled" ? "active" : "disabled";
 
-    if (accessToken && typeof record.id === "number") {
+    if (getEffectiveAccessToken() && typeof record.id === "number") {
       try {
         const response = await fetch(
           buildApiUrl(`/integrations/feishu/bindings/${record.id}`),
@@ -542,7 +612,7 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
       hour12: false,
     });
     const startTime = Date.now();
-    if (!accessToken) {
+    if (!getEffectiveAccessToken()) {
       setCommandExecutionStatus("error");
       setCommandExecutionMessage("当前未检测到登录令牌，无法请求后端示例接口。");
       setRecentCommandRequest({
@@ -561,9 +631,9 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
       if (command.id === "cmd-pending") {
         endpoint = "/integrations/feishu/me/pending-approvals";
       } else if (command.id === "cmd-opportunity") {
-        endpoint = "/integrations/feishu/opportunities/OPP-000003/summary";
+        endpoint = `/integrations/feishu/opportunities/${FEISHU_DEMO_OPPORTUNITY_CODE}/summary`;
       } else if (command.id === "cmd-solution") {
-        endpoint = "/integrations/feishu/solutions/SOL-000001/summary";
+        endpoint = `/integrations/feishu/solutions/${FEISHU_DEMO_SOLUTION_CODE}/summary`;
       } else if (command.id === "cmd-brief") {
         endpoint = "/integrations/feishu/me/daily-brief";
       }
@@ -715,19 +785,143 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
   };
 
   const refreshCardPreviewFromApi = async () => {
-    const targetCommand =
-      selectedCard?.templateKey === "pending_approval"
-        ? state.commands.find((item) => item.id === "cmd-pending")
-        : selectedCard?.templateKey === "opportunity_summary"
-          ? state.commands.find((item) => item.id === "cmd-opportunity")
-          : selectedCard?.templateKey === "solution_summary"
-            ? state.commands.find((item) => item.id === "cmd-solution")
-            : state.commands.find((item) => item.id === "cmd-brief");
-
-    if (!targetCommand) {
+    if (!selectedCard) {
       return;
     }
-    await runCommandPreview(targetCommand);
+
+    const requestedAt = new Date().toLocaleString("zh-CN", {
+      hour12: false,
+    });
+    const startTime = Date.now();
+
+    if (!getEffectiveAccessToken()) {
+      message.info("当前未检测到登录令牌，继续显示当前卡片示例。");
+      return;
+    }
+
+    try {
+      let endpoint = "";
+      let successMessage = "";
+
+      if (selectedCard.templateKey === "pending_approval") {
+        endpoint = "/integrations/feishu/me/pending-approvals";
+        successMessage = "已从后端刷新待审批卡片示例。";
+      } else if (selectedCard.templateKey === "opportunity_summary") {
+        endpoint = `/integrations/feishu/opportunities/${selectedCard.businessCode || FEISHU_DEMO_OPPORTUNITY_CODE}/summary`;
+        successMessage = "已从后端刷新商机摘要卡片示例。";
+      } else if (selectedCard.templateKey === "solution_summary") {
+        endpoint = `/integrations/feishu/solutions/${selectedCard.businessCode || FEISHU_DEMO_SOLUTION_CODE}/summary`;
+        successMessage = "已从后端刷新方案摘要卡片示例。";
+      } else {
+        endpoint = "/integrations/feishu/me/daily-brief";
+        successMessage = "已从后端刷新今日简报卡片示例。";
+      }
+
+      const response = await fetch(buildApiUrl(endpoint), {
+        headers: buildAuthHeaders(false),
+      });
+      if (!response.ok) {
+        message.warning(`卡片示例接口返回 ${response.status}，当前保留已有预览。`);
+        return;
+      }
+
+      const payload = (await response.json()) as Record<string, unknown>;
+
+      if (selectedCard.templateKey === "pending_approval") {
+        const items = Array.isArray(payload.items)
+          ? (payload.items as Array<Record<string, unknown>>)
+          : [];
+        if (items.length === 0) {
+          message.info("后端已返回成功，但当前账号暂无待审批事项，保留现有卡片示例。");
+          return;
+        }
+
+        const firstItem = items[0] ?? {};
+        updateCardPreview(selectedCard.id, (currentCard) => ({
+          ...currentCard,
+          title: String(firstItem.title ?? currentCard.title),
+          subtitle: String(
+            firstItem.currentNodeName
+              ? `当前节点：${String(firstItem.currentNodeName)}`
+              : currentCard.subtitle,
+          ),
+          businessCode: String(firstItem.businessCode ?? currentCard.businessCode ?? ""),
+          businessTypeLabel: String(
+            firstItem.businessType ?? currentCard.businessTypeLabel ?? "审批事项",
+          ),
+          summaryLines:
+            typeof firstItem.summary === "string" && firstItem.summary
+              ? [
+                  String(firstItem.summary),
+                  `请求时间：${requestedAt}`,
+                ]
+              : currentCard.summaryLines,
+          fields: [
+            {
+              label: "客户",
+              value: String(firstItem.customerName ?? currentCard.fields[0]?.value ?? "-"),
+            },
+            {
+              label: "发起人",
+              value: String(firstItem.createdByName ?? currentCard.fields[1]?.value ?? "-"),
+            },
+            {
+              label: "最近更新时间",
+              value: requestedAt,
+            },
+          ],
+        }));
+      } else if (selectedCard.templateKey === "daily_brief") {
+        const summaryLines = Array.isArray(payload.summaryLines)
+          ? payload.summaryLines.map((item) => String(item))
+          : [];
+        updateCardPreview(selectedCard.id, (currentCard) => ({
+          ...currentCard,
+          title:
+            currentUser?.displayName || currentUser?.username
+              ? `今日简报：${currentUser.displayName || currentUser.username}`
+              : currentCard.title,
+          subtitle: `工作日 ${requestedAt.split(" ").at(-1) ?? "09:00"} 实时刷新`,
+          summaryLines: summaryLines.length > 0 ? summaryLines : currentCard.summaryLines,
+          fields: [
+            { label: "待审批总数", value: String(payload.pendingApprovalCount ?? 0) },
+            { label: "高风险商机", value: String(payload.inRiskOpportunityCount ?? 0) },
+            { label: "今日更新方案", value: String(payload.updatedSolutionCount ?? 0) },
+          ],
+        }));
+      } else {
+        const summaryLines =
+          selectedCard.templateKey === "solution_summary"
+            ? [String(payload.summary ?? payload.latestReviewConclusion ?? "暂无摘要")]
+            : Array.isArray(payload.riskSummary)
+              ? payload.riskSummary.map((item) => String(item))
+              : [];
+
+        updateCardPreview(selectedCard.id, (currentCard) => ({
+          ...currentCard,
+          title: `${selectedCard.templateKey === "solution_summary" ? "方案摘要" : "商机摘要"}：${String(payload.code ?? currentCard.businessCode ?? "")} ${String(payload.name ?? "")}`.trim(),
+          subtitle:
+            selectedCard.templateKey === "solution_summary"
+              ? `状态 ${String(payload.status ?? currentCard.subtitle)}`
+              : "平台后端聚合摘要卡片",
+          businessCode: String(payload.code ?? currentCard.businessCode ?? ""),
+          summaryLines: summaryLines.length > 0 ? summaryLines : currentCard.summaryLines,
+          fields: buildSummaryFields(payload).length > 0 ? buildSummaryFields(payload) : currentCard.fields,
+        }));
+      }
+
+      setRecentCommandRequest({
+        command: selectedCard.title,
+        endpoint: `GET /api${endpoint}`,
+        requestedAt,
+        source: "卡片预览刷新",
+        result: "success",
+        durationMs: Date.now() - startTime,
+      });
+      message.success(successMessage);
+    } catch {
+      message.warning("卡片示例接口调用失败，当前保留已有预览。");
+    }
   };
 
   const handleReset = () => {
@@ -885,390 +1079,56 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
               />
             }
           >
-            {previewMode === "bindings" &&
-              (filteredBindings.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <Row gutter={[12, 12]}>
-                    {bindingSummary.map((item) => (
-                      <Col xs={12} md={6} key={item.label}>
-                        <Card size="small" bordered={false} style={{ background: "var(--app-surface-soft)" }}>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {item.label}
-                          </Text>
-                          <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800 }}>
-                            {item.value}
-                          </div>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {item.note}
-                          </Text>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                    <Text type="secondary">
-                      当前排序：{bindingSortKey === "updatedAt_desc"
-                        ? "最近更新优先"
-                        : bindingSortKey === "updatedAt_asc"
-                          ? "最早更新优先"
-                          : bindingSortKey === "name_asc"
-                            ? "按飞书姓名"
-                            : "按部门"}
-                    </Text>
-                    <Select
-                      value={bindingSortKey}
-                      onChange={(value) => setBindingSortKey(value)}
-                      style={{ width: 180 }}
-                      options={[
-                        { label: "最近更新优先", value: "updatedAt_desc" },
-                        { label: "最早更新优先", value: "updatedAt_asc" },
-                        { label: "按飞书姓名", value: "name_asc" },
-                        { label: "按部门", value: "department_asc" },
-                      ]}
-                    />
-                  </div>
-                  <Table
-                    size="small"
-                    rowKey="id"
-                    dataSource={pagedBindings}
-                    columns={bindingColumns}
-                    scroll={{ x: 980 }}
-                    pagination={{
-                      current: bindingPage,
-                      pageSize: bindingPageSize,
-                      total: filteredBindings.length,
-                      showSizeChanger: true,
-                      pageSizeOptions: ["5", "10", "20"],
-                      showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-                      onChange: (page, pageSize) => {
-                        setBindingPage(page);
-                        setBindingPageSize(pageSize);
-                      },
-                    }}
-                  />
-                </div>
-              ) : (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="当前筛选条件下没有匹配的飞书绑定记录"
-                />
-              ))}
-
-            {previewMode === "commands" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <Table
-                  size="small"
-                  rowKey="id"
-                  pagination={false}
-                  dataSource={state.commands}
-                  columns={[
-                    ...commandColumns,
-                    {
-                      title: "操作",
-                      key: "action",
-                      width: 120,
-                      render: (_, record) => (
-                        <Button size="small" onClick={() => void runCommandPreview(record)}>
-                          运行示例
-                        </Button>
-                      ),
-                    },
-                  ]}
-                  scroll={{ x: 980 }}
-                />
-                {commandExecutionStatus === "error" && (
-                  <Alert
-                    type="error"
-                    showIcon
-                    message="命令示例执行失败"
-                    description={commandExecutionMessage}
-                  />
-                )}
-                {commandExecutionStatus === "empty" && (
-                  <Alert
-                    type="info"
-                    showIcon
-                    message="命令示例执行成功，但暂无数据"
-                    description={commandExecutionMessage}
-                  />
-                )}
-                {commandExecutionStatus === "idle" && !commandExecution && (
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="点击“运行示例”后，这里会展示后端返回的结构化结果。"
-                  />
-                )}
-                {recentCommandRequest && (
-                  <Card size="small" title="最近请求信息">
-                    <Row gutter={[12, 12]}>
-                      <Col xs={24} md={12}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          命令
-                        </Text>
-                        <div style={{ marginTop: 6, fontWeight: 700 }}>{recentCommandRequest.command}</div>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          请求时间
-                        </Text>
-                        <div style={{ marginTop: 6, fontWeight: 700 }}>{recentCommandRequest.requestedAt}</div>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          目标接口
-                        </Text>
-                        <div style={{ marginTop: 6 }}>
-                          <Text code>{recentCommandRequest.endpoint}</Text>
-                        </div>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          结果
-                        </Text>
-                        <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <Tag
-                            color={
-                              recentCommandRequest.result === "success"
-                                ? "green"
-                                : recentCommandRequest.result === "empty"
-                                  ? "gold"
-                                  : "red"
-                            }
-                          >
-                            {recentCommandRequest.result}
-                          </Tag>
-                          <Tag>{recentCommandRequest.source}</Tag>
-                          {typeof recentCommandRequest.durationMs === "number" && (
-                            <Tag color="blue">{recentCommandRequest.durationMs} ms</Tag>
-                          )}
-                        </div>
-                      </Col>
-                    </Row>
-                  </Card>
-                )}
-                {commandExecution && (
-                  <Card size="small" title={commandExecution.title} extra={commandExecution.subtitle}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      <Row gutter={[12, 12]}>
-                        {commandExecution.fields.map((field) => (
-                          <Col xs={24} md={12} key={field.label}>
-                            <Card size="small" bordered={false} style={{ background: "var(--app-surface-soft)" }}>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                {field.label}
-                              </Text>
-                              <div style={{ marginTop: 6, fontWeight: 600 }}>{field.value}</div>
-                            </Card>
-                          </Col>
-                        ))}
-                      </Row>
-                      {commandExecution.summaryLines.map((line) => (
-                        <div
-                          key={line}
-                          style={{
-                            padding: "10px 12px",
-                            borderRadius: 12,
-                            background: "color-mix(in srgb, var(--app-surface) 86%, var(--app-surface-soft) 14%)",
-                            border: "1px solid var(--app-border)",
-                          }}
-                        >
-                          {line}
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {previewMode === "cards" && selectedCard && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <Segmented
-                  block
-                  value={selectedCard.id}
-                  onChange={(value) => setSelectedCardId(String(value))}
-                  options={state.cards.map((item) => ({
-                    label: item.title,
-                    value: item.id,
-                  }))}
-                />
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <Button size="small" onClick={() => void refreshCardPreviewFromApi()}>
-                    从后端刷新当前示例
-                  </Button>
-                </div>
-
-                <Card
-                  size="small"
-                  style={{
-                    borderRadius: 18,
-                    background:
-                      "linear-gradient(180deg, color-mix(in srgb, rgba(20,184,166,0.12) 68%, var(--app-surface) 32%) 0%, color-mix(in srgb, var(--app-surface-soft) 96%, transparent) 100%)",
-                    border: "1px solid color-mix(in srgb, var(--app-accent) 18%, var(--app-border) 82%)",
+            <Suspense fallback={null}>
+              {previewMode === "bindings" && (
+                <FeishuBindingsPreviewPanel
+                  filteredBindings={filteredBindings}
+                  bindingSummary={bindingSummary}
+                  bindingSortKey={bindingSortKey}
+                  onBindingSortKeyChange={setBindingSortKey}
+                  pagedBindings={pagedBindings}
+                  bindingColumns={bindingColumns}
+                  bindingPage={bindingPage}
+                  bindingPageSize={bindingPageSize}
+                  onBindingPaginationChange={(page, pageSize) => {
+                    setBindingPage(page);
+                    setBindingPageSize(pageSize);
                   }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ fontSize: 18, fontWeight: 800 }}>{selectedCard.title}</div>
-                        <Text type="secondary">{selectedCard.subtitle}</Text>
-                      </div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                        {selectedCard.tags.map((tag) => (
-                          <Tag key={tag} color="blue">
-                            {tag}
-                          </Tag>
-                        ))}
-                      </div>
-                    </div>
-
-                    <Row gutter={[12, 12]}>
-                      {selectedCard.fields.map((field) => (
-                        <Col xs={24} md={12} key={field.label}>
-                          <Card size="small" bordered={false} style={{ background: "var(--app-surface-soft)" }}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              {field.label}
-                            </Text>
-                            <div style={{ marginTop: 6, fontWeight: 600 }}>{field.value}</div>
-                          </Card>
-                        </Col>
-                      ))}
-                    </Row>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {selectedCard.summaryLines.map((line) => (
-                        <div
-                          key={line}
-                          style={{
-                            padding: "10px 12px",
-                            borderRadius: 12,
-                            background: "color-mix(in srgb, var(--app-surface) 86%, var(--app-surface-soft) 14%)",
-                            border: "1px solid var(--app-border)",
-                          }}
-                        >
-                          {line}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {selectedCard.actions.map((action) => (
-                        <Button
-                          key={action.key}
-                          type={action.action === "approve" ? "primary" : "default"}
-                          danger={action.action === "reject"}
-                          disabled={!action.enabled}
-                        >
-                          {action.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </Card>
-
-                <Alert
-                  type="warning"
-                  showIcon
-                  message="当前卡片只做字段与交互预演"
-                  description="MVP 阶段仅“通过 / 驳回”两类简单节点考虑在飞书端执行；上传文档、指派负责人等复杂节点仍会跳回平台处理。"
                 />
+              )}
+            </Suspense>
 
-                <Card size="small" title="字段映射视图">
-                  <Table
-                    size="small"
-                    pagination={false}
-                    rowKey={(record) => `${record.uiField}-${record.contractField}`}
-                    dataSource={cardFieldMappings}
-                    columns={[
-                      {
-                        title: "页面字段",
-                        dataIndex: "uiField",
-                        key: "uiField",
-                        width: 180,
-                        render: (value: string) => <Text code>{value}</Text>,
-                      },
-                      {
-                        title: "接口字段",
-                        dataIndex: "contractField",
-                        key: "contractField",
-                        width: 260,
-                        render: (value: string) => <Text code>{value}</Text>,
-                      },
-                      {
-                        title: "说明",
-                        dataIndex: "note",
-                        key: "note",
-                      },
-                    ]}
-                  />
-                </Card>
+            <Suspense fallback={null}>
+              {previewMode === "commands" && (
+                <FeishuCommandsPreviewPanel
+                  commands={state.commands}
+                  commandColumns={commandColumns}
+                  onRunCommandPreview={runCommandPreview}
+                  commandExecutionStatus={commandExecutionStatus}
+                  commandExecutionMessage={commandExecutionMessage}
+                  recentCommandRequest={recentCommandRequest}
+                  commandExecution={commandExecution}
+                />
+              )}
+            </Suspense>
 
-                <Card
-                  size="small"
-                  title="动作载荷预览"
-                  extra={
-                    <Select
-                      value={selectedAction?.key}
-                      onChange={(value) => setSelectedActionKey(String(value))}
-                      style={{ width: 180 }}
-                      options={selectedCard.actions.map((item) => ({
-                        label: item.label,
-                        value: item.key,
-                      }))}
-                    />
-                  }
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <Table
-                      size="small"
-                      pagination={false}
-                      rowKey="key"
-                      dataSource={actionPayloadRows}
-                      columns={[
-                        {
-                          title: "动作",
-                          dataIndex: "label",
-                          key: "label",
-                          width: 120,
-                        },
-                        {
-                          title: "类型",
-                          dataIndex: "type",
-                          key: "type",
-                          width: 100,
-                          render: (value: FeishuCardActionPreview["type"]) => <Tag>{value}</Tag>,
-                        },
-                        {
-                          title: "事件",
-                          dataIndex: "action",
-                          key: "action",
-                          width: 140,
-                          render: (value: string) => <Text code>{value}</Text>,
-                        },
-                        {
-                          title: "可用",
-                          dataIndex: "enabled",
-                          key: "enabled",
-                          width: 90,
-                        },
-                      ]}
-                    />
-                    <div
-                      style={{
-                        borderRadius: 14,
-                        padding: 14,
-                        background: "#0f172a",
-                        color: "#dbeafe",
-                        overflowX: "auto",
-                      }}
-                    >
-                      <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.6 }}>
-                        {selectedActionPayload}
-                      </pre>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            )}
+            <Suspense fallback={null}>
+              {previewMode === "cards" && selectedCard && (
+                <FeishuCardsPreviewPanel
+                  cards={state.cards}
+                  selectedCard={selectedCard}
+                  selectedAction={selectedAction}
+                  selectedCardId={selectedCard.id}
+                  onSelectedCardIdChange={setSelectedCardId}
+                  onRefreshCardPreview={refreshCardPreviewFromApi}
+                  cardFieldMappings={cardFieldMappings}
+                  selectedActionKey={selectedActionKey}
+                  onSelectedActionKeyChange={setSelectedActionKey}
+                  actionPayloadRows={actionPayloadRows}
+                  selectedActionPayload={selectedActionPayload}
+                />
+              )}
+            </Suspense>
           </Card>
         </Col>
       </Row>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Card, Row, Col, Select, Button, Input, Tooltip, Modal, message } from "antd";
 import { EChartsPreview } from "../components/EChartsPreview";
 import type { CurrentUser } from "../shared/auth";
@@ -226,60 +226,6 @@ const DESIGNER_CHART_LABELS: Record<DesignerChartType, string> = {
   globe3d: "3D 客户大屏地图",
 };
 
-const DATA_SOURCE_TYPE_LABELS: Record<DataSourceType, string> = {
-  mock: "仅前端示例数据（Mock）",
-  opportunity: "商机（Opportunity）",
-  solution: "方案版本（SolutionVersion）",
-  bid: "投标记录（Bid）",
-  contract: "合同（Contract）",
-  custom: "自定义数据源（后端 SQL / API）",
-};
-
-const DATA_SOURCE_TIME_RANGE_LABELS: Record<DataSourceTimeRange, string> = {
-  all: "全部时间",
-  this_month: "本月",
-  this_quarter: "本季度",
-  this_year: "本年度",
-  last_12_months: "最近 12 个月",
-};
-
-const DATA_SOURCE_METRIC_LABELS: Record<DataSourceMetric, string> = {
-  count: "数量（条数）",
-  sum_expected_value: "商机预估金额合计",
-  sum_contract_amount: "合同金额合计",
-  avg_cycle: "平均成交周期",
-  conversion_rate: "转化率",
-};
-
-const DATA_SOURCE_GROUP_BY_LABELS: Record<DataSourceGroupBy, string> = {
-  none: "不分组（整体汇总）",
-  stage: "按阶段分组",
-  owner: "按负责人分组",
-  industry: "按行业分组",
-  month: "按月份分组",
-};
-
-const DATA_SOURCE_OWNER_SCOPE_LABELS: Record<DataSourceOwnerScope, string> = {
-  all: "全部负责人",
-  current_user: "仅当前登录人",
-  team: "当前团队",
-};
-
-const TRANSFORM_AGGREGATION_LABELS: Record<TransformAggregation, string> = {
-  auto: "自动（按图表类型）",
-  sum: "求和",
-  avg: "平均值",
-  max: "最大值",
-  min: "最小值",
-  count: "计数",
-};
-
-const TRANSFORM_SORT_LABELS: Record<TransformSort, string> = {
-  none: "不排序",
-  asc: "升序",
-  desc: "降序",
-};
-
 const SCOPE_LABEL_MAP: Record<DataScopeKey, string> = {
   all: "全部数据",
   finance: "金融行业",
@@ -289,7 +235,7 @@ const SCOPE_LABEL_MAP: Record<DataScopeKey, string> = {
   others: "其他行业",
 };
 
-function buildAutoDataSummary(widget: DesignerWidget): string | null {
+function buildDesignerSummaryDraft(widget: DesignerWidget): string | null {
   const ds = widget.dataSourceConfig;
   const tf = widget.transformConfig;
   if (!ds && !tf) {
@@ -300,989 +246,21 @@ function buildAutoDataSummary(widget: DesignerWidget): string | null {
 
   if (ds) {
     parts.push(
-      `数据来源：${
-        DATA_SOURCE_TYPE_LABELS[ds.type] || ds.type
-      }；时间范围：${
-        DATA_SOURCE_TIME_RANGE_LABELS[ds.timeRange] || ds.timeRange
-      }；指标：${
-        DATA_SOURCE_METRIC_LABELS[ds.metric] || ds.metric
-      }；分组：${
-        DATA_SOURCE_GROUP_BY_LABELS[ds.groupBy] || ds.groupBy
-      }；负责人范围：${
-        DATA_SOURCE_OWNER_SCOPE_LABELS[ds.ownerScope] || ds.ownerScope
-      }。`,
+      `数据来源：${ds.type || "-"}；时间范围：${ds.timeRange || "-"}；指标：${
+        ds.metric || "-"
+      }；分组：${ds.groupBy || "-"}；负责人范围：${ds.ownerScope || "-"}。`,
     );
   }
 
   if (tf) {
     parts.push(
-      `加工方式：聚合=${
-        TRANSFORM_AGGREGATION_LABELS[tf.aggregation] || tf.aggregation
-      }，排序=${TRANSFORM_SORT_LABELS[tf.sort] || tf.sort}${
+      `加工方式：聚合=${tf.aggregation || "-"}，排序=${tf.sort || "-"}${
         tf.topN && tf.topN > 0 ? `，只保留 Top ${tf.topN}` : ""
       }。`,
     );
   }
 
   return parts.join("");
-}
-
-const DEFAULT_3D_WIDGETS: DesignerWidget[] = [
-  {
-    id: "3d_cube_main",
-    type: "cube3d",
-    title: "3D 行业-季度签约金额分布",
-    dataSummary:
-      "当前以 3D 柱状图方式展示金融 / 制造 / 电商 / 园区在各季度的签约金额分布，后续可替换为真实经营数据。",
-    widthPercent: 100,
-    height: 360,
-    dataSourceConfig: {
-      type: "mock",
-      timeRange: "this_year",
-      metric: "sum_contract_amount",
-      groupBy: "industry",
-      ownerScope: "all",
-    },
-    transformConfig: {
-      aggregation: "sum",
-      sort: "none",
-    },
-  },
-  {
-    id: "3d_flow_map",
-    type: "flow_map",
-    title: "售前全流程转化流向图",
-    dataSummary:
-      "当前通过 Sankey 流向图展示从线索到商机、方案、投标再到签约的数量转化关系，后续可替换为真实经营数据。",
-    widthPercent: 60,
-    height: 260,
-    dataSourceConfig: {
-      type: "mock",
-      timeRange: "this_quarter",
-      metric: "count",
-      groupBy: "stage",
-      ownerScope: "all",
-    },
-    transformConfig: {
-      aggregation: "count",
-      sort: "none",
-    },
-  },
-  {
-    id: "3d_topology",
-    type: "topology",
-    title: "售前系统拓扑与集成关系",
-    dataSummary:
-      "当前以力导向图展示 CRM / 售前平台 / 知识库 / 投标系统之间的系统拓扑与集成关系，后续可替换为真实经营数据。",
-    widthPercent: 40,
-    height: 260,
-    dataSourceConfig: {
-      type: "mock",
-      timeRange: "all",
-      metric: "count",
-      groupBy: "none",
-      ownerScope: "all",
-    },
-    transformConfig: {
-      aggregation: "auto",
-      sort: "none",
-    },
-  },
-  {
-    id: "3d_customer_map",
-    type: "geo3d",
-    title: "3D 客户分布与连线地图",
-    dataSummary:
-      "当前以 3D 地图形式展示重点客户在全国的分布，并用连线体现各区域客户与总部之间的关系，后续可替换为真实经营数据。",
-    widthPercent: 100,
-    height: 320,
-    dataSourceConfig: {
-      type: "mock",
-      timeRange: "last_12_months",
-      metric: "count",
-      groupBy: "industry",
-      ownerScope: "all",
-    },
-    transformConfig: {
-      aggregation: "count",
-      sort: "none",
-    },
-  },
-  {
-    id: "china_customer_map",
-    type: "china_map",
-    title: "全国地图组件",
-    dataSummary:
-      "当前以全国二维地图展示重点客户分布与区域热度，后续可替换为真实经营数据。",
-    widthPercent: 50,
-    height: 320,
-    dataSourceConfig: {
-      type: "mock",
-      timeRange: "last_12_months",
-      metric: "count",
-      groupBy: "industry",
-      ownerScope: "all",
-    },
-    transformConfig: {
-      aggregation: "count",
-      sort: "none",
-    },
-  },
-];
-
-// 3D 客户分布 Mock 数据（用于 geo3d 组件）
-const HQ_COORD_3D: [number, number] = [121.47, 31.23]; // 上海总部
-
-const MOCK_CUSTOMERS_3D: {
-  name: string;
-  coord: [number, number];
-  value: number; // 例如合同金额或客户评分
-  industry: string;
-  region: string;
-}[] = [
-  {
-    name: "北京金融客户A",
-    coord: [116.4, 39.9],
-    value: 120,
-    industry: "金融",
-    region: "华北",
-  },
-  {
-    name: "广州制造客户B",
-    coord: [113.26, 23.13],
-    value: 95,
-    industry: "制造",
-    region: "华南",
-  },
-  {
-    name: "深圳互联网客户C",
-    coord: [114.06, 22.54],
-    value: 110,
-    industry: "互联网",
-    region: "华南",
-  },
-  {
-    name: "成都政务客户D",
-    coord: [104.06, 30.67],
-    value: 80,
-    industry: "政务",
-    region: "西南",
-  },
-];
-
-// 全球客户分布 Mock（用于 globe3d 组件）
-const HQ_GLOBAL_COORD: [number, number] = [116.4, 39.9]; // 设为北京作为全球总部示意
-
-const MOCK_GLOBAL_CUSTOMERS_3D: {
-  name: string;
-  coord: [number, number];
-  value: number;
-  region: string;
-}[] = [
-  {
-    name: "纽约金融客户",
-    coord: [-74.006, 40.7128],
-    value: 130,
-    region: "北美",
-  },
-  {
-    name: "伦敦金融客户",
-    coord: [-0.1276, 51.5074],
-    value: 125,
-    region: "欧洲",
-  },
-  {
-    name: "新加坡科技客户",
-    coord: [103.8198, 1.3521],
-    value: 115,
-    region: "东南亚",
-  },
-  {
-    name: "悉尼公共事业客户",
-    coord: [151.2093, -33.8688],
-    value: 90,
-    region: "大洋洲",
-  },
-];
-
-function getDesignerChartBaseOptionDuplicate(type: DesignerChartType): any {
-  switch (type) {
-    case "gauge":
-      return {
-        tooltip: { formatter: "{a} <br/>{b} : {c}%" },
-        series: [
-          {
-            name: "完成率",
-            type: "gauge",
-            progress: { show: true },
-            detail: { valueAnimation: true, formatter: "{value}%" },
-            data: [{ value: 68, name: "完成率" }],
-          },
-        ],
-      };
-    case "metric":
-      return {
-        title: {
-          text: "本月签约金额",
-          left: "center",
-          top: "40%",
-          textStyle: {
-            fontSize: 18,
-          },
-          subtext: "¥ 3,200,000",
-          subtextStyle: {
-            fontSize: 22,
-            fontWeight: "bold",
-          },
-        },
-      };
-    case "progress":
-      return {
-        xAxis: { type: "value", max: 100, show: false },
-        yAxis: { type: "category", data: [""], show: false },
-        series: [
-          {
-            type: "bar",
-            data: [72],
-            barWidth: 30,
-            itemStyle: {
-              borderRadius: 6,
-              color: {
-                type: "linear",
-                x: 0,
-                y: 0,
-                x2: 1,
-                y2: 0,
-                colorStops: [
-                  { offset: 0, color: "#1890ff" },
-                  { offset: 1, color: "#52c41a" },
-                ],
-              },
-            },
-          },
-          {
-            type: "bar",
-            data: [100],
-            barWidth: 30,
-            barGap: "-100%",
-            itemStyle: {
-              borderRadius: 6,
-              color: "#f0f0f0",
-            },
-            silent: true,
-          },
-        ],
-      };
-    case "donut":
-      return {
-        tooltip: { trigger: "item" },
-        legend: { bottom: 0 },
-        series: [
-          {
-            type: "pie",
-            radius: ["50%", "70%"],
-            avoidLabelOverlap: false,
-            label: { show: false },
-            emphasis: { label: { show: true, fontSize: 16, fontWeight: "bold" } },
-            labelLine: { show: false },
-            data: [
-              { value: 40, name: "金融" },
-              { value: 30, name: "制造" },
-              { value: 20, name: "电商" },
-              { value: 10, name: "其他" },
-            ],
-          },
-        ],
-      };
-    case "line":
-      return {
-        xAxis: {
-          type: "category",
-          data: ["1月", "2月", "3月", "4月", "5月", "6月"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            data: [120, 132, 101, 134, 90, 230],
-            type: "line",
-            smooth: true,
-          },
-        ],
-      };
-    case "area":
-      return {
-        xAxis: {
-          type: "category",
-          data: ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            data: [140, 232, 101, 264, 90, 340, 250],
-            type: "line",
-            areaStyle: {},
-          },
-        ],
-      };
-    case "step_line":
-      return {
-        xAxis: {
-          type: "category",
-          data: ["阶段1", "阶段2", "阶段3", "阶段4", "阶段5"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            data: [20, 40, 40, 60, 80],
-            type: "line",
-            step: "middle",
-          },
-        ],
-      };
-    case "pie":
-      return {
-        tooltip: { trigger: "item" },
-        series: [
-          {
-            type: "pie",
-            radius: "65%",
-            data: [
-              { value: 1048, name: "已签约" },
-              { value: 735, name: "谈判中" },
-              { value: 580, name: "方案阶段" },
-              { value: 484, name: "需求挖掘" },
-            ],
-          },
-        ],
-      };
-    case "stacked_area":
-      return {
-        tooltip: { trigger: "axis" },
-        legend: { bottom: 0 },
-        xAxis: {
-          type: "category",
-          boundaryGap: false,
-          data: ["1月", "2月", "3月", "4月", "5月", "6月"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            name: "金融",
-            type: "line",
-            stack: "Total",
-            areaStyle: {},
-            data: [120, 132, 101, 134, 90, 230],
-          },
-          {
-            name: "制造",
-            type: "line",
-            stack: "Total",
-            areaStyle: {},
-            data: [220, 182, 191, 234, 290, 330],
-          },
-        ],
-      };
-    case "column":
-      return {
-        xAxis: {
-          type: "category",
-          data: ["Q1", "Q2", "Q3", "Q4"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            data: [320, 432, 501, 634],
-            type: "bar",
-            barWidth: "40%",
-          },
-        ],
-      };
-    case "bubble":
-      return {
-        xAxis: {},
-        yAxis: {},
-        series: [
-          {
-            type: "scatter",
-            symbolSize: (val: number[]) => val[2] / 10,
-            data: [
-              [10, 20, 80],
-              [15, 35, 120],
-              [25, 30, 60],
-              [40, 55, 160],
-            ],
-          },
-        ],
-      };
-    case "flow_map":
-      // 简化为 Sankey 示意流向关系
-      return {
-        series: [
-          {
-            type: "sankey",
-            emphasis: { focus: "adjacency" },
-            data: [
-              { name: "线索" },
-              { name: "商机" },
-              { name: "方案" },
-              { name: "投标" },
-              { name: "签约" },
-            ],
-            links: [
-              { source: "线索", target: "商机", value: 40 },
-              { source: "商机", target: "方案", value: 30 },
-              { source: "方案", target: "投标", value: 20 },
-              { source: "投标", target: "签约", value: 10 },
-            ],
-          },
-        ],
-      };
-    case "topology":
-      return {
-        series: [
-          {
-            type: "graph",
-            layout: "force",
-            roam: true,
-            data: [
-              { name: "CRM", symbolSize: 40 },
-              { name: "售前平台", symbolSize: 50 },
-              { name: "知识库", symbolSize: 30 },
-              { name: "投标系统", symbolSize: 30 },
-            ],
-            links: [
-              { source: "CRM", target: "售前平台" },
-              { source: "售前平台", target: "知识库" },
-              { source: "售前平台", target: "投标系统" },
-            ],
-          },
-        ],
-      };
-    case "cube3d":
-      // 3D 立体图示例：3D 柱状图（需 echarts-gl）
-      return {
-        tooltip: {},
-        xAxis3D: {
-          type: "category",
-          data: ["金融", "制造", "电商", "园区"],
-        },
-        yAxis3D: {
-          type: "category",
-          data: ["Q1", "Q2", "Q3", "Q4"],
-        },
-        zAxis3D: {
-          type: "value",
-        },
-        grid3D: {
-          boxWidth: 120,
-          boxDepth: 80,
-          viewControl: {
-            projection: "perspective",
-          },
-        },
-        series: [
-          {
-            type: "bar3D",
-            data: [
-              [0, 0, 5],
-              [0, 1, 8],
-              [0, 2, 10],
-              [0, 3, 6],
-              [1, 0, 7],
-              [1, 1, 6],
-              [1, 2, 9],
-              [1, 3, 4],
-              [2, 0, 6],
-              [2, 1, 9],
-              [2, 2, 7],
-              [2, 3, 5],
-              [3, 0, 4],
-              [3, 1, 6],
-              [3, 2, 5],
-              [3, 3, 3],
-            ],
-            shading: "lambert",
-          },
-        ],
-      };
-    default:
-      return {};
-  }
-}
-
-function getDesignerChartBaseOption(type: DesignerChartType): any {
-  switch (type) {
-    case "gauge":
-      return {
-        tooltip: { formatter: "{a} <br/>{b} : {c}%" },
-        series: [
-          {
-            name: "完成率",
-            type: "gauge",
-            progress: { show: true },
-            detail: { valueAnimation: true, formatter: "{value}%" },
-            data: [{ value: 68, name: "完成率" }],
-          },
-        ],
-      };
-    case "metric":
-      return {
-        title: {
-          text: "本月签约金额",
-          left: "center",
-          top: "40%",
-          textStyle: {
-            fontSize: 18,
-          },
-          subtext: "¥ 3,200,000",
-          subtextStyle: {
-            fontSize: 22,
-            fontWeight: "bold",
-          },
-        },
-      };
-    case "progress":
-      return {
-        xAxis: { type: "value", max: 100, show: false },
-        yAxis: { type: "category", data: [""], show: false },
-        series: [
-          {
-            type: "bar",
-            data: [72],
-            barWidth: 30,
-            itemStyle: {
-              borderRadius: 6,
-              color: {
-                type: "linear",
-                x: 0,
-                y: 0,
-                x2: 1,
-                y2: 0,
-                colorStops: [
-                  { offset: 0, color: "#1890ff" },
-                  { offset: 1, color: "#52c41a" },
-                ],
-              },
-            },
-          },
-          {
-            type: "bar",
-            data: [100],
-            barWidth: 30,
-            barGap: "-100%",
-            itemStyle: {
-              borderRadius: 6,
-              color: "#f0f0f0",
-            },
-            silent: true,
-          },
-        ],
-      };
-    case "donut":
-      return {
-        tooltip: { trigger: "item" },
-        legend: { bottom: 0 },
-        series: [
-          {
-            type: "pie",
-            radius: ["50%", "70%"],
-            avoidLabelOverlap: false,
-            label: { show: false },
-            emphasis: {
-              label: { show: true, fontSize: 16, fontWeight: "bold" },
-            },
-            labelLine: { show: false },
-            data: [
-              { value: 40, name: "金融" },
-              { value: 30, name: "制造" },
-              { value: 20, name: "电商" },
-              { value: 10, name: "其他" },
-            ],
-          },
-        ],
-      };
-    case "line":
-      return {
-        xAxis: {
-          type: "category",
-          data: ["1月", "2月", "3月", "4月", "5月", "6月"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            data: [150, 230, 224, 218, 135, 147],
-            type: "line",
-            smooth: true,
-          },
-        ],
-      };
-    case "area":
-      return {
-        xAxis: {
-          type: "category",
-          data: ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            data: [140, 232, 101, 264, 90, 340, 250],
-            type: "line",
-            areaStyle: {},
-          },
-        ],
-      };
-    case "step_line":
-      return {
-        xAxis: {
-          type: "category",
-          data: ["阶段1", "阶段2", "阶段3", "阶段4", "阶段5"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            data: [20, 40, 40, 60, 80],
-            type: "line",
-            step: "middle",
-          },
-        ],
-      };
-    case "pie":
-      return {
-        tooltip: { trigger: "item" },
-        series: [
-          {
-            type: "pie",
-            radius: "65%",
-            data: [
-              { value: 1048, name: "已签约" },
-              { value: 735, name: "谈判中" },
-              { value: 580, name: "方案阶段" },
-              { value: 484, name: "需求挖掘" },
-            ],
-          },
-        ],
-      };
-    case "stacked_area":
-      return {
-        tooltip: { trigger: "axis" },
-        legend: { bottom: 0 },
-        xAxis: {
-          type: "category",
-          boundaryGap: false,
-          data: ["1月", "2月", "3月", "4月", "5月", "6月"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            name: "金融",
-            type: "line",
-            stack: "Total",
-            areaStyle: {},
-            data: [120, 132, 101, 134, 90, 230],
-          },
-          {
-            name: "制造",
-            type: "line",
-            stack: "Total",
-            areaStyle: {},
-            data: [220, 182, 191, 234, 290, 330],
-          },
-        ],
-      };
-    case "column":
-      return {
-        xAxis: {
-          type: "category",
-          data: ["金融", "制造", "电商", "园区"],
-        },
-        yAxis: { type: "value" },
-        series: [
-          {
-            data: [120, 200, 150, 80],
-            type: "bar",
-          },
-        ],
-      };
-    case "topology":
-      return {
-        series: [
-          {
-            type: "graph",
-            layout: "force",
-            roam: true,
-            data: [
-              { name: "CRM", symbolSize: 40 },
-              { name: "售前平台", symbolSize: 50 },
-              { name: "知识库", symbolSize: 30 },
-              { name: "投标系统", symbolSize: 30 },
-            ],
-            links: [
-              { source: "CRM", target: "售前平台" },
-              { source: "售前平台", target: "知识库" },
-              { source: "售前平台", target: "投标系统" },
-            ],
-          },
-        ],
-      };
-    case "cube3d":
-      // 3D 立体图示例：3D 柱状图（需 echarts-gl）
-      return {
-        tooltip: {},
-        xAxis3D: {
-          type: "category",
-          data: ["金融", "制造", "电商", "园区"],
-        },
-        yAxis3D: {
-          type: "category",
-          data: ["Q1", "Q2", "Q3", "Q4"],
-        },
-        zAxis3D: {
-          type: "value",
-        },
-        grid3D: {
-          boxWidth: 120,
-          boxDepth: 80,
-          viewControl: {
-            projection: "perspective",
-          },
-        },
-        series: [
-          {
-            type: "bar3D",
-            data: [
-              [0, 0, 5],
-              [0, 1, 8],
-              [0, 2, 12],
-              [0, 3, 6],
-              [1, 0, 7],
-              [1, 1, 6],
-              [1, 2, 9],
-              [1, 3, 4],
-              [2, 0, 6],
-              [2, 1, 9],
-              [2, 2, 7],
-              [2, 3, 5],
-              [3, 0, 4],
-              [3, 1, 6],
-              [3, 2, 5],
-              [3, 3, 3],
-            ],
-            shading: "lambert",
-          },
-        ],
-      };
-    case "china_map":
-      return {
-        tooltip: {
-          trigger: "item",
-        },
-        geo: {
-          map: "china",
-          roam: true,
-          itemStyle: {
-            areaColor: "#e6f4ff",
-            borderColor: "#69b1ff",
-          },
-          emphasis: {
-            itemStyle: {
-              areaColor: "#91caff",
-            },
-          },
-        },
-        series: [
-          {
-            name: "客户热度",
-            type: "effectScatter",
-            coordinateSystem: "geo",
-            rippleEffect: {
-              brushType: "stroke",
-            },
-            symbolSize: (val: number[]) => Math.max(8, val[2] / 12),
-            itemStyle: {
-              color: "#1677ff",
-            },
-            data: MOCK_CUSTOMERS_3D.map((c) => ({
-              name: c.name,
-              value: [...c.coord, c.value],
-            })),
-          },
-        ],
-      };
-    case "geo3d":
-      // 3D 中国地图 + 客户分布连线（需 echarts-gl，地图 JSON 需在项目中额外注册）
-      return {
-        geo3D: {
-          map: "china",
-          roam: true,
-          regionHeight: 2,
-          itemStyle: {
-            color: "#003a8c",
-            opacity: 0.8,
-            borderWidth: 0.6,
-            borderColor: "#69c0ff",
-          },
-          label: {
-            show: false,
-          },
-          light: {
-            main: {
-              intensity: 1.2,
-              shadow: true,
-            },
-          },
-          viewControl: {
-            distance: 120,
-            alpha: 35,
-            beta: 15,
-          },
-        },
-        series: [
-          {
-            name: "客户连线",
-            type: "lines3D",
-            coordinateSystem: "geo3D",
-            blendMode: "lighter",
-            lineStyle: {
-              width: 1.5,
-              color: "#ffd666",
-              opacity: 0.9,
-            },
-            effect: {
-              show: true,
-              trailWidth: 2,
-              trailLength: 0.25,
-              trailOpacity: 0.9,
-              spotIntensity: 2,
-            },
-            data: MOCK_CUSTOMERS_3D.map((c) => [HQ_COORD_3D, c.coord]),
-          },
-          {
-            name: "重点客户",
-            type: "scatter3D",
-            coordinateSystem: "geo3D",
-            symbolSize: 8,
-            itemStyle: {
-              color: "#ffd666",
-            },
-            label: {
-              show: true,
-              formatter: "{b}",
-              position: "right",
-              textStyle: {
-                color: "#fff",
-                fontSize: 10,
-              },
-            },
-            data: MOCK_CUSTOMERS_3D.map((c) => ({
-              name: c.name,
-              value: [...c.coord, c.value],
-            })),
-          },
-        ],
-      };
-    case "globe3d":
-      // 3D 地球 + 全球客户连线示意（需 echarts-gl）
-      return {
-        globe: {
-          environment: "#000",
-          baseColor: "#1d3f72",
-          shading: "lambert",
-          light: {
-            main: {
-              intensity: 1.2,
-            },
-          },
-          viewControl: {
-            autoRotate: true,
-            autoRotateSpeed: 5,
-          },
-        },
-        series: [
-          {
-            name: "全球客户连线",
-            type: "lines3D",
-            coordinateSystem: "globe",
-            blendMode: "lighter",
-            lineStyle: {
-              width: 1.5,
-              color: "#40a9ff",
-              opacity: 0.9,
-            },
-            effect: {
-              show: true,
-              trailWidth: 2,
-              trailLength: 0.25,
-              trailOpacity: 0.9,
-              spotIntensity: 2,
-            },
-            data: MOCK_GLOBAL_CUSTOMERS_3D.map((c) => [
-              [...HQ_GLOBAL_COORD, 0],
-              [...c.coord, c.value],
-            ]),
-          },
-          {
-            name: "全球重点客户",
-            type: "scatter3D",
-            coordinateSystem: "globe",
-            symbolSize: 8,
-            itemStyle: {
-              color: "#ffd666",
-            },
-            label: {
-              show: true,
-              formatter: "{b}",
-              position: "right",
-              textStyle: {
-                color: "#fff",
-                fontSize: 10,
-              },
-            },
-            data: MOCK_GLOBAL_CUSTOMERS_3D.map((c) => ({
-              name: c.name,
-              value: [...c.coord, c.value],
-            })),
-          },
-        ],
-      };
-    default:
-      return {};
-  }
-}
-
-function getDesignerChartOption(widget: DesignerWidget): any {
-  const base = getDesignerChartBaseOption(widget.type) || {};
-  const option: any = { ...base };
-
-  const titleText = widget.title || DESIGNER_CHART_LABELS[widget.type];
-  const autoSummary = buildAutoDataSummary(widget);
-
-  if (titleText || autoSummary) {
-    const existingTitle: any = (option as any).title;
-    if (existingTitle) {
-      option.title = {
-        ...existingTitle,
-        text: titleText ?? existingTitle.text,
-        subtext: autoSummary ?? existingTitle.subtext,
-      };
-    } else {
-      option.title = {
-        text: titleText,
-        subtext: autoSummary || undefined,
-        left: "center",
-        top: "2%",
-        textStyle: {
-          fontSize: 16,
-          fontWeight: "bold",
-        },
-        subtextStyle: {
-          fontSize: 11,
-          color: "#8c8c8c",
-        },
-      };
-    }
-  }
-
-  return option;
 }
 
 const funnelStages: FunnelStage[] = [
@@ -1500,7 +478,6 @@ const DEFAULT_DASHBOARDS: DashboardConfig[] = [
       avgCycle: "39天",
       conversionRate: "48%",
     },
-    designerWidgets: DEFAULT_3D_WIDGETS,
   },
   {
     id: "bigscreen_3d_global",
@@ -1513,52 +490,29 @@ const DEFAULT_DASHBOARDS: DashboardConfig[] = [
       avgCycle: "42天",
       conversionRate: "51%",
     },
-    designerWidgets: [
-      {
-        id: "globe_customer_map",
-        type: "geo3d",
-        title: "3D 客户大屏",
-        dataSummary:
-          "示例数据：默认以全国 3D 地图展示重点客户分布与连线关系（Mock，仅前端示意）。",
-        widthPercent: 100,
-        height: 420,
-        dataSourceConfig: {
-          type: "mock",
-          timeRange: "last_12_months",
-          metric: "count",
-          groupBy: "industry",
-          ownerScope: "all",
-        },
-        transformConfig: {
-          aggregation: "count",
-          sort: "none",
-        },
-      },
-    ],
   },
 ];
 
 function normalizeDashboards(dashboards: DashboardConfig[]): DashboardConfig[] {
-  const normalized = dashboards.map((dashboard) => {
-    if (dashboard.id !== "bigscreen_3d_global") {
-      return dashboard;
-    }
-    return {
-      ...dashboard,
-      name: "3D 客户大屏示例",
-      designerWidgets: (dashboard.designerWidgets || []).map((widget) =>
-        widget.id === "globe_customer_map"
-          ? {
-              ...widget,
-              type: "geo3d",
-              title: "3D 客户大屏",
-              dataSummary:
-                "示例数据：默认以全国 3D 地图展示重点客户分布与连线关系（Mock，仅前端示意）。",
-            }
-          : widget,
-      ),
-    };
-  });
+  const normalized = dashboards.map((dashboard) =>
+    dashboard.id !== "bigscreen_3d_global"
+      ? dashboard
+      : {
+          ...dashboard,
+          name: "3D 客户大屏示例",
+          designerWidgets: (dashboard.designerWidgets || []).map((widget) =>
+            widget.id === "globe_customer_map"
+              ? {
+                  ...widget,
+                  type: "geo3d",
+                  title: "3D 客户大屏",
+                  dataSummary:
+                    "示例数据：默认以全国 3D 地图展示重点客户分布与连线关系（Mock，仅前端示意）。",
+                }
+              : widget,
+          ),
+        },
+  );
 
   const standardDashboard =
     normalized.find((dashboard) => dashboard.id === ANALYTICS_PRIMARY_DASHBOARD_ID) ||
@@ -1586,6 +540,21 @@ interface AnalyticsViewProps {
   currentUser?: CurrentUser | null;
   themeMode?: "light" | "dark";
 }
+
+const AnalyticsDashboardDesigner = lazy(async () => {
+  const module = await import("./analytics/AnalyticsDashboardDesigner");
+  return { default: module.AnalyticsDashboardDesigner };
+});
+
+const AnalyticsDashboardPreview = lazy(async () => {
+  const module = await import("./analytics/AnalyticsDashboardPreview");
+  return { default: module.AnalyticsDashboardPreview };
+});
+
+const AnalyticsCustomDashboardLayout = lazy(async () => {
+  const module = await import("./analytics/AnalyticsCustomDashboardLayout");
+  return { default: module.AnalyticsCustomDashboardLayout };
+});
 
 export function AnalyticsView(props: AnalyticsViewProps = {}) {
   const { currentUser, themeMode = "light" } = props;
@@ -1899,6 +868,38 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
   const activeScope = activeDashboard?.dataScope || "all";
   const activeDesignerWidgets: DesignerWidget[] =
     activeDashboard?.designerWidgets || [];
+
+  const ensureDashboardPresetLoaded = async (targetId: string) => {
+    if (targetId !== "bigscreen_3d" && targetId !== "bigscreen_3d_global") {
+      return;
+    }
+
+    const existing = dashboards.find((dashboard) => dashboard.id === targetId);
+    if (existing?.designerWidgets && existing.designerWidgets.length > 0) {
+      return;
+    }
+
+    const module = await import("./analytics/dashboardPresets");
+    const preset = module.getAnalyticsAsyncDashboardPreset(targetId);
+    if (!preset) {
+      return;
+    }
+
+    setDashboards((prev) => {
+      const found = prev.find((dashboard) => dashboard.id === targetId);
+      if (found) {
+        return prev.map((dashboard) =>
+          dashboard.id === targetId
+            ? {
+                ...dashboard,
+                designerWidgets: preset.designerWidgets as DesignerWidget[],
+              }
+            : dashboard,
+        );
+      }
+      return [...prev, preset as DashboardConfig];
+    });
+  };
 
   const inferIndustry = (opportunity: DemoOpportunity): DataScopeKey => {
     const content = `${opportunity.name} ${opportunity.customerName || ""}`.toLowerCase();
@@ -2217,7 +1218,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
         boxSizing: "border-box",
       }}
     >
-      <EChartsPreview option={funnelChartOption} height={260} />
+      <EChartsPreview option={funnelChartOption} moduleKeys={["bar"]} height={260} />
       <div
         style={{
           display: "grid",
@@ -2278,7 +1279,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
           真实 MySQL 数据优先，空缺月份保留 0 值
         </div>
       </div>
-      <EChartsPreview option={trendChartOption} height={236} />
+      <EChartsPreview option={trendChartOption} moduleKeys={["bar", "line"]} height={236} />
       <div
         style={{
           display: "grid",
@@ -2336,7 +1337,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
           活跃行业 {activeIndustryCount} 个
         </div>
       </div>
-      <EChartsPreview option={industryChartOption} height={286} />
+      <EChartsPreview option={industryChartOption} moduleKeys={["pie"]} height={286} />
     </div>
   );
 
@@ -2363,7 +1364,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
         >
         左侧固定项目名称，右侧展示阶段窗口与推进区间，避免图形压住标题。
       </div>
-      <EChartsPreview option={ganttChartOption} height={286} />
+      <EChartsPreview option={ganttChartOption} moduleKeys={["bar"]} height={286} />
     </div>
   );
 
@@ -2723,7 +1724,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
         if (w.id !== selectedDesignerWidgetId) return w;
         const next: DesignerWidget = { ...w, ...patch };
         if (options?.autoUpdateSummary) {
-          const autoSummary = buildAutoDataSummary(next);
+          const autoSummary = buildDesignerSummaryDraft(next);
           if (autoSummary) {
             next.dataSummary = autoSummary;
           }
@@ -2870,7 +1871,10 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
           <Select
             style={{ minWidth: 220 }}
             value={activeDashboardId}
-            onChange={(value) => setActiveDashboardId(value)}
+            onChange={(value) => {
+              setActiveDashboardId(value);
+              void ensureDashboardPresetLoaded(value);
+            }}
             options={dashboards.map((d) => ({
               value: d.id,
               label: d.isDefault ? `${d.name}（默认）` : d.name,
@@ -2904,28 +1908,9 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
                 预览大屏
               </Button>
               <Button
-                onClick={() => {
+                onClick={async () => {
                   const targetId = "bigscreen_3d";
-                  const exists = dashboards.some((d) => d.id === targetId);
-                  if (!exists) {
-                    // 若用户曾删除该仪表盘，则临时追加一个 3D 大屏示例
-                    setDashboards((prev) => [
-                      ...prev,
-                      {
-                        id: targetId,
-                        name: "3D 酷炫大屏示例",
-                        widgets: ["funnel", "trend", "industry", "gantt"],
-                        dataScope: "all",
-                        metrics: {
-                          totalOpportunities: "30",
-                          monthlySigned: "680万",
-                          avgCycle: "39天",
-                          conversionRate: "48%",
-                        },
-                        designerWidgets: DEFAULT_3D_WIDGETS,
-                      },
-                    ]);
-                  }
+                  await ensureDashboardPresetLoaded(targetId);
                   setActiveDashboardId(targetId);
                   setPreviewTheme("tech");
                   setIsPreviewingDashboard(true);
@@ -2934,17 +1919,9 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
                 打开 3D 酷炫大屏
               </Button>
               <Button
-                onClick={() => {
+                onClick={async () => {
                   const targetId = "bigscreen_3d_global";
-                  const exists = dashboards.some((d) => d.id === targetId);
-                  if (!exists) {
-                    const globalConfig = DEFAULT_DASHBOARDS.find(
-                      (d) => d.id === targetId,
-                    );
-                    if (globalConfig) {
-                      setDashboards((prev) => [...prev, globalConfig]);
-                    }
-                  }
+                  await ensureDashboardPresetLoaded(targetId);
                   setActiveDashboardId(targetId);
                   setPreviewTheme("tech");
                   setIsPreviewingDashboard(true);
@@ -3113,55 +2090,20 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
 
       {/* 主仪表盘内容：如有自定义布局则优先使用设计器布局，否则展示默认漏斗/趋势/行业/甘特 */}
       {activeDesignerWidgets.length > 0 ? (
-        <Card title="自定义仪表盘布局">
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "flex-start",
-              gap: 12,
-            }}
-          >
-            {activeDesignerWidgets.map((w) => (
-              <div
-                key={w.id}
-                style={{
-                  // 同样在最终布局中用 calc 处理 gap，保证两个 1/2 宽组件可以并排
-                  flex: `0 0 calc(${w.widthPercent || 100}% - 12px)`,
-                  boxSizing: "border-box",
-                }}
-              >
-                <Card
-                  size="small"
-                  title={w.title || DESIGNER_CHART_LABELS[w.type]}
-                  style={{ height: "100%" }}
-                >
-                  <EChartsPreview
-                    option={getDesignerChartOption(w)}
-                    enable3D={
-                      w.type === "cube3d" ||
-                      w.type === "flow_map" ||
-                      w.type === "geo3d" ||
-                      w.type === "globe3d"
-                    }
-                    height={w.height || 220}
-                  />
-                  {w.dataSummary && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        color: "#8c8c8c",
-                      }}
-                    >
-                      {w.dataSummary}
-                    </div>
-                  )}
-                </Card>
+        <Suspense
+          fallback={
+            <Card title="自定义仪表盘布局">
+              <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+                正在加载自定义仪表盘布局...
               </div>
-            ))}
-          </div>
-        </Card>
+            </Card>
+          }
+        >
+          <AnalyticsCustomDashboardLayout
+            activeDesignerWidgets={activeDesignerWidgets}
+            designerChartLabels={DESIGNER_CHART_LABELS}
+          />
+        </Suspense>
       ) : (
         <>
           {/* 销售漏斗 + 业绩趋势 */}
@@ -3204,916 +2146,64 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
 
       {/* 自定义仪表盘设计器（所见即所得），仅在新建 / 编辑仪表盘时展示 */}
       {isEditingDashboard && (
-        <Card title="自定义仪表盘设计器（所见即所得）">
-          <div
-            style={{
-              marginBottom: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={{ fontSize: 12, color: "#8c8c8c" }}>添加组件：</span>
-            <Select
-              size="small"
-              style={{ width: 180 }}
-              placeholder="选择组件类型"
-              value={quickAddType || undefined}
-              onChange={(value) =>
-                setQuickAddType(value as DesignerChartType)
-              }
-              options={(
-                Object.keys(DESIGNER_CHART_LABELS) as DesignerChartType[]
-              ).map((type) => ({
-                label: DESIGNER_CHART_LABELS[type],
-                value: type,
-              }))}
-            />
-            <Button
-              type="primary"
-              size="small"
-              disabled={!quickAddType}
-              onClick={handleQuickAddWidget}
-            >
-              添加到当前仪表盘
-            </Button>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 260px",
-              gap: 16,
-              alignItems: "flex-start",
-            }}
-          >
-          {/* 中间：布局编辑区（所见即所得） */}
-          <div
-            ref={designerCanvasRef}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDesignerCanvasDrop}
-            style={{
-              minHeight: 260,
-              border: "1px dashed #d9d9d9",
-              borderRadius: 8,
-              padding: 12,
-              // 网格背景：20px 间距的浅色网格，方便对齐组件
-              backgroundColor: "var(--app-surface-soft)",
-              backgroundImage:
-                "linear-gradient(to right, rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.12) 1px, transparent 1px)",
-              backgroundSize: "20px 20px",
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "flex-start",
-              gap: 8,
-            }}
-          >
-            {designerWidgets.length === 0 ? (
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#8c8c8c",
-                }}
-              >
-                使用上方“添加组件”选择图形类型，系统会在此处自动生成组件卡片。可拖动组件卡片调整顺序，右下角蓝色小方块拖拽调整宽度和高度。
+        <Suspense
+          fallback={
+            <Card title="自定义仪表盘设计器（所见即所得）">
+              <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+                正在加载设计器模块...
               </div>
-            ) : (
-              designerWidgets.map((w) => (
-                <div
-                  key={w.id}
-                  draggable
-                  onDragStart={() => {
-                    setDesignerDraggingId(w.id);
-                    setDesignerDraggingType(null);
-                  }}
-                  onDragEnd={() => {
-                    setDesignerDraggingId(null);
-                  }}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => handleDesignerWidgetDropOnWidget(w.id)}
-                  onClick={() => setSelectedDesignerWidgetId(w.id)}
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    border:
-                      selectedDesignerWidgetId === w.id
-                        ? "1px solid #1890ff"
-                        : "1px solid #d9d9d9",
-                    background: "var(--app-surface)",
-                    cursor: "move",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                    // 使用 calc 把 gap 考虑进去，避免两个 1/2 宽组件因为间距导致换行
-                    flex: `0 0 calc(${w.widthPercent || 100}% - 8px)`,
-                    boxSizing: "border-box",
-                    position: "relative",
-                    minHeight: (w.height || 220) + 40,
-                  }}
-                >
-                  {/* 尺寸标记：宽度百分比 + 高度像素，方便精确布局 */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 4,
-                      right: 4,
-                      padding: "2px 6px",
-                      borderRadius: 10,
-                      background: "rgba(17, 27, 48, 0.84)",
-                      border: "1px solid var(--app-border)",
-                      fontSize: 10,
-                      color: "var(--app-text-secondary)",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    {`${Math.round(w.widthPercent)}% · ${
-                      Math.round(w.height)
-                    }px`}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      fontSize: 13,
-                      fontWeight: 500,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                      }}
-                    >
-                      <span>{w.title}</span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: "#8c8c8c",
-                        }}
-                      >
-                        {DESIGNER_CHART_LABELS[w.type]}
-                      </span>
-                    </div>
-                    <Button
-                      type="link"
-                      size="small"
-                      danger
-                      disabled={!canDeleteAnalyticsAssets}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteDesignerWidget(w.id);
-                      }}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "#8c8c8c",
-                    }}
-                  >
-                    {w.dataSummary}
-                  </div>
-                  {/* 右下角拖拽改变大小的句柄，仅在编辑模式下可见 */}
-                  <div
-                    onMouseDown={(e) =>
-                      handleDesignerResizeMouseDown(e, w.id)
-                    }
-                    style={{
-                      position: "absolute",
-                      right: 4,
-                      bottom: 4,
-                      width: 10,
-                      height: 10,
-                      borderRadius: 2,
-                      background: "#1890ff",
-                      cursor: "nwse-resize",
-                    }}
-                  />
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* 右侧：选中组件配置 */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 500 }}>组件配置</div>
-            {selectedDesignerWidget ? (
-              <>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#8c8c8c",
-                  }}
-                >
-                  当前选中：{DESIGNER_CHART_LABELS[selectedDesignerWidget.type]}
-                </div>
-                <Input
-                  size="small"
-                  value={selectedDesignerWidget.title}
-                  onChange={(e) =>
-                    handleUpdateSelectedDesignerWidget({
-                      title: e.target.value,
-                    })
-                  }
-                  placeholder="组件标题，如：本月签约金额趋势"
-                />
-                <Input.TextArea
-                  rows={6}
-                  value={selectedDesignerWidget.dataSummary}
-                  onChange={(e) =>
-                    handleUpdateSelectedDesignerWidget({
-                      dataSummary: e.target.value,
-                    })
-                  }
-                  placeholder="在此处描述该组件的数据来源与含义，例如：数据来源于本月所有已签约商机的订单金额汇总（Mock）。"
-                  style={{ fontSize: 12 }}
-                />
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: 8,
-                    borderRadius: 4,
-                    border: "1px dashed #d9d9d9",
-                    background: "var(--app-surface-soft)",
-                    fontSize: 12,
-                    color: "var(--app-text-secondary)",
-                  }}
-                >
-                  自动摘要：
-                  {buildAutoDataSummary(selectedDesignerWidget) ||
-                    "尚未配置结构化数据源与加工规则，请在下方选择数据来源与加工方式。"}
-                </div>
-                <div
-                  style={{
-                    marginTop: 12,
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
-                >
-                  数据来源
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    fontSize: 12,
-                  }}
-                >
-                  <Select
-                    size="small"
-                    value={
-                      selectedDesignerWidget.dataSourceConfig?.type ?? "mock"
-                    }
-                    onChange={(value) =>
-                      handleUpdateSelectedDesignerWidget(
-                        {
-                          dataSourceConfig: {
-                            ...(selectedDesignerWidget.dataSourceConfig || {
-                              timeRange: "this_month" as DataSourceTimeRange,
-                              metric: "count" as DataSourceMetric,
-                              groupBy: "none" as DataSourceGroupBy,
-                              ownerScope: "all" as DataSourceOwnerScope,
-                            }),
-                            type: value as DataSourceType,
-                          },
-                        },
-                        { autoUpdateSummary: true },
-                      )
-                    }
-                    options={(
-                      Object.keys(
-                        DATA_SOURCE_TYPE_LABELS,
-                      ) as DataSourceType[]
-                    ).map((t) => ({
-                      label: DATA_SOURCE_TYPE_LABELS[t],
-                      value: t,
-                    }))}
-                  />
-                  <Select
-                    size="small"
-                    value={
-                      selectedDesignerWidget.dataSourceConfig?.timeRange ??
-                      "this_month"
-                    }
-                    onChange={(value) =>
-                      handleUpdateSelectedDesignerWidget(
-                        {
-                          dataSourceConfig: {
-                            ...(selectedDesignerWidget.dataSourceConfig || {
-                              type: "mock" as DataSourceType,
-                              metric: "count" as DataSourceMetric,
-                              groupBy: "none" as DataSourceGroupBy,
-                              ownerScope: "all" as DataSourceOwnerScope,
-                            }),
-                            timeRange: value as DataSourceTimeRange,
-                          },
-                        },
-                        { autoUpdateSummary: true },
-                      )
-                    }
-                    options={(
-                      Object.keys(
-                        DATA_SOURCE_TIME_RANGE_LABELS,
-                      ) as DataSourceTimeRange[]
-                    ).map((k) => ({
-                      label: DATA_SOURCE_TIME_RANGE_LABELS[k],
-                      value: k,
-                    }))}
-                  />
-                  <Select
-                    size="small"
-                    value={
-                      selectedDesignerWidget.dataSourceConfig?.metric ??
-                      "count"
-                    }
-                    onChange={(value) =>
-                      handleUpdateSelectedDesignerWidget(
-                        {
-                          dataSourceConfig: {
-                            ...(selectedDesignerWidget.dataSourceConfig || {
-                              type: "mock" as DataSourceType,
-                              timeRange:
-                                "this_month" as DataSourceTimeRange,
-                              groupBy: "none" as DataSourceGroupBy,
-                              ownerScope:
-                                "all" as DataSourceOwnerScope,
-                            }),
-                            metric: value as DataSourceMetric,
-                          },
-                        },
-                        { autoUpdateSummary: true },
-                      )
-                    }
-                    options={(
-                      Object.keys(
-                        DATA_SOURCE_METRIC_LABELS,
-                      ) as DataSourceMetric[]
-                    ).map((k) => ({
-                      label: DATA_SOURCE_METRIC_LABELS[k],
-                      value: k,
-                    }))}
-                  />
-                  <Select
-                    size="small"
-                    value={
-                      selectedDesignerWidget.dataSourceConfig?.groupBy ??
-                      "none"
-                    }
-                    onChange={(value) =>
-                      handleUpdateSelectedDesignerWidget(
-                        {
-                          dataSourceConfig: {
-                            ...(selectedDesignerWidget.dataSourceConfig || {
-                              type: "mock" as DataSourceType,
-                              timeRange:
-                                "this_month" as DataSourceTimeRange,
-                              metric: "count" as DataSourceMetric,
-                              ownerScope:
-                                "all" as DataSourceOwnerScope,
-                            }),
-                            groupBy: value as DataSourceGroupBy,
-                          },
-                        },
-                        { autoUpdateSummary: true },
-                      )
-                    }
-                    options={(
-                      Object.keys(
-                        DATA_SOURCE_GROUP_BY_LABELS,
-                      ) as DataSourceGroupBy[]
-                    ).map((k) => ({
-                      label: DATA_SOURCE_GROUP_BY_LABELS[k],
-                      value: k,
-                    }))}
-                  />
-                  <Select
-                    size="small"
-                    value={
-                      selectedDesignerWidget.dataSourceConfig?.ownerScope ??
-                      "all"
-                    }
-                    onChange={(value) =>
-                      handleUpdateSelectedDesignerWidget(
-                        {
-                          dataSourceConfig: {
-                            ...(selectedDesignerWidget.dataSourceConfig || {
-                              type: "mock" as DataSourceType,
-                              timeRange:
-                                "this_month" as DataSourceTimeRange,
-                              metric: "count" as DataSourceMetric,
-                              groupBy:
-                                "none" as DataSourceGroupBy,
-                            }),
-                            ownerScope: value as DataSourceOwnerScope,
-                          },
-                        },
-                        { autoUpdateSummary: true },
-                      )
-                    }
-                    options={(
-                      Object.keys(
-                        DATA_SOURCE_OWNER_SCOPE_LABELS,
-                      ) as DataSourceOwnerScope[]
-                    ).map((k) => ({
-                      label: DATA_SOURCE_OWNER_SCOPE_LABELS[k],
-                      value: k,
-                    }))}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 12,
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
-                >
-                  数据加工
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                    fontSize: 12,
-                  }}
-                >
-                  <Select
-                    size="small"
-                    value={
-                      selectedDesignerWidget.transformConfig
-                        ?.aggregation ?? "auto"
-                    }
-                    onChange={(value) =>
-                      handleUpdateSelectedDesignerWidget(
-                        {
-                          transformConfig: {
-                            ...(selectedDesignerWidget.transformConfig || {
-                              sort: "none" as TransformSort,
-                              topN: undefined,
-                            }),
-                            aggregation:
-                              value as TransformAggregation,
-                          },
-                        },
-                        { autoUpdateSummary: true },
-                      )
-                    }
-                    options={(
-                      Object.keys(
-                        TRANSFORM_AGGREGATION_LABELS,
-                      ) as TransformAggregation[]
-                    ).map((k) => ({
-                      label: TRANSFORM_AGGREGATION_LABELS[k],
-                      value: k,
-                    }))}
-                  />
-                  <Select
-                    size="small"
-                    value={
-                      selectedDesignerWidget.transformConfig?.sort ??
-                      "none"
-                    }
-                    onChange={(value) =>
-                      handleUpdateSelectedDesignerWidget(
-                        {
-                          transformConfig: {
-                            ...(selectedDesignerWidget.transformConfig || {
-                              aggregation:
-                                "auto" as TransformAggregation,
-                              topN: undefined,
-                            }),
-                            sort: value as TransformSort,
-                          },
-                        },
-                        { autoUpdateSummary: true },
-                      )
-                    }
-                    options={(
-                      Object.keys(
-                        TRANSFORM_SORT_LABELS,
-                      ) as TransformSort[]
-                    ).map((k) => ({
-                      label: TRANSFORM_SORT_LABELS[k],
-                      value: k,
-                    }))}
-                  />
-                  <Input
-                    size="small"
-                    type="number"
-                    min={1}
-                    placeholder="Top N（可选，例如：5）"
-                    value={
-                      selectedDesignerWidget.transformConfig?.topN ??
-                      undefined
-                    }
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      const parsed = Number(raw);
-                      handleUpdateSelectedDesignerWidget(
-                        {
-                          transformConfig: {
-                            ...(selectedDesignerWidget.transformConfig || {
-                              aggregation:
-                                "auto" as TransformAggregation,
-                              sort: "none" as TransformSort,
-                            }),
-                            topN: Number.isNaN(parsed)
-                              ? undefined
-                              : parsed,
-                          },
-                        },
-                        { autoUpdateSummary: true },
-                      );
-                    }}
-                  />
-                </div>
-                <div
-                  style={{
-                    marginTop: 8,
-                    fontSize: 12,
-                    color: "#8c8c8c",
-                  }}
-                >
-                  当前尺寸：宽{" "}
-                  {Math.round(selectedDesignerWidget.widthPercent || 100)}% ，高{" "}
-                  {Math.round(selectedDesignerWidget.height || 220)} px
-                  （在画布中拖拽右下角调整）
-                </div>
-                {/* 尺寸完全通过画布拖拽调整，这里不再提供宽度/高度下拉，保持所见即所得体验 */}
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: 8,
-                    borderRadius: 4,
-                    border: "1px solid #f0f0f0",
-                    background: "var(--app-surface-soft)",
-                  }}
-                >
-                  <EChartsPreview
-                    option={getDesignerChartOption(selectedDesignerWidget)}
-                    enable3D={
-                      selectedDesignerWidget.type === "cube3d" ||
-                      selectedDesignerWidget.type === "flow_map" ||
-                      selectedDesignerWidget.type === "geo3d"
-                    }
-                    height={selectedDesignerWidget.height || 220}
-                  />
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#8c8c8c",
-                  }}
-                >
-                  当前配置用于前端交互预演与图表展示示例，不会保存到真实数据库；实际接入大屏时可将此处的配置映射到真实数据源与图表主题。
-                </div>
-              </>
-            ) : (
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#8c8c8c",
-                }}
-              >
-                请点击中间画布中的组件卡片查看并编辑其标题与数据说明。
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
+            </Card>
+          }
+        >
+          <AnalyticsDashboardDesigner
+            canDeleteAnalyticsAssets={canDeleteAnalyticsAssets}
+            quickAddType={quickAddType}
+            setQuickAddType={(value) =>
+              setQuickAddType(value as DesignerChartType | null)
+            }
+            handleQuickAddWidget={handleQuickAddWidget}
+            designerChartLabels={DESIGNER_CHART_LABELS}
+            designerWidgets={designerWidgets}
+            designerCanvasRef={designerCanvasRef}
+            handleDesignerCanvasDrop={handleDesignerCanvasDrop}
+            selectedDesignerWidgetId={selectedDesignerWidgetId}
+            setSelectedDesignerWidgetId={setSelectedDesignerWidgetId}
+            setDesignerDraggingId={setDesignerDraggingId}
+            setDesignerDraggingType={(value) =>
+              setDesignerDraggingType(value as DesignerChartType | null)
+            }
+            handleDesignerWidgetDropOnWidget={handleDesignerWidgetDropOnWidget}
+            handleDeleteDesignerWidget={handleDeleteDesignerWidget}
+            handleDesignerResizeMouseDown={handleDesignerResizeMouseDown}
+            selectedDesignerWidget={selectedDesignerWidget}
+            handleUpdateSelectedDesignerWidget={handleUpdateSelectedDesignerWidget}
+          />
+        </Suspense>
       )}
 
       {/* 全屏大屏预览 */}
       {isPreviewingDashboard && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.85)",
-            zIndex: 1000,
-            display: "flex",
-            flexDirection: "column",
-          }}
-          onClick={handleClosePreview}
-        >
-          <div
-            style={{
-              padding: "12px 24px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              color: currentPreviewTheme.cardHeadColor,
-              borderBottom: "1px solid rgba(255,255,255,0.15)",
-              background:
-                previewTheme === "tech"
-                  ? previewThemeStyles.tech.cardHeadBg
-                  : "transparent",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                }}
-              >
-                <span style={{ fontSize: 18, fontWeight: 600 }}>
-                  {activeDashboard?.name || "大屏预览"}
-                </span>
-                <span
-                  style={{
-                    marginTop: 2,
-                    fontSize: 12,
-                    color: "rgba(255,255,255,0.65)",
-                  }}
-                >
-                  仅前端预览效果 · Esc 可退出全屏
-                </span>
-              </div>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.75)",
-                }}
-              >
-                主题：
-              </span>
-              <Select
-                size="small"
-                style={{ width: 120 }}
-                value={previewTheme}
-                onChange={(value) =>
-                  setPreviewTheme(value as "dark" | "light" | "tech")
-                }
-                options={[
-                  { label: "深色", value: "dark" },
-                  { label: "浅色", value: "light" },
-                  { label: "科技蓝", value: "tech" },
-                ]}
-              />
-              <Button
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEnterPreviewFullscreen();
-                }}
-                disabled={isPreviewFullscreen}
-              >
-                {isPreviewFullscreen ? "已全屏" : "全屏显示"}
-              </Button>
-              <Button
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleClosePreview();
-                }}
-              >
-                退出预览
-              </Button>
-            </div>
-          </div>
-          <div
-            style={{
-              flex: 1,
-              padding: 24,
-              overflow: "auto",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                maxWidth: 1440,
-                margin: "0 auto",
-                padding: 16,
-                borderRadius: 8,
-                background: currentPreviewTheme.canvasBackground,
-                boxShadow: "0 0 24px rgba(0,0,0,0.45)",
-              }}
-            >
-              {activeDesignerWidgets.length > 0 ? (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "flex-start",
-                    gap: 12,
-                  }}
-                >
-                  {activeDesignerWidgets.map((w) => (
-                    <div
-                      key={w.id}
-                      style={{
-                        flex: `0 0 calc(${w.widthPercent || 100}% - 12px)`,
-                        boxSizing: "border-box",
-                      }}
-                    >
-                      <Card
-                        size="small"
-                        title={w.title || DESIGNER_CHART_LABELS[w.type]}
-                        headStyle={{
-                          background: currentPreviewTheme.cardHeadBg,
-                          color: currentPreviewTheme.cardHeadColor,
-                          borderBottom: "none",
-                        }}
-                        bodyStyle={{
-                          background: currentPreviewTheme.cardBodyBg,
-                        }}
-                        style={{
-                          height: "100%",
-                          borderColor: currentPreviewTheme.cardBorder,
-                          background: currentPreviewTheme.cardBodyBg,
-                          color: currentPreviewTheme.cardTextColor,
-                        }}
-                      >
-                        <EChartsPreview
-                          option={getDesignerChartOption(w)}
-                          enable3D={
-                            w.type === "cube3d" ||
-                            w.type === "flow_map" ||
-                            w.type === "geo3d"
-                          }
-                          height={w.height || 220}
-                        />
-                        {w.dataSummary && (
-                          <div
-                            style={{
-                              marginTop: 8,
-                              fontSize: 12,
-                              color: currentPreviewTheme.summaryTextColor,
-                            }}
-                          >
-                            {w.dataSummary}
-                          </div>
-                        )}
-                      </Card>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                // 若没有自定义布局，则在预览中展示默认仪表盘内容
-                <>
-                  {!isEditingDashboard && (
-                    <div
-                      style={{
-                        marginBottom: 16,
-                      }}
-                    >
-                      <Row gutter={16}>
-                        <Col xs={24} sm={12} md={6}>
-                          <Card>
-                            <div
-                              style={{
-                                fontSize: 32,
-                                marginBottom: 8,
-                                color: "#1890ff",
-                              }}
-                            >
-                              💡
-                            </div>
-                            <div
-                              style={{ fontSize: 22, fontWeight: 600 }}
-                            >
-                              {activeMetrics.totalOpportunities}
-                            </div>
-                            <div
-                              style={{ fontSize: 14, color: "#8c8c8c" }}
-                            >
-                              商机总数
-                            </div>
-                          </Card>
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                          <Card>
-                            <div
-                              style={{
-                                fontSize: 32,
-                                marginBottom: 8,
-                                color: "#52c41a",
-                              }}
-                            >
-                              💰
-                            </div>
-                            <div
-                              style={{ fontSize: 22, fontWeight: 600 }}
-                            >
-                              {activeMetrics.monthlySigned}
-                            </div>
-                            <div
-                              style={{ fontSize: 14, color: "#8c8c8c" }}
-                            >
-                              本月签约
-                            </div>
-                          </Card>
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                          <Card>
-                            <div
-                              style={{
-                                fontSize: 32,
-                                marginBottom: 8,
-                                color: "#722ed1",
-                              }}
-                            >
-                              📊
-                            </div>
-                            <div
-                              style={{ fontSize: 22, fontWeight: 600 }}
-                            >
-                              {activeMetrics.avgCycle}
-                            </div>
-                            <div
-                              style={{ fontSize: 14, color: "#8c8c8c" }}
-                            >
-                              平均成交周期
-                            </div>
-                          </Card>
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                          <Card>
-                            <div
-                              style={{
-                                fontSize: 32,
-                                marginBottom: 8,
-                                color: "#fa8c16",
-                              }}
-                            >
-                              %
-                            </div>
-                            <div
-                              style={{ fontSize: 22, fontWeight: 600 }}
-                            >
-                              {activeMetrics.conversionRate}
-                            </div>
-                            <div
-                              style={{ fontSize: 14, color: "#8c8c8c" }}
-                            >
-                              商机转化率
-                            </div>
-                          </Card>
-                        </Col>
-                      </Row>
-                    </div>
-                  )}
-
-                  <Row gutter={16}>
-                    {activeWidgets.includes("funnel") && (
-                      <Col xs={24} md={12}>
-                        <Card title="销售漏斗" style={{ height: "100%" }}>
-                          {renderFunnelPanel()}
-                        </Card>
-                      </Col>
-                    )}
-                    {activeWidgets.includes("trend") && (
-                      <Col xs={24} md={12}>
-                        <Card title="业绩趋势" style={{ height: "100%" }}>
-                          {renderTrendPanel()}
-                        </Card>
-                      </Col>
-                    )}
-                  </Row>
-
-                  <Row gutter={16} style={{ marginTop: 16 }}>
-                    {activeWidgets.includes("industry") && (
-                      <Col xs={24} md={12}>
-                        <Card title="行业分布">
-                          {renderIndustryPanel()}
-                        </Card>
-                      </Col>
-                    )}
-                    {activeWidgets.includes("gantt") && (
-                      <Col xs={24} md={12}>
-                        <Card title="项目进度甘特图">
-                          {renderGanttPanel()}
-                        </Card>
-                      </Col>
-                    )}
-                  </Row>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <Suspense fallback={null}>
+          <AnalyticsDashboardPreview
+            activeDashboard={activeDashboard}
+            previewTheme={previewTheme}
+            previewThemeStyles={previewThemeStyles}
+            currentPreviewTheme={currentPreviewTheme}
+            setPreviewTheme={setPreviewTheme}
+            handleEnterPreviewFullscreen={handleEnterPreviewFullscreen}
+            handleClosePreview={handleClosePreview}
+            isPreviewFullscreen={isPreviewFullscreen}
+            activeDesignerWidgets={activeDesignerWidgets}
+            designerChartLabels={DESIGNER_CHART_LABELS}
+            activeMetrics={activeMetrics}
+            isEditingDashboard={isEditingDashboard}
+            activeWidgets={activeWidgets}
+            renderFunnelPanel={renderFunnelPanel}
+            renderTrendPanel={renderTrendPanel}
+            renderIndustryPanel={renderIndustryPanel}
+            renderGanttPanel={renderGanttPanel}
+          />
+        </Suspense>
       )}
     </div>
   );

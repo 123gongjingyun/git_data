@@ -18,12 +18,8 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { MouseEvent as ReactMouseEvent, ThHTMLAttributes } from "react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import {
-  ArrowRightOutlined,
-  CheckCircleFilled,
-  ClockCircleFilled,
-  StopFilled,
 } from "@ant-design/icons";
 import { getNextOpportunityCode } from "../shared/opportunityCode";
 import {
@@ -47,6 +43,16 @@ import {
 import { syncSharedOpportunitiesFromApi } from "../shared/realOpportunities";
 
 const { Text, Paragraph } = Typography;
+
+const LazyProjectDetailModal = lazy(async () => {
+  const module = await import("./projects/ProjectDetailModal");
+  return { default: module.ProjectDetailModal };
+});
+
+const LazyProjectSupportModals = lazy(async () => {
+  const module = await import("./projects/ProjectSupportModals");
+  return { default: module.ProjectSupportModals };
+});
 
 interface ProjectRow {
   key: string;
@@ -1471,12 +1477,13 @@ export function ProjectsView(props: ProjectsViewProps) {
         </Card>
       </div>
 
-      {/* 新建 / 编辑项目模态框（复刻 demo.html 项目表单） */}
-      <Modal
-        title="项目信息"
-        open={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
-        onOk={async () => {
+      <Suspense fallback={null}>
+        <LazyProjectSupportModals
+          createProjectOpen={createModalVisible}
+          projectForm={form}
+          editingCurrentProject={Boolean(currentProject)}
+          onCancelProject={() => setCreateModalVisible(false)}
+          onSubmitProject={async () => {
           try {
               const values = await form.validateFields();
               const {
@@ -1572,701 +1579,152 @@ export function ProjectsView(props: ProjectsViewProps) {
           } catch {
             // 校验失败时不关闭模态框
           }
-        }}
-        okText="保存"
-        cancelText="取消"
-        destroyOnClose
-      >
-        <Form layout="vertical" form={form}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="项目名称 *"
-                name="name"
-                rules={[{ required: true, message: "请输入项目名称" }]}
-              >
-                <AntInput placeholder="请输入项目名称" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="客户名称 *"
-                name="customer"
-                rules={[{ required: true, message: "请输入客户名称" }]}
-              >
-                <AntInput placeholder="请输入客户名称" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="预算金额（万）" name="budget">
-                <AntInput placeholder="请输入预算金额，例如 500" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="优先级" name="priority" initialValue="medium">
-                <Select
-                  options={[
-                    { value: "low", label: "低" },
-                    { value: "medium", label: "中" },
-                    { value: "high", label: "高" },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="项目状态"
-                name="status"
-                initialValue="inprogress"
-              >
-                <Select
-                  options={[
-                    { value: "inprogress", label: "进行中" },
-                    { value: "completed", label: "已完成" },
-                    { value: "archived", label: "已归档" },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="项目阶段" name="stage" initialValue="提案">
-                <Select
-                  options={[
-                    { value: "发现", label: "发现" },
-                    { value: "分析", label: "分析" },
-                    { value: "提案", label: "提案" },
-                    { value: "谈判", label: "谈判" },
-                    { value: "签约", label: "签约" },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="开始时间" name="startDate">
-                <AntInput placeholder="例如：2024-01-05" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="销售负责人" name="salesOwner">
-                <AntInput placeholder="例如：张三（销售）" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="所属行业负责人" name="industryOwner">
-                <AntInput placeholder="例如：某行业负责人" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="售前负责人" name="preSalesOwner">
-                <AntInput placeholder="例如：王五（售前）" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="项目描述" name="description">
-            <AntInput.TextArea
-              rows={3}
-              placeholder="请输入项目描述，例如项目背景、范围等信息"
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title="项目预算分布"
-        open={budgetModalVisible}
-        onCancel={() => setBudgetModalVisible(false)}
-        footer={null}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <Paragraph>
-            总预算：{" "}
-            <Text strong>
-              {totalBudget.toLocaleString("zh-CN")}
-              万
-            </Text>
-          </Paragraph>
-          <Paragraph>
-            进行中项目预算：{" "}
-            <Text>
-              {inprogressBudget.toLocaleString("zh-CN")}
-              万
-            </Text>
-          </Paragraph>
-          <Paragraph>
-            已完成项目预算：{" "}
-            <Text>
-              {completedBudget.toLocaleString("zh-CN")}
-              万
-            </Text>
-          </Paragraph>
-          <Paragraph>
-            已归档项目预算：{" "}
-            <Text>
-              {archivedBudget.toLocaleString("zh-CN")}
-              万
-            </Text>
-          </Paragraph>
-          <Paragraph type="secondary" style={{ fontSize: 12 }}>
-            当前基于列表数据计算预算分布，
-            后续接入后端实体（Project / Opportunity / Contract）后，
-            可在此展示按状态 / 行业 / 负责人等维度拆分的真实预算结构。
-          </Paragraph>
-        </div>
-        <div style={{ textAlign: "right", marginTop: 16 }}>
-          <Button type="primary" onClick={() => setBudgetModalVisible(false)}>
-            关闭
-          </Button>
-        </div>
-      </Modal>
-      <Modal
-        title="新建关联商机"
-        open={createRelatedVisible}
-        onCancel={() => {
-          setCreateRelatedVisible(false);
-          createRelatedForm.resetFields();
-        }}
-        onOk={async () => {
-          if (!currentProject) {
+          }}
+          budgetModalOpen={budgetModalVisible}
+          onCloseBudgetModal={() => setBudgetModalVisible(false)}
+          totalBudget={totalBudget}
+          inprogressBudget={inprogressBudget}
+          completedBudget={completedBudget}
+          archivedBudget={archivedBudget}
+          createRelatedOpen={createRelatedVisible}
+          relatedForm={createRelatedForm}
+          onCancelCreateRelated={() => {
             setCreateRelatedVisible(false);
-            return;
-          }
-          if (currentProject.status === "completed") {
-            message.warning("已完成项目已封板，不能继续新增关联商机。");
-            setCreateRelatedVisible(false);
-            return;
-          }
-
-          try {
-            const values = await createRelatedForm.validateFields();
-            const {
-              name,
-              amount,
-              stage,
-              probability,
-              expectedCloseDate,
-            } = values as {
-              name: string;
-              amount?: string;
-              stage?: string;
-              probability?: number;
-              expectedCloseDate?: string;
-            };
-
-            const probNumber =
-              probability !== undefined && probability !== null
-                ? Number(probability)
-                : 0;
-
-            const maxId = sharedOpportunities.reduce(
-              (max, item) => (item.id > max ? item.id : max),
-              0,
-            );
-            const newOpportunity: DemoOpportunity = {
-              id: maxId + 1,
-              opportunityCode: getNextOpportunityCode(
-                sharedOpportunities.map((item) => item.opportunityCode),
-              ),
-              name,
-              customerName: currentProject.customer,
-              projectKey: currentProject.projectKey,
-              projectName: currentProject.name,
-              stage: stage || "solution_design",
-              expectedValue:
-                amount && amount.trim().length > 0
-                  ? `¥${(Number(amount) * 10000).toLocaleString("zh-CN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}`
-                  : "¥0.00",
-              ownerUsername:
-                currentProject.preSalesOwnerUsername ||
-                currentProject.salesOwnerUsername,
-              probability: Number.isNaN(probNumber) ? 0 : probNumber,
-              expectedCloseDate: expectedCloseDate || "",
-              createdAt: new Date().toISOString(),
-            };
-
-            const next = [...sharedOpportunities, newOpportunity];
-            setSharedOpportunities(next);
-            saveSharedDemoOpportunities(next);
-            message.success("已创建关联商机，并同步到商机管理");
             createRelatedForm.resetFields();
-            setCreateRelatedVisible(false);
-          } catch {
-            // 校验失败时不关闭弹窗
-          }
-        }}
-        okText="保存"
-        cancelText="取消"
-        destroyOnClose
-      >
-        <Form layout="vertical" form={createRelatedForm}>
-          <Form.Item
-            label="商机名称"
-            name="name"
-            rules={[{ required: true, message: "请输入商机名称" }]}
-          >
-            <AntInput placeholder="例如：智慧园区二期网络扩容" />
-          </Form.Item>
-          <Form.Item label="金额（万）" name="amount">
-            <AntInput placeholder="例如：300" />
-          </Form.Item>
-          <Form.Item label="阶段" name="stage" initialValue="solution_design">
-            <Select
-              options={[
-                { value: "discovery", label: "发现" },
-                { value: "solution_design", label: "方案设计" },
-                { value: "proposal", label: "提案" },
-                { value: "bidding", label: "投标" },
-                { value: "negotiation", label: "谈判" },
-                { value: "won", label: "中标" },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="成交概率（0-100）" name="probability">
-            <AntInput placeholder="例如：70" />
-          </Form.Item>
-          <Form.Item label="预计签约时间" name="expectedCloseDate">
-            <AntInput placeholder="例如：2024-10-31" />
-          </Form.Item>
-        </Form>
-      </Modal>
+          }}
+          onSubmitCreateRelated={async () => {
+            if (!currentProject) {
+              setCreateRelatedVisible(false);
+              return;
+            }
+            if (currentProject.status === "completed") {
+              message.warning("已完成项目已封板，不能继续新增关联商机。");
+              setCreateRelatedVisible(false);
+              return;
+            }
 
-      {/* 项目详情模态框（复刻 demo.html 项目详情 + 时间线） */}
-      <Modal
-        title="项目详情"
-        open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={[
-          <Button
-            key="close"
-            onClick={() => setDetailModalVisible(false)}
-          >
-            关闭
-          </Button>,
-        ]}
-        width={720}
-      >
-        {currentProject && (
-          <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 16,
-                marginBottom: 24,
-              }}
-            >
-              <div>
-                <strong>项目名称：</strong>
-                <br />
-                {currentProject.name}
-              </div>
-              <div>
-                <strong>客户名称：</strong>
-                <br />
-                {currentProject.customer}
-              </div>
-              <div>
-                <strong>项目状态：</strong>
-                <br />
-                {renderStatus(currentProject.status)}
-              </div>
-              <div>
-                <strong>项目阶段：</strong>
-                <br />
-                {getProjectStageText(currentProject.stage)}
-              </div>
-              <div>
-                <strong>预算金额：</strong>
-                <br />
-                {currentProject.budget}
-              </div>
-              <div>
-                <strong>优先级：</strong>
-                <br />
-                {renderPriority(currentProject.priority)}
-              </div>
-              <div>
-                <strong>开始时间：</strong>
-                <br />
-                {currentProject.startDate}
-              </div>
-              <div>
-                <strong>销售负责人：</strong>
-                <br />
-                {currentProject.salesOwner}
-              </div>
-              <div>
-                <strong>预计签约：</strong>
-                <br />
-                {currentProject.expectedCloseDate}
-              </div>
-              <div>
-                <strong>成交概率：</strong>
-                <br />
-                {currentProject.winProbability}%
-              </div>
-              <div>
-                <strong>所属行业负责人：</strong>
-                <br />
-                {currentProject.industryOwner}
-              </div>
-              <div>
-                <strong>售前负责人：</strong>
-                <br />
-                {currentProject.preSalesOwner}
-              </div>
-              <div>
-              <strong>关联商机数：</strong>
-              <br />
-              {currentProject.relatedOpportunities}
-            </div>
-              <div>
-                <strong>方案版本数：</strong>
-                <br />
-                {currentProject.solutionVersions}
-              </div>
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <strong>项目描述：</strong>
-              <p
-                style={{
-                  marginTop: 8,
-                  color: "#595959",
-                  lineHeight: 1.6,
-                }}
-              >
-                为{currentProject.customer}
-                提供全面的项目实施服务，具体范围和交付内容可根据实际需求进行扩展。
-              </p>
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <strong>关联商机列表：</strong>
-              <p
-                style={{
-                  marginTop: 8,
-                  color: "#8c8c8c",
-                  fontSize: 12,
-                }}
-              >
-                当前列表已按“项目主线”显式绑定展示，只显示归属于该项目的商机。
-                不再按客户名称自动混合其他项目的商机，后续可直接替换为真实
-                Opportunity 实体查询结果。
-              </p>
-              <Card size="small" bordered={false}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 8,
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: "#595959" }}>
-                      排序：
-                    </span>
-                    <Select
-                      size="small"
-                      style={{ width: 200 }}
-                      value={relatedSortKey}
-                      onChange={(value) => setRelatedSortKey(value)}
-                      options={[
-                        {
-                          value: "probability_desc",
-                          label: "按成交概率（从高到低）",
-                        },
-                        {
-                          value: "amount_desc",
-                          label: "按金额（从高到低）",
-                        },
-                        {
-                          value: "amount_asc",
-                          label: "按金额（从低到高）",
-                        },
-                      ]}
-                    />
-                  </div>
-                  <Button
-                    size="small"
-                    type="primary"
-                    disabled={
-                      !canCreateOpportunities || currentProject.status === "completed"
+            try {
+              const values = await createRelatedForm.validateFields();
+              const {
+                name,
+                amount,
+                stage,
+                probability,
+                expectedCloseDate,
+              } = values as {
+                name: string;
+                amount?: string;
+                stage?: string;
+                probability?: number;
+                expectedCloseDate?: string;
+              };
+
+              const probNumber =
+                probability !== undefined && probability !== null
+                  ? Number(probability)
+                  : 0;
+
+              const maxId = sharedOpportunities.reduce(
+                (max, item) => (item.id > max ? item.id : max),
+                0,
+              );
+              const newOpportunity: DemoOpportunity = {
+                id: maxId + 1,
+                opportunityCode: getNextOpportunityCode(
+                  sharedOpportunities.map((item) => item.opportunityCode),
+                ),
+                name,
+                customerName: currentProject.customer,
+                projectKey: currentProject.projectKey,
+                projectName: currentProject.name,
+                stage: stage || "solution_design",
+                expectedValue:
+                  amount && amount.trim().length > 0
+                    ? `¥${(Number(amount) * 10000).toLocaleString("zh-CN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`
+                    : "¥0.00",
+                ownerUsername:
+                  currentProject.preSalesOwnerUsername ||
+                  currentProject.salesOwnerUsername,
+                probability: Number.isNaN(probNumber) ? 0 : probNumber,
+                expectedCloseDate: expectedCloseDate || "",
+                createdAt: new Date().toISOString(),
+              };
+
+              const next = [...sharedOpportunities, newOpportunity];
+              setSharedOpportunities(next);
+              saveSharedDemoOpportunities(next);
+              message.success("已创建关联商机，并同步到商机管理");
+              createRelatedForm.resetFields();
+              setCreateRelatedVisible(false);
+            } catch {
+              // 校验失败时不关闭弹窗
+            }
+          }}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <LazyProjectDetailModal
+          open={detailModalVisible}
+          currentProject={currentProject}
+          relatedSortKey={relatedSortKey}
+          onRelatedSortKeyChange={setRelatedSortKey}
+          canCreateOpportunities={canCreateOpportunities}
+          onOpenCreateRelated={() => {
+            if (!canCreateOpportunities) {
+              message.warning("当前账号无权新建关联商机。");
+              return;
+            }
+            if (!currentProject) {
+              return;
+            }
+            if (currentProject.status === "completed") {
+              message.warning("已完成项目已封板，不能继续新增关联商机。");
+              return;
+            }
+            createRelatedForm.setFieldsValue({
+              name: "",
+              amount: "",
+              stage: "solution_design",
+              probability: "",
+              expectedCloseDate: "",
+            });
+            setCreateRelatedVisible(true);
+          }}
+          relatedRows={
+            currentProject
+              ? (() => {
+                  const raw = getRelatedRowsForProject(currentProject);
+                  return [...raw].sort((a, b) => {
+                    if (
+                      relatedSortKey === "amount_desc" ||
+                      relatedSortKey === "amount_asc"
+                    ) {
+                      const av = parseAmount(a.amount);
+                      const bv = parseAmount(b.amount);
+                      return relatedSortKey === "amount_desc" ? bv - av : av - bv;
                     }
-                    onClick={() => {
-                      if (!canCreateOpportunities) {
-                        message.warning("当前账号无权新建关联商机。");
-                        return;
-                      }
-                      if (!currentProject) {
-                        return;
-                      }
-                      if (currentProject.status === "completed") {
-                        message.warning("已完成项目已封板，不能继续新增关联商机。");
-                        return;
-                      }
-                      createRelatedForm.setFieldsValue({
-                        name: "",
-                        amount: "",
-                        stage: "solution_design",
-                        probability: "",
-                        expectedCloseDate: "",
-                      });
-                      setCreateRelatedVisible(true);
-                    }}
-                  >
-                    + 新建关联商机
-                  </Button>
-                </div>
-                {currentProject.status === "completed" && (
-                  <div
-                    style={{
-                      marginBottom: 12,
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      background: "rgba(240, 249, 255, 0.8)",
-                      border: "1px solid rgba(125, 211, 252, 0.45)",
-                      color: "#475569",
-                      fontSize: 12,
-                    }}
-                  >
-                    当前项目已处于“已完成 / 签约中标”状态，项目主线已封板，不再允许继续新增关联商机。
-                    如需推进新的销售机会，请新建项目或将商机绑定到其他进行中的项目。
-                  </div>
-                )}
-                <Table<RelatedOpportunityRow>
-                  size="small"
-                  rowKey="key"
-                  pagination={false}
-                  dataSource={(() => {
-                    const raw = getRelatedRowsForProject(currentProject);
-                    const sorted = [...raw].sort((a, b) => {
-                      if (
-                        relatedSortKey === "amount_desc" ||
-                        relatedSortKey === "amount_asc"
-                      ) {
-                        const av = parseAmount(a.amount);
-                        const bv = parseAmount(b.amount);
-                        return relatedSortKey === "amount_desc"
-                          ? bv - av
-                          : av - bv;
-                      }
-                      // 默认按成交概率从高到低
-                      return b.probability - a.probability;
-                    });
-                    return sorted;
-                  })()}
-                  columns={relatedColumnsWithActions}
-                />
-              </Card>
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <strong>项目进度时间线：</strong>
-              <div style={{ marginTop: 8, marginBottom: 12, color: "#8c8c8c", fontSize: 12 }}>
-                已走过和当前阶段可点击并跳转到对应业务模块；未进入的阶段置灰禁用。
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                  marginTop: 16,
-                }}
-              >
-                {PROJECT_TIMELINE_STAGES.map((item, index) => {
-                  const state = getStageNavigationState(
-                    currentProject.stage,
-                    item.key,
-                  );
-                  const clickable = state !== "future";
-                  const borderColor =
-                    state === "completed"
-                      ? "rgba(34, 197, 94, 0.34)"
-                      : state === "current"
-                        ? "rgba(59, 130, 246, 0.34)"
-                        : "var(--app-border)";
-                  const background =
-                    state === "completed"
-                      ? "linear-gradient(135deg, color-mix(in srgb, rgba(34,197,94,0.16) 72%, var(--app-surface) 28%) 0%, var(--app-surface-soft) 100%)"
-                      : state === "current"
-                        ? "linear-gradient(135deg, color-mix(in srgb, rgba(59,130,246,0.16) 72%, var(--app-surface) 28%) 0%, var(--app-surface-soft) 100%)"
-                        : "linear-gradient(180deg, var(--app-surface) 0%, var(--app-surface-soft) 100%)";
-                  const titleColor =
-                    state === "future"
-                      ? "var(--app-text-muted)"
-                      : "var(--app-text-primary)";
-                  const descColor =
-                    state === "future"
-                      ? "var(--app-text-muted)"
-                      : "var(--app-text-secondary)";
-                  const badgeText =
-                    state === "completed"
-                      ? "已完成"
-                      : state === "current"
-                        ? "当前阶段"
-                        : "未进入";
-                  const badgeColor =
-                    state === "completed"
-                      ? "#22c55e"
-                      : state === "current"
-                        ? "#3b82f6"
-                        : "#94a3b8";
-                  const icon =
-                    state === "completed" ? (
-                      <CheckCircleFilled style={{ color: "#52c41a", fontSize: 18 }} />
-                    ) : state === "current" ? (
-                      <ClockCircleFilled style={{ color: "#1677ff", fontSize: 18 }} />
-                    ) : (
-                      <StopFilled style={{ color: "#bfbfbf", fontSize: 18 }} />
-                    );
-
-                  return (
-                    <div
-                      key={item.key}
-                      role={clickable ? "button" : undefined}
-                      tabIndex={clickable ? 0 : -1}
-                      onClick={() => {
-                        if (!clickable) {
-                          return;
-                        }
-                        setDetailModalVisible(false);
-                        navigateToStageModule(currentProject, item.key, item.target);
-                      }}
-                      onKeyDown={(event) => {
-                        if (!clickable) {
-                          return;
-                        }
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setDetailModalVisible(false);
-                          navigateToStageModule(currentProject, item.key, item.target);
-                        }
-                      }}
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 12,
-                        padding: 16,
-                        border: `1px solid ${borderColor}`,
-                        borderRadius: 12,
-                        background,
-                        cursor: clickable ? "pointer" : "not-allowed",
-                        opacity: clickable ? 1 : 0.78,
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <div style={{ marginTop: 2 }}>{icon}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 12, color: "#8c8c8c" }}>
-                              阶段 {index + 1}
-                            </span>
-                            <span style={{ fontWeight: 600, color: titleColor }}>
-                              {item.title}
-                            </span>
-                            <Tag
-                              color={badgeColor}
-                              style={{ marginInlineEnd: 0 }}
-                            >
-                              {badgeText}
-                            </Tag>
-                          </div>
-                          {clickable ? (
-                            <span
-                              style={{
-                                color: badgeColor,
-                                fontSize: 12,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 4,
-                              }}
-                            >
-                              查看该阶段数据
-                              <ArrowRightOutlined />
-                            </span>
-                          ) : (
-                            <span style={{ color: "#bfbfbf", fontSize: 12 }}>
-                              未进入该阶段
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 6 }}>
-                          {item.key === currentProject.stage
-                            ? "当前所在阶段"
-                            : state === "completed"
-                              ? "已完成阶段"
-                              : "后续阶段"}
-                        </div>
-                        <div style={{ fontSize: 13, color: descColor, marginTop: 6, lineHeight: 1.6 }}>
-                          {item.description}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {currentProject.stage === "lost" && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 12,
-                      padding: 16,
-                      border: "1px solid #ffccc7",
-                      borderRadius: 12,
-                      background: "#fff2f0",
-                    }}
-                  >
-                    <StopFilled style={{ color: "#ff4d4f", fontSize: 18, marginTop: 2 }} />
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontWeight: 600, color: "#cf1322" }}>
-                          丢单终态
-                        </span>
-                        <Tag color="error" style={{ marginInlineEnd: 0 }}>
-                          当前阶段
-                        </Tag>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 6 }}>
-                        当前项目已在售前流程中终止，后续阶段不可跳转。
-                      </div>
-                      <div style={{ fontSize: 13, color: "#595959", marginTop: 6, lineHeight: 1.6 }}>
-                        已走过阶段仍可点击回看对应模块数据，未经过的阶段保持禁用。
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </Modal>
+                    return b.probability - a.probability;
+                  });
+                })()
+              : []
+          }
+          relatedColumnsWithActions={relatedColumnsWithActions}
+          timelineStages={PROJECT_TIMELINE_STAGES}
+          getStageNavigationState={getStageNavigationState}
+          navigateToStageModule={(project, stageKey, target) => {
+            setDetailModalVisible(false);
+            navigateToStageModule(project, stageKey, target);
+          }}
+          getProjectStageText={getProjectStageText}
+          renderStatus={renderStatus}
+          renderPriority={renderPriority}
+          onClose={() => setDetailModalVisible(false)}
+        />
+      </Suspense>
     </div>
   );
 }

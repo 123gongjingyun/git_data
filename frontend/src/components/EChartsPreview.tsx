@@ -1,53 +1,115 @@
 import { useEffect, useRef } from "react";
+import * as echarts from "echarts/core";
+import { install as installGridComponent } from "echarts/lib/component/grid/install.js";
+import { install as installLegendComponent } from "echarts/lib/component/legend/install.js";
+import { install as installTitleComponent } from "echarts/lib/component/title/install.js";
+import { install as installTooltipComponent } from "echarts/lib/component/tooltip/install.js";
+import { install as installCanvasRenderer } from "echarts/lib/renderer/installCanvasRenderer.js";
 
 interface EChartsPreviewProps {
   option: any;
   enable3D?: boolean;
   height?: number;
+  moduleKeys?: EChartsModuleKey[];
 }
 
-let echartsCoreLoader: Promise<typeof import("echarts/core")> | null = null;
+export type EChartsModuleKey =
+  | "bar"
+  | "line"
+  | "pie"
+  | "scatter"
+  | "effectScatter"
+  | "graph"
+  | "gauge"
+  | "sankey"
+  | "geo";
+
 let echartsGlLoader: Promise<unknown> | null = null;
+let hasRegisteredBaseModules = false;
+const loadedModuleKeys = new Set<EChartsModuleKey>();
+const moduleLoaderCache = new Map<EChartsModuleKey, Promise<void>>();
 
-async function loadEChartsCore() {
-  if (!echartsCoreLoader) {
-    echartsCoreLoader = (async () => {
-      const [
-        echarts,
-        charts,
-        components,
-        renderers,
-      ] = await Promise.all([
-        import("echarts/core"),
-        import("echarts/charts"),
-        import("echarts/components"),
-        import("echarts/renderers"),
-      ]);
-
-      echarts.use([
-        charts.BarChart,
-        charts.LineChart,
-        charts.PieChart,
-        charts.ScatterChart,
-        charts.GraphChart,
-        charts.GaugeChart,
-        charts.SankeyChart,
-        components.GridComponent,
-        components.TooltipComponent,
-        components.LegendComponent,
-        components.TitleComponent,
-        components.DatasetComponent,
-        components.TransformComponent,
-        components.GeoComponent,
-        components.VisualMapComponent,
-        renderers.CanvasRenderer,
-      ]);
-
-      return echarts;
-    })();
+function ensureBaseModules() {
+  if (hasRegisteredBaseModules) {
+    return;
   }
 
-  return echartsCoreLoader;
+  echarts.use([
+    installGridComponent,
+    installTooltipComponent,
+    installLegendComponent,
+    installTitleComponent,
+    installCanvasRenderer,
+  ]);
+  hasRegisteredBaseModules = true;
+}
+
+function loadOptionalModule(moduleKey: EChartsModuleKey) {
+  const cachedLoader = moduleLoaderCache.get(moduleKey);
+  if (cachedLoader) {
+    return cachedLoader;
+  }
+
+  const loader = (async () => {
+    if (loadedModuleKeys.has(moduleKey)) {
+      return;
+    }
+
+    switch (moduleKey) {
+      case "bar": {
+        const { install } = await import("echarts/lib/chart/bar/install.js");
+        echarts.use([install]);
+        break;
+      }
+      case "line": {
+        const { install } = await import("echarts/lib/chart/line/install.js");
+        echarts.use([install]);
+        break;
+      }
+      case "pie": {
+        const { install } = await import("echarts/lib/chart/pie/install.js");
+        echarts.use([install]);
+        break;
+      }
+      case "scatter": {
+        const { install } = await import("echarts/lib/chart/scatter/install.js");
+        echarts.use([install]);
+        break;
+      }
+      case "effectScatter": {
+        const { install } = await import("echarts/lib/chart/effectScatter/install.js");
+        echarts.use([install]);
+        break;
+      }
+      case "graph": {
+        const { install } = await import("echarts/lib/chart/graph/install.js");
+        echarts.use([install]);
+        break;
+      }
+      case "gauge": {
+        const { install } = await import("echarts/lib/chart/gauge/install.js");
+        echarts.use([install]);
+        break;
+      }
+      case "sankey": {
+        const { install } = await import("echarts/lib/chart/sankey/install.js");
+        echarts.use([install]);
+        break;
+      }
+      case "geo": {
+        const { install } = await import("echarts/lib/component/geo/install.js");
+        echarts.use([install]);
+        break;
+      }
+      default:
+        break;
+    }
+
+    loadedModuleKeys.add(moduleKey);
+  })();
+
+  moduleLoaderCache.set(moduleKey, loader);
+  return loader;
 }
 
 async function loadEChartsGl() {
@@ -66,7 +128,7 @@ async function loadEChartsGl() {
  * - 当前仅用于示意，不处理窗口 resize 等高级场景。
  */
 export function EChartsPreview(props: EChartsPreviewProps) {
-  const { option, enable3D, height = 220 } = props;
+  const { option, enable3D, height = 220, moduleKeys = [] } = props;
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -76,7 +138,10 @@ export function EChartsPreview(props: EChartsPreviewProps) {
     const mountChart = async () => {
       if (!containerRef.current) return;
       try {
-        const echarts = await loadEChartsCore();
+        ensureBaseModules();
+        if (moduleKeys.length > 0) {
+          await Promise.all(moduleKeys.map((moduleKey) => loadOptionalModule(moduleKey)));
+        }
         if (enable3D) {
           await loadEChartsGl();
         }
@@ -96,7 +161,7 @@ export function EChartsPreview(props: EChartsPreviewProps) {
         chart.dispose();
       }
     };
-  }, [option, enable3D]);
+  }, [enable3D, moduleKeys, option]);
 
   return (
     <div

@@ -67,6 +67,36 @@ const LazyOpenClawPlaygroundView = lazy(async () => {
   return { default: module.OpenClawPlaygroundView };
 });
 
+const LazyWorkflowEditorModal = lazy(async () => {
+  const module = await import("./settings/WorkflowEditorModal");
+  return { default: module.WorkflowEditorModal };
+});
+
+const LazyTeamMemberModals = lazy(async () => {
+  const module = await import("./settings/TeamMemberModals");
+  return { default: module.TeamMemberModals };
+});
+
+const LazyMenuPermissionsPanel = lazy(async () => {
+  const module = await import("./settings/MenuPermissionsPanel");
+  return { default: module.MenuPermissionsPanel };
+});
+
+const LazyActionPermissionsPanel = lazy(async () => {
+  const module = await import("./settings/ActionPermissionsPanel");
+  return { default: module.ActionPermissionsPanel };
+});
+
+const LazyBrandingSettingsPanel = lazy(async () => {
+  const module = await import("./settings/SettingsExtendedPanels");
+  return { default: module.BrandingSettingsPanel };
+});
+
+const LazyKnowledgeCategoryManagementPanel = lazy(async () => {
+  const module = await import("./settings/SettingsExtendedPanels");
+  return { default: module.KnowledgeCategoryManagementPanel };
+});
+
 function SettingsSectionLoadingCard(props: { title: string; description: string }) {
   const { title, description } = props;
 
@@ -4050,1424 +4080,139 @@ export function SettingsView(props: SettingsViewProps) {
           )}
 
           {activeMenu === "permissionsCenter" && permissionCenterTab === "menu" && (
-            <Card
-              style={permissionPanelStyle}
-              headStyle={{ display: "none" }}
-              bodyStyle={{ padding: 22 }}
+            <Suspense
+              fallback={
+                <SettingsSectionLoadingCard
+                  title="正在加载菜单权限工作台"
+                  description="权限矩阵与成员选择面板正在按需加载。"
+                />
+              }
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 16,
-                  gap: 16,
-                  flexWrap: "wrap",
-                  padding: 20,
-                  borderRadius: 18,
-                  background:
-                    "radial-gradient(circle at top left, rgba(37,99,235,0.16), transparent 30%), linear-gradient(135deg, var(--app-surface-soft) 0%, color-mix(in srgb, rgba(59,130,246,0.12) 55%, var(--app-surface) 45%) 55%, var(--app-surface) 100%)",
-                  border: "1px solid rgba(59, 130, 246, 0.24)",
-                }}
-              >
-                <div style={{ fontSize: 14, color: "var(--app-text-primary)" }}>
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                      color: "var(--app-text-primary)",
-                      marginBottom: 6,
-                    }}
-                  >
-                    菜单权限管理
-                  </div>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    第一期仅管理主导航与系统设置内独立配置页的可见性。权限模型为“角色默认菜单 + 用户个性化允许 / 隐藏覆盖”。
-                  </Text>
-                </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {menuPermissionsDirty && (
-                    <Tag color="orange">有未保存变更</Tag>
-                  )}
-                  <Button size="small" onClick={() => void loadTeamMembers()}>
-                    刷新成员
-                  </Button>
-                  <Button
-                    size="small"
-                    onClick={() => void loadMenuPermissionDefinitions()}
-                  >
-                    刷新菜单项
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={!isNumericUserId(selectedPermissionUserId)}
-                    onClick={handleSelectAllMenuOverrides}
-                  >
-                    全部允许
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={!isNumericUserId(selectedPermissionUserId)}
-                    onClick={handleClearMenuOverrides}
-                  >
-                    清空覆盖
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={
-                      !isNumericUserId(selectedPermissionUserId) || menuPermissionsSaving
-                    }
-                    onClick={handleResetMenuPermissions}
-                  >
-                    恢复角色默认
-                  </Button>
-                  <Button
-                    type="primary"
-                    size="small"
-                    loading={menuPermissionsSaving}
-                    disabled={!isNumericUserId(selectedPermissionUserId)}
-                    onClick={() => void handleSaveMenuPermissions()}
-                  >
-                    保存
-                  </Button>
-                </div>
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 12,
-                  marginBottom: 16,
-                }}
-              >
-                {[
-                  { label: "当前用户", value: selectedPermissionUser?.displayName || selectedPermissionUser?.username || "未选择" },
-                  { label: "角色默认菜单", value: `${roleMenuKeys.length} 项` },
-                  { label: "当前覆盖", value: `${allowedMenuKeysDraft.length + deniedMenuKeysDraft.length} 项` },
-                  { label: "最终生效", value: `${effectiveMenuKeysPreview.length} 项` },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      padding: "14px 16px",
-                      borderRadius: 16,
-                      border: "1px solid rgba(59, 130, 246, 0.24)",
-                      background:
-                        "linear-gradient(180deg, color-mix(in srgb, rgba(59,130,246,0.16) 68%, var(--app-surface) 32%) 0%, var(--app-surface-soft) 100%)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--app-text-secondary)",
-                        marginBottom: 6,
-                      }}
-                    >
-                      {item.label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 700,
-                        color: "var(--app-text-primary)",
-                      }}
-                    >
-                      {item.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {!canManageMenuPermissions && (
-                <div
-                  style={{
-                    padding: 12,
-                    marginBottom: 12,
-                    borderRadius: 6,
-                    background: "rgba(250, 173, 20, 0.14)",
-                    border: "1px solid #ffd591",
-                    color: "#ad6800",
-                    fontSize: 12,
-                  }}
-                >
-                  当前账号无权维护菜单权限。仅管理员可进入该页面。
-                </div>
-              )}
-
-              <Card
-                size="small"
-                title="成员选择"
-                bordered={false}
-                style={{
-                  ...permissionWorkbenchCardStyle,
-                  marginBottom: 16,
-                  background:
-                    "radial-gradient(circle at top right, rgba(59,130,246,0.14), transparent 28%), linear-gradient(180deg, color-mix(in srgb, rgba(59,130,246,0.10) 52%, var(--app-surface) 48%) 0%, var(--app-surface-soft) 100%)",
-                }}
-                headStyle={{ fontWeight: 700 }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 12,
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        letterSpacing: 1.2,
-                        color: "#2563eb",
-                        marginBottom: 4,
-                      }}
-                    >
-                      STEP 1
-                    </div>
-                    <Text type="secondary" style={{ fontSize: 12, display: "block" }}>
-                      先选择一个成员，再在下方按模块勾选菜单可见权限。当前为单成员配置模式。
-                    </Text>
-                  </div>
-                  <Tag color="blue">横向单选模式</Tag>
-                </div>
-                {permissionConfigurableMembers.length === 0 ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {filteredMembers.length === 0
-                      ? "当前没有可配置的成员。"
-                      : "当前成员列表仍为本地快照，需连接后端真实用户数据后才能维护菜单权限。"}
-                  </Text>
-                ) : (
-                  <Radio.Group
-                    value={selectedPermissionUserId ?? undefined}
-                    onChange={(event) =>
-                      setSelectedPermissionUserId(event.target.value)
-                    }
-                    style={{ width: "100%" }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 12,
-                        overflowX: "auto",
-                        paddingBottom: 4,
-                        scrollSnapType: "x proximity",
-                      }}
-                    >
-                      {permissionConfigurableMembers.map((member) => {
-                        const isActive = member.key === selectedPermissionUserId;
-                        return (
-                          <label
-                            key={member.key}
-                            style={{
-                              minWidth: 260,
-                              flex: "0 0 260px",
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 12,
-                              padding: "14px 16px",
-                              borderRadius: 16,
-                              cursor: "pointer",
-                              border: isActive
-                                ? "1px solid rgba(59, 130, 246, 0.3)"
-                                : "1px solid var(--app-border)",
-                              background: isActive
-                                ? "linear-gradient(135deg, color-mix(in srgb, rgba(59,130,246,0.16) 70%, var(--app-surface) 30%) 0%, var(--app-surface-soft) 100%)"
-                                : "linear-gradient(180deg, var(--app-surface) 0%, var(--app-surface-soft) 100%)",
-                              boxShadow: isActive
-                                ? "0 12px 24px rgba(59,130,246,0.12)"
-                                : "0 8px 18px rgba(15,23,42,0.12)",
-                              scrollSnapAlign: "start",
-                            }}
-                          >
-                            <Radio value={member.key} style={{ marginTop: 2 }} />
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  marginBottom: 8,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    minWidth: 0,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 10,
-                                  }}
-                                >
-                                  <Avatar
-                                    size={36}
-                                    style={{
-                                      background: getAvatarColor(member.role),
-                                      flex: "0 0 auto",
-                                      boxShadow: isActive
-                                        ? "0 10px 18px rgba(59,130,246,0.18)"
-                                        : "none",
-                                    }}
-                                  >
-                                    {member.name.slice(0, 1)}
-                                  </Avatar>
-                                  <div style={{ minWidth: 0 }}>
-                                    <div
-                                      style={{
-                                        fontWeight: 700,
-                                        color: "var(--app-text-primary)",
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                      }}
-                                    >
-                                      {member.name}
-                                    </div>
-                                    <Text type="secondary" style={{ fontSize: 12 }}>
-                                      {member.username}
-                                    </Text>
-                                  </div>
-                                </div>
-                                <Tag color={getRoleTagColor(member.role)}>{member.role}</Tag>
-                              </div>
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-                                <Tag color="blue">
-                                  菜单覆盖 {member.menuOverrideCount || 0}
-                                </Tag>
-                                {(member.actionOverrideCount || 0) > 0 && (
-                                  <Tag color="gold">
-                                    操作覆盖 {member.actionOverrideCount}
-                                  </Tag>
-                                )}
-                              </div>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                {member.permissions}
-                              </Text>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </Radio.Group>
-                )}
-              </Card>
-
-              <Card
-                size="small"
-                title="菜单权限明细"
-                bordered={false}
-                style={{
-                  ...permissionWorkbenchCardStyle,
-                  background:
-                    "linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 98%, transparent) 0%, color-mix(in srgb, rgba(59,130,246,0.08) 45%, var(--app-surface-soft) 55%) 100%)",
-                }}
-                headStyle={{ fontWeight: 700 }}
-              >
-                {!selectedPermissionUserId && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    请先在上方选择成员。
-                  </Text>
-                )}
-
-                {selectedPermissionUserId && (
-                  <>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 16,
-                        flexWrap: "wrap",
-                        marginBottom: 16,
-                        padding: 16,
-                        borderRadius: 16,
-                        border: "1px solid rgba(59, 130, 246, 0.22)",
-                        background:
-                          "linear-gradient(135deg, color-mix(in srgb, rgba(59,130,246,0.14) 70%, var(--app-surface) 30%) 0%, var(--app-surface-soft) 100%)",
-                      }}
-                    >
-                      <div style={{ minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            letterSpacing: 1.2,
-                            color: "#2563eb",
-                            marginBottom: 8,
-                          }}
-                        >
-                          STEP 2
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <Tag color="blue">
-                            当前成员：
-                            {selectedPermissionUser?.displayName ||
-                              selectedPermissionUser?.username ||
-                              "--"}
-                          </Tag>
-                          <Tag color="geekblue">
-                            角色默认 {roleMenuKeys.length} 项
-                          </Tag>
-                          <Tag color="green">
-                            自定义允许 {allowedMenuKeysDraft.length} 项
-                          </Tag>
-                          <Tag color="red">
-                            自定义隐藏 {deniedMenuKeysDraft.length} 项
-                          </Tag>
-                          <Tag color="gold">
-                            最终生效 {effectiveMenuKeysPreview.length} 项
-                          </Tag>
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          minWidth: 240,
-                          padding: "12px 14px",
-                          borderRadius: 14,
-                          border: "1px solid rgba(59, 130, 246, 0.24)",
-                          background:
-                            "linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 92%, transparent) 0%, color-mix(in srgb, rgba(59,130,246,0.12) 50%, var(--app-surface-soft) 50%) 100%)",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "var(--app-text-secondary)",
-                            marginBottom: 6,
-                          }}
-                        >
-                          当前编辑状态
-                        </div>
-                        <Text type="secondary" style={{ fontSize: 12, maxWidth: 360 }}>
-                          {menuPermissionsDirty
-                            ? "当前存在未保存的菜单权限调整，建议保存后再切换成员或离开页面。"
-                            : "当前菜单权限与服务器已同步。"}
-                        </Text>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 12,
-                        flexWrap: "wrap",
-                        marginBottom: 18,
-                        alignItems: "center",
-                        padding: 14,
-                        borderRadius: 16,
-                        border: "1px solid rgba(59, 130, 246, 0.2)",
-                        background:
-                          "linear-gradient(180deg, var(--app-surface) 0%, var(--app-surface-soft) 100%)",
-                      }}
-                    >
-                      <AntInput
-                        allowClear
-                        style={{ width: 320 }}
-                        placeholder="搜索模块 / 菜单名称 / 权限码"
-                        value={menuPermissionSearch}
-                        onChange={(event) =>
-                          setMenuPermissionSearch(event.target.value)
-                        }
-                      />
-                      <Select
-                        style={{ width: 200 }}
-                        value={menuPermissionViewMode}
-                        onChange={(value) =>
-                          setMenuPermissionViewMode(
-                            value as
-                              | "all"
-                              | "overridden"
-                              | "effective"
-                              | "inactive",
-                          )
-                        }
-                        options={[
-                          { value: "all", label: "查看全部" },
-                          { value: "overridden", label: "只看已覆盖项" },
-                          { value: "effective", label: "只看已生效项" },
-                          { value: "inactive", label: "只看未生效项" },
-                          { value: "draft", label: "只看本次变更项" },
-                        ]}
-                      />
-                      <Tag color="blue">模块化矩阵视图</Tag>
-                    </div>
-
-                    {menuPermissionsLoading ? (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        正在加载菜单权限详情...
-                      </Text>
-                    ) : (
-                      <Collapse
-                        activeKey={expandedMenuModules}
-                        onChange={(keys) =>
-                          setExpandedMenuModules(
-                            (Array.isArray(keys) ? keys : [keys]).map(String),
-                          )
-                        }
-                        ghost
-                        style={{ background: "transparent" }}
-                        items={groupedMenuDefinitionsByModule.map(({ moduleKey, items }) => {
-                          const visibleItems = items.filter((item) => {
-                            const allowed = allowedMenuKeysDraft.includes(item.key);
-                            const denied = deniedMenuKeysDraft.includes(item.key);
-                            const effective = effectiveMenuKeysPreview.includes(item.key);
-                            return matchesPermissionFilter(
-                              `${permissionModuleLabelMap[moduleKey]} ${item.label}`,
-                              item.key,
-                              allowed || denied,
-                              effective,
-                              menuPermissionDraftChangedKeys.has(item.key),
-                              menuPermissionSearch,
-                              menuPermissionViewMode,
-                            );
-                          });
-                          if (visibleItems.length === 0) {
-                            return {
-                              key: moduleKey,
-                              label: null,
-                              children: null,
-                              collapsible: "disabled" as const,
-                            };
-                          }
-                          const moduleEffectiveCount = visibleItems.filter((item) =>
-                            effectiveMenuKeysPreview.includes(item.key),
-                          ).length;
-                          const moduleOverrideCount = visibleItems.filter((item) => {
-                            return (
-                              allowedMenuKeysDraft.includes(item.key) ||
-                              deniedMenuKeysDraft.includes(item.key)
-                            );
-                          }).length;
-                          return {
-                            key: moduleKey,
-                            style: {
-                              marginBottom: 16,
-                              borderRadius: 20,
-                              background:
-                                "linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 98%, transparent) 0%, color-mix(in srgb, rgba(59,130,246,0.1) 38%, var(--app-surface-soft) 62%) 100%)",
-                              border: "1px solid rgba(59, 130, 246, 0.2)",
-                              boxShadow: "0 14px 30px rgba(15, 23, 42, 0.2)",
-                              overflow: "hidden",
-                            } satisfies React.CSSProperties,
-                            label: (
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  gap: 12,
-                                  flexWrap: "wrap",
-                                  width: "100%",
-                                }}
-                              >
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                                  <span style={{ fontWeight: 800, color: "var(--app-text-primary)" }}>
-                                    {permissionModuleLabelMap[moduleKey]}
-                                  </span>
-                                  <Tag color="blue">
-                                    {moduleEffectiveCount}/{items.length} 生效
-                                  </Tag>
-                                  <Tag color="geekblue">
-                                    覆盖 {moduleOverrideCount} 项
-                                  </Tag>
-                                </div>
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                  <Button
-                                    size="small"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleAllowAllMenusForModule(moduleKey);
-                                    }}
-                                  >
-                                    本模块全部允许
-                                  </Button>
-                                  <Button
-                                    size="small"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleClearMenuOverridesForModule(moduleKey);
-                                    }}
-                                  >
-                                    清空本模块覆盖
-                                  </Button>
-                                </div>
-                              </div>
-                            ),
-                            children: (
-                              <div>
-                                {menuPermissionMatrixHeader}
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 10,
-                                  }}
-                                >
-                                  {visibleItems.map((item) => {
-                                    const inRole = roleMenuKeys.includes(item.key);
-                                    const allowed = allowedMenuKeysDraft.includes(item.key);
-                                    const denied = deniedMenuKeysDraft.includes(item.key);
-                                    const effective = effectiveMenuKeysPreview.includes(item.key);
-                                    const isOverridden = allowed || denied;
-
-                                    return (
-                                      <div
-                                        key={item.key}
-                                        style={createMenuPermissionRowStyle(
-                                          isOverridden,
-                                          effective,
-                                        )}
-                                      >
-                                        <div>
-                                          <div
-                                            style={{
-                                              fontWeight: 700,
-                                              color: "var(--app-text-primary)",
-                                              marginBottom: 4,
-                                            }}
-                                          >
-                                            {item.label}
-                                          </div>
-                                          <Text type="secondary" style={{ fontSize: 12 }}>
-                                            {permissionModuleLabelMap[moduleKey]} · {item.key}
-                                          </Text>
-                                        </div>
-                                        <div>
-                                          {renderPermissionStateTag(
-                                            inRole,
-                                            "默认可见",
-                                            "默认隐藏",
-                                          )}
-                                        </div>
-                                        <div>
-                                          <Checkbox
-                                            checked={allowed}
-                                            onChange={(event) =>
-                                              handleToggleAllowedMenuKey(
-                                                item.key,
-                                                event.target.checked,
-                                              )
-                                            }
-                                          >
-                                            允许
-                                          </Checkbox>
-                                        </div>
-                                        <div>
-                                          <Checkbox
-                                            checked={denied}
-                                            onChange={(event) =>
-                                              handleToggleDeniedMenuKey(
-                                                item.key,
-                                                event.target.checked,
-                                              )
-                                            }
-                                          >
-                                            隐藏
-                                          </Checkbox>
-                                        </div>
-                                        <div>
-                                          {renderPermissionStateTag(
-                                            effective,
-                                            "已生效",
-                                            "未生效",
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ),
-                          };
-                        }).filter((item) => item.label)}
-                      />
-                    )}
-                  </>
-                )}
-              </Card>
-            </Card>
+              <LazyMenuPermissionsPanel
+                permissionPanelStyle={permissionPanelStyle}
+                permissionWorkbenchCardStyle={permissionWorkbenchCardStyle}
+                canManageMenuPermissions={canManageMenuPermissions}
+                menuPermissionsDirty={menuPermissionsDirty}
+                selectedPermissionUser={selectedPermissionUser}
+                roleMenuKeys={roleMenuKeys}
+                allowedMenuKeysDraft={allowedMenuKeysDraft}
+                deniedMenuKeysDraft={deniedMenuKeysDraft}
+                effectiveMenuKeysPreview={effectiveMenuKeysPreview}
+                selectedPermissionUserId={selectedPermissionUserId}
+                permissionConfigurableMembers={permissionConfigurableMembers}
+                filteredMembersLength={filteredMembers.length}
+                getAvatarColor={getAvatarColor}
+                getRoleTagColor={getRoleTagColor}
+                onRefreshMembers={() => void loadTeamMembers()}
+                onRefreshDefinitions={() => void loadMenuPermissionDefinitions()}
+                onSelectAllMenuOverrides={handleSelectAllMenuOverrides}
+                onClearMenuOverrides={handleClearMenuOverrides}
+                onResetMenuPermissions={handleResetMenuPermissions}
+                onSaveMenuPermissions={() => void handleSaveMenuPermissions()}
+                menuPermissionsSaving={menuPermissionsSaving}
+                onSelectPermissionUser={setSelectedPermissionUserId}
+                menuPermissionsLoading={menuPermissionsLoading}
+                menuPermissionSearch={menuPermissionSearch}
+                onMenuPermissionSearchChange={setMenuPermissionSearch}
+                menuPermissionViewMode={menuPermissionViewMode}
+                onMenuPermissionViewModeChange={setMenuPermissionViewMode}
+                expandedMenuModules={expandedMenuModules}
+                onExpandedMenuModulesChange={setExpandedMenuModules}
+                groupedMenuDefinitionsByModule={groupedMenuDefinitionsByModule}
+                permissionModuleLabelMap={permissionModuleLabelMap}
+                menuPermissionDraftChangedKeys={menuPermissionDraftChangedKeys}
+                matchesPermissionFilter={matchesPermissionFilter}
+                onAllowAllMenusForModule={handleAllowAllMenusForModule}
+                onClearMenuOverridesForModule={handleClearMenuOverridesForModule}
+                menuPermissionMatrixHeader={menuPermissionMatrixHeader}
+                createMenuPermissionRowStyle={createMenuPermissionRowStyle}
+                renderPermissionStateTag={renderPermissionStateTag}
+                onToggleAllowedMenuKey={handleToggleAllowedMenuKey}
+                onToggleDeniedMenuKey={handleToggleDeniedMenuKey}
+                isNumericUserId={isNumericUserId}
+              />
+            </Suspense>
           )}
 
           {activeMenu === "permissionsCenter" && permissionCenterTab === "action" && (
-            <Card
-              style={permissionPanelStyle}
-              headStyle={{ display: "none" }}
-              bodyStyle={{ padding: 22 }}
+            <Suspense
+              fallback={
+                <SettingsSectionLoadingCard
+                  title="正在加载操作权限工作台"
+                  description="动作权限矩阵与成员选择面板正在按需加载。"
+                />
+              }
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 16,
-                  gap: 16,
-                  flexWrap: "wrap",
-                  padding: 20,
-                  borderRadius: 18,
-                  background:
-                    "radial-gradient(circle at top left, rgba(22,163,74,0.14), transparent 30%), linear-gradient(135deg, var(--app-surface-soft) 0%, color-mix(in srgb, rgba(34,197,94,0.12) 55%, var(--app-surface) 45%) 55%, var(--app-surface) 100%)",
-                  border: "1px solid rgba(34, 197, 94, 0.22)",
-                }}
-              >
-                <div style={{ fontSize: 14, color: "var(--app-text-primary)" }}>
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                      color: "var(--app-text-primary)",
-                      marginBottom: 6,
-                    }}
-                  >
-                    操作权限管理
-                  </div>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    第一期将新增 / 查看 / 编辑 / 删除 / 下载 / 审批等动作做成可视化勾选项。当前先覆盖项目管理、商机管理、解决方案、审批流程库等高风险模块。
-                  </Text>
-                </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {actionPermissionsDirty && (
-                    <Tag color="orange">有未保存变更</Tag>
-                  )}
-                  <Button size="small" onClick={() => void loadTeamMembers()}>
-                    刷新成员
-                  </Button>
-                  <Button
-                    size="small"
-                    onClick={() => void loadActionPermissionDefinitions()}
-                  >
-                    刷新权限项
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={!isNumericUserId(selectedActionPermissionUserId)}
-                    onClick={handleSelectAllActionOverrides}
-                  >
-                    全部允许
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={!isNumericUserId(selectedActionPermissionUserId)}
-                    onClick={handleClearActionOverrides}
-                  >
-                    清空覆盖
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={
-                      !isNumericUserId(selectedActionPermissionUserId) ||
-                      actionPermissionsSaving
-                    }
-                    onClick={handleResetActionPermissions}
-                  >
-                    恢复角色默认
-                  </Button>
-                  <Button
-                    type="primary"
-                    size="small"
-                    loading={actionPermissionsSaving}
-                    disabled={!isNumericUserId(selectedActionPermissionUserId)}
-                    onClick={() => void handleSaveActionPermissions()}
-                  >
-                    保存
-                  </Button>
-                </div>
-              </div>
-
-              {!canManageActionPermissions && (
-                <div
-                  style={{
-                    padding: 12,
-                    marginBottom: 12,
-                    borderRadius: 6,
-                    background: "rgba(250, 173, 20, 0.14)",
-                    border: "1px solid #ffd591",
-                    color: "#ad6800",
-                    fontSize: 12,
-                  }}
-                >
-                  当前账号无权维护操作权限。仅管理员可进入该页面。
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 12,
-                  marginBottom: 16,
-                }}
-              >
-                {[
-                  { label: "当前用户", value: selectedActionPermissionUser?.displayName || selectedActionPermissionUser?.username || "未选择" },
-                  { label: "角色默认动作", value: `${roleActionKeys.length} 项` },
-                  { label: "当前覆盖", value: `${allowedActionKeysDraft.length + deniedActionKeysDraft.length} 项` },
-                  { label: "最终生效", value: `${effectiveActionKeysPreview.length} 项` },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      padding: "14px 16px",
-                      borderRadius: 16,
-                      border: "1px solid rgba(34, 197, 94, 0.24)",
-                      background:
-                        "linear-gradient(180deg, color-mix(in srgb, rgba(34,197,94,0.16) 68%, var(--app-surface) 32%) 0%, var(--app-surface-soft) 100%)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--app-text-secondary)",
-                        marginBottom: 6,
-                      }}
-                    >
-                      {item.label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 700,
-                        color: "var(--app-text-primary)",
-                      }}
-                    >
-                      {item.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Card
-                size="small"
-                title="成员选择"
-                bordered={false}
-                style={{
-                  ...permissionWorkbenchCardStyle,
-                  marginBottom: 16,
-                  background:
-                    "radial-gradient(circle at top right, rgba(34,197,94,0.14), transparent 28%), linear-gradient(180deg, color-mix(in srgb, rgba(34,197,94,0.10) 52%, var(--app-surface) 48%) 0%, var(--app-surface-soft) 100%)",
-                }}
-                headStyle={{ fontWeight: 700 }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 12,
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        letterSpacing: 1.2,
-                        color: "#16a34a",
-                        marginBottom: 4,
-                      }}
-                    >
-                      STEP 1
-                    </div>
-                    <Text type="secondary" style={{ fontSize: 12, display: "block" }}>
-                      先选择一个成员，再在下方按模块勾选操作权限。当前为单成员配置模式。
-                    </Text>
-                  </div>
-                  <Tag color="green">横向单选模式</Tag>
-                </div>
-                {permissionConfigurableMembers.length === 0 ? (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {filteredMembers.length === 0
-                      ? "当前没有可配置的成员。"
-                      : "当前成员列表仍为本地快照，需连接后端真实用户数据后才能维护操作权限。"}
-                  </Text>
-                ) : (
-                  <Radio.Group
-                    value={selectedActionPermissionUserId ?? undefined}
-                    onChange={(event) =>
-                      setSelectedActionPermissionUserId(event.target.value)
-                    }
-                    style={{ width: "100%" }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 12,
-                        overflowX: "auto",
-                        paddingBottom: 4,
-                        scrollSnapType: "x proximity",
-                      }}
-                    >
-                      {permissionConfigurableMembers.map((member) => {
-                        const isActive = member.key === selectedActionPermissionUserId;
-                        return (
-                          <label
-                            key={member.key}
-                            style={{
-                              minWidth: 260,
-                              flex: "0 0 260px",
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 12,
-                              padding: "14px 16px",
-                              borderRadius: 16,
-                              cursor: "pointer",
-                              border: isActive
-                                ? "1px solid rgba(251, 146, 60, 0.3)"
-                                : "1px solid var(--app-border)",
-                              background: isActive
-                                ? "linear-gradient(135deg, color-mix(in srgb, rgba(251,146,60,0.16) 70%, var(--app-surface) 30%) 0%, var(--app-surface-soft) 100%)"
-                                : "linear-gradient(180deg, var(--app-surface) 0%, var(--app-surface-soft) 100%)",
-                              boxShadow: isActive
-                                ? "0 12px 24px rgba(251,146,60,0.12)"
-                                : "0 8px 18px rgba(15,23,42,0.12)",
-                              scrollSnapAlign: "start",
-                            }}
-                          >
-                            <Radio value={member.key} style={{ marginTop: 2 }} />
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  gap: 8,
-                                  marginBottom: 8,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    minWidth: 0,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 10,
-                                  }}
-                                >
-                                  <Avatar
-                                    size={36}
-                                    style={{
-                                      background: getAvatarColor(member.role),
-                                      flex: "0 0 auto",
-                                      boxShadow: isActive
-                                        ? "0 10px 18px rgba(251,146,60,0.18)"
-                                        : "none",
-                                    }}
-                                  >
-                                    {member.name.slice(0, 1)}
-                                  </Avatar>
-                                  <div
-                                    style={{
-                                      minWidth: 0,
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        fontWeight: 700,
-                                        color: "var(--app-text-primary)",
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                      }}
-                                    >
-                                      {member.name}
-                                    </div>
-                                    <Text type="secondary" style={{ fontSize: 12 }}>
-                                      {member.username}
-                                    </Text>
-                                  </div>
-                                </div>
-                                <Tag color={getRoleTagColor(member.role)}>{member.role}</Tag>
-                              </div>
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-                                <Tag color="gold">
-                                  操作覆盖 {member.actionOverrideCount || 0}
-                                </Tag>
-                                {(member.menuOverrideCount || 0) > 0 && (
-                                  <Tag color="blue">
-                                    菜单覆盖 {member.menuOverrideCount}
-                                  </Tag>
-                                )}
-                              </div>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                {member.permissions}
-                              </Text>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </Radio.Group>
-                )}
-              </Card>
-
-              <Card
-                size="small"
-                title="操作权限明细"
-                bordered={false}
-                style={{
-                  ...permissionWorkbenchCardStyle,
-                  background:
-                    "linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 98%, transparent) 0%, color-mix(in srgb, rgba(34,197,94,0.08) 45%, var(--app-surface-soft) 55%) 100%)",
-                }}
-                headStyle={{ fontWeight: 700 }}
-              >
-                {!selectedActionPermissionUserId && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    请先在上方选择成员。
-                  </Text>
-                )}
-
-                {selectedActionPermissionUserId && (
-                  <>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 16,
-                        flexWrap: "wrap",
-                        marginBottom: 16,
-                        padding: 16,
-                        borderRadius: 16,
-                        border: "1px solid rgba(34, 197, 94, 0.22)",
-                        background:
-                          "linear-gradient(135deg, color-mix(in srgb, rgba(34,197,94,0.14) 70%, var(--app-surface) 30%) 0%, var(--app-surface-soft) 100%)",
-                      }}
-                    >
-                      <div style={{ minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            letterSpacing: 1.2,
-                            color: "#16a34a",
-                            marginBottom: 8,
-                          }}
-                        >
-                          STEP 2
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <Tag color="blue">
-                            当前成员：
-                            {selectedActionPermissionUser?.displayName ||
-                              selectedActionPermissionUser?.username ||
-                              "--"}
-                          </Tag>
-                          <Tag color="geekblue">
-                            角色默认 {roleActionKeys.length} 项
-                          </Tag>
-                          <Tag color="green">
-                            自定义允许 {allowedActionKeysDraft.length} 项
-                          </Tag>
-                          <Tag color="red">
-                            自定义隐藏 {deniedActionKeysDraft.length} 项
-                          </Tag>
-                          <Tag color="gold">
-                            最终生效 {effectiveActionKeysPreview.length} 项
-                          </Tag>
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          minWidth: 240,
-                          padding: "12px 14px",
-                          borderRadius: 14,
-                          border: "1px solid rgba(34, 197, 94, 0.24)",
-                          background:
-                            "linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 92%, transparent) 0%, color-mix(in srgb, rgba(34,197,94,0.12) 50%, var(--app-surface-soft) 50%) 100%)",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "var(--app-text-secondary)",
-                            marginBottom: 6,
-                          }}
-                        >
-                          当前编辑状态
-                        </div>
-                        <Text type="secondary" style={{ fontSize: 12, maxWidth: 360 }}>
-                          {actionPermissionsDirty
-                            ? "当前存在未保存的动作权限调整，建议保存后再切换成员或离开页面。"
-                            : "当前操作权限与服务器已同步。"}
-                        </Text>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 12,
-                        flexWrap: "wrap",
-                        marginBottom: 18,
-                        alignItems: "center",
-                        padding: 14,
-                        borderRadius: 16,
-                        border: "1px solid rgba(34, 197, 94, 0.2)",
-                        background:
-                          "linear-gradient(180deg, var(--app-surface) 0%, var(--app-surface-soft) 100%)",
-                      }}
-                    >
-                      <AntInput
-                        allowClear
-                        style={{ width: 320 }}
-                        placeholder="搜索模块 / 动作名称 / 权限码"
-                        value={actionPermissionSearch}
-                        onChange={(event) =>
-                          setActionPermissionSearch(event.target.value)
-                        }
-                      />
-                      <Select
-                        style={{ width: 200 }}
-                        value={actionPermissionViewMode}
-                        onChange={(value) =>
-                          setActionPermissionViewMode(
-                            value as
-                              | "all"
-                              | "overridden"
-                              | "effective"
-                              | "inactive",
-                          )
-                        }
-                        options={[
-                          { value: "all", label: "查看全部" },
-                          { value: "overridden", label: "只看已覆盖项" },
-                          { value: "effective", label: "只看已生效项" },
-                          { value: "inactive", label: "只看未生效项" },
-                          { value: "draft", label: "只看本次变更项" },
-                        ]}
-                      />
-                      <Tag color="green">模块化矩阵视图</Tag>
-                    </div>
-
-                    {actionPermissionsLoading ? (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        正在加载操作权限详情...
-                      </Text>
-                    ) : (
-                      <Collapse
-                        activeKey={expandedActionModules}
-                        onChange={(keys) =>
-                          setExpandedActionModules(
-                            (Array.isArray(keys) ? keys : [keys]).map(String),
-                          )
-                        }
-                        ghost
-                        style={{ background: "transparent" }}
-                        items={groupedActionDefinitionsByModule.map(({ moduleKey, items }) => {
-                          const visibleItems = items.filter((item) => {
-                            const allowed = allowedActionKeysDraft.includes(item.key);
-                            const denied = deniedActionKeysDraft.includes(item.key);
-                            const effective = effectiveActionKeysPreview.includes(item.key);
-                            return matchesPermissionFilter(
-                              `${actionModuleLabelMap[moduleKey]} ${item.label}`,
-                              item.key,
-                              allowed || denied,
-                              effective,
-                              actionPermissionDraftChangedKeys.has(item.key),
-                              actionPermissionSearch,
-                              actionPermissionViewMode,
-                            );
-                          });
-                          if (visibleItems.length === 0) {
-                            return {
-                              key: moduleKey,
-                              label: null,
-                              children: null,
-                              collapsible: "disabled" as const,
-                            };
-                          }
-                          const relatedMenuKey = menuPermissionDefinitions.find(
-                            (item) => resolveMenuModuleKey(item.key) === moduleKey,
-                          )?.key;
-                          const menuEffective = relatedMenuKey
-                            ? effectiveMenuKeysPreview.includes(relatedMenuKey)
-                            : null;
-                          const moduleEffectiveCount = visibleItems.filter((item) =>
-                            effectiveActionKeysPreview.includes(item.key),
-                          ).length;
-                          const moduleOverrideCount = visibleItems.filter((item) => {
-                            return (
-                              allowedActionKeysDraft.includes(item.key) ||
-                              deniedActionKeysDraft.includes(item.key)
-                            );
-                          }).length;
-
-                          return {
-                            key: moduleKey,
-                            style: {
-                              marginBottom: 16,
-                              borderRadius: 20,
-                              background:
-                                "linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 98%, transparent) 0%, color-mix(in srgb, rgba(34,197,94,0.1) 38%, var(--app-surface-soft) 62%) 100%)",
-                              border: "1px solid rgba(34, 197, 94, 0.2)",
-                              boxShadow: "0 14px 30px rgba(15, 23, 42, 0.2)",
-                              overflow: "hidden",
-                            } satisfies React.CSSProperties,
-                            label: (
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  gap: 12,
-                                  flexWrap: "wrap",
-                                  width: "100%",
-                                }}
-                              >
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                                  <span style={{ fontWeight: 800, color: "var(--app-text-primary)" }}>
-                                    {actionModuleLabelMap[moduleKey]}
-                                  </span>
-                                  <Tag color="blue">
-                                    {moduleEffectiveCount}/{items.length} 生效
-                                  </Tag>
-                                  <Tag color="gold">
-                                    覆盖 {moduleOverrideCount} 项
-                                  </Tag>
-                                  {menuEffective !== null && (
-                                    <Tag color={menuEffective ? "green" : "default"}>
-                                      菜单{menuEffective ? "已生效" : "未生效"}
-                                    </Tag>
-                                  )}
-                                </div>
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                  <Button
-                                    size="small"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleAllowAllActionsForModule(moduleKey);
-                                    }}
-                                  >
-                                    本模块全部允许
-                                  </Button>
-                                  <Button
-                                    size="small"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleClearActionOverridesForModule(moduleKey);
-                                    }}
-                                  >
-                                    清空本模块覆盖
-                                  </Button>
-                                </div>
-                              </div>
-                            ),
-                            children: (
-                              <div>
-                                {actionPermissionMatrixHeader}
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 10,
-                                  }}
-                                >
-                                  {visibleItems.map((item) => {
-                                    const inRole = roleActionKeys.includes(item.key);
-                                    const allowed = allowedActionKeysDraft.includes(item.key);
-                                    const denied = deniedActionKeysDraft.includes(item.key);
-                                    const effective = effectiveActionKeysPreview.includes(item.key);
-                                    const isOverridden = allowed || denied;
-
-                                    return (
-                                      <div
-                                        key={item.key}
-                                        style={createActionPermissionRowStyle(
-                                          isOverridden,
-                                          effective,
-                                        )}
-                                      >
-                                        <div>
-                                          <div
-                                            style={{
-                                              fontWeight: 700,
-                                              color: "var(--app-text-primary)",
-                                              marginBottom: 4,
-                                            }}
-                                          >
-                                            {actionPermissionItemLabelMap[item.key] ||
-                                              item.label.replace(
-                                                actionModuleLabelMap[moduleKey],
-                                                "",
-                                              ) ||
-                                              item.label}
-                                          </div>
-                                          <Text type="secondary" style={{ fontSize: 12 }}>
-                                            {actionModuleLabelMap[moduleKey]} · {item.key}
-                                          </Text>
-                                        </div>
-                                        <div>
-                                          {renderPermissionStateTag(
-                                            inRole,
-                                            "默认允许",
-                                            "默认禁止",
-                                          )}
-                                        </div>
-                                        <div>
-                                          <Checkbox
-                                            checked={allowed}
-                                            onChange={(event) =>
-                                              handleToggleAllowedActionKey(
-                                                item.key,
-                                                event.target.checked,
-                                              )
-                                            }
-                                          >
-                                            允许
-                                          </Checkbox>
-                                        </div>
-                                        <div>
-                                          <Checkbox
-                                            checked={denied}
-                                            onChange={(event) =>
-                                              handleToggleDeniedActionKey(
-                                                item.key,
-                                                event.target.checked,
-                                              )
-                                            }
-                                          >
-                                            隐藏
-                                          </Checkbox>
-                                        </div>
-                                        <div>
-                                          {renderPermissionStateTag(
-                                            effective,
-                                            "已生效",
-                                            "未生效",
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ),
-                          };
-                        }).filter((item) => item.label)}
-                      />
-                    )}
-                  </>
-                )}
-              </Card>
-            </Card>
+              <LazyActionPermissionsPanel
+                permissionPanelStyle={permissionPanelStyle}
+                permissionWorkbenchCardStyle={permissionWorkbenchCardStyle}
+                canManageActionPermissions={canManageActionPermissions}
+                actionPermissionsDirty={actionPermissionsDirty}
+                selectedActionPermissionUser={selectedActionPermissionUser}
+                roleActionKeys={roleActionKeys}
+                allowedActionKeysDraft={allowedActionKeysDraft}
+                deniedActionKeysDraft={deniedActionKeysDraft}
+                effectiveActionKeysPreview={effectiveActionKeysPreview}
+                selectedActionPermissionUserId={selectedActionPermissionUserId}
+                permissionConfigurableMembers={permissionConfigurableMembers}
+                filteredMembersLength={filteredMembers.length}
+                getAvatarColor={getAvatarColor}
+                getRoleTagColor={getRoleTagColor}
+                onRefreshMembers={() => void loadTeamMembers()}
+                onRefreshDefinitions={() => void loadActionPermissionDefinitions()}
+                onSelectAllActionOverrides={handleSelectAllActionOverrides}
+                onClearActionOverrides={handleClearActionOverrides}
+                onResetActionPermissions={handleResetActionPermissions}
+                onSaveActionPermissions={() => void handleSaveActionPermissions()}
+                actionPermissionsSaving={actionPermissionsSaving}
+                onSelectActionPermissionUser={setSelectedActionPermissionUserId}
+                actionPermissionsLoading={actionPermissionsLoading}
+                actionPermissionSearch={actionPermissionSearch}
+                onActionPermissionSearchChange={setActionPermissionSearch}
+                actionPermissionViewMode={actionPermissionViewMode}
+                onActionPermissionViewModeChange={setActionPermissionViewMode}
+                expandedActionModules={expandedActionModules}
+                onExpandedActionModulesChange={setExpandedActionModules}
+                groupedActionDefinitionsByModule={groupedActionDefinitionsByModule}
+                actionModuleLabelMap={actionModuleLabelMap}
+                actionPermissionItemLabelMap={actionPermissionItemLabelMap}
+                actionPermissionDraftChangedKeys={actionPermissionDraftChangedKeys}
+                matchesPermissionFilter={matchesPermissionFilter}
+                menuPermissionDefinitions={menuPermissionDefinitions}
+                resolveMenuModuleKey={resolveMenuModuleKey}
+                effectiveMenuKeysPreview={effectiveMenuKeysPreview}
+                onAllowAllActionsForModule={handleAllowAllActionsForModule}
+                onClearActionOverridesForModule={handleClearActionOverridesForModule}
+                actionPermissionMatrixHeader={actionPermissionMatrixHeader}
+                createActionPermissionRowStyle={createActionPermissionRowStyle}
+                renderPermissionStateTag={renderPermissionStateTag}
+                onToggleAllowedActionKey={handleToggleAllowedActionKey}
+                onToggleDeniedActionKey={handleToggleDeniedActionKey}
+                isNumericUserId={isNumericUserId}
+              />
+            </Suspense>
           )}
 
           {activeMenu === "system" && (
-            <>
-              <Card style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 16,
-                  }}
-                >
-                  <div style={{ fontSize: 14, color: "#595959", minWidth: 0, flex: 1 }}>
-                    平台品牌与 Logo 设置
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      自定义左上角平台名称与 Logo，保持登录页与主界面品牌一致。
-                    </Text>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <Button
-                      type="default"
-                      onClick={() => setActiveMenu("plugins")}
-                    >
-                      去图标/Logo插件库选择 Logo
-                    </Button>
-                    <Button onClick={handleLoadBrandingFromServer}>
-                      从服务器加载
-                    </Button>
-                    <Button
-                      type="primary"
-                      disabled={!canManageSettings}
-                      onClick={handleSaveBrandingToServer}
-                    >
-                      保存到服务器
-                    </Button>
-                  </div>
-                </div>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={12}>
-                    <Card size="small" title="当前 Logo 预览" bordered={false}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                        }}
-                      >
-                        {(() => {
-                          const visual = getBrandLogoVisual();
-                          return (
-                            <div
-                              style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 10,
-                                background: visual.background,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 20,
-                              }}
-                              aria-label={logoConfig.displayName}
-                            >
-                              {visual.text}
-                            </div>
-                          );
-                        })()}
-                        <div>
-                          <div style={{ fontWeight: 500 }}>{appName}</div>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              color: "#8c8c8c",
-                              marginTop: 4,
-                            }}
-                          >
-                            {logoConfig.displayName}（{logoConfig.usageKey}）
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={12}>
-                    <Card size="small" title="平台名称设置" bordered={false}>
-                      <Form layout="vertical">
-                        <Form.Item label="平台名称">
-                          <AntInput
-                            name="platformName"
-                            autoComplete="organization"
-                            value={appName}
-                            disabled={!canManageSettings}
-                            onChange={(e) => onChangeAppName(e.target.value)}
-                            placeholder="例如：售前流程全生命周期管理系统"
-                          />
-                        </Form.Item>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          设置后将同步应用于登录页顶部与主界面左上角的系统名称展示。
-                        </Text>
-                      </Form>
-                    </Card>
-                  </Col>
-                </Row>
-              </Card>
-
-              <Card>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  审批流程库已独立到左侧“审批流程库”菜单中维护。当前页面仅保留平台品牌与 Logo 相关设置。
-                </Text>
-              </Card>
-            </>
+            <Suspense
+              fallback={
+                <SettingsSectionLoadingCard
+                  title="正在加载品牌设置"
+                  description="当前正在按需加载平台品牌与 Logo 设置，以降低系统设置页的初始包体积。"
+                />
+              }
+            >
+              <LazyBrandingSettingsPanel
+                appName={appName}
+                logoConfig={logoConfig}
+                canManageSettings={canManageSettings}
+                getBrandLogoVisual={getBrandLogoVisual}
+                onChangeAppName={onChangeAppName}
+                onLoadBrandingFromServer={handleLoadBrandingFromServer}
+                onSaveBrandingToServer={handleSaveBrandingToServer}
+                onNavigateToPlugins={() => setActiveMenu("plugins")}
+              />
+            </Suspense>
           )}
 
           {activeMenu === "workflow" && (
@@ -5723,463 +4468,46 @@ export function SettingsView(props: SettingsViewProps) {
           )}
 
           {activeMenu === "data" && (
-            <Card>
-              <input
-                type="file"
-                id="knowledge-tree-import"
-                name="knowledgeTreeImport"
-                ref={knowledgeImportInputRef}
-                style={{ display: "none" }}
-                accept="application/json"
-                onChange={handleImportKnowledgeTreeFileChange}
+            <Suspense
+              fallback={
+                <SettingsSectionLoadingCard
+                  title="正在加载知识库目录管理"
+                  description="当前正在按需加载知识库目录编辑面板，以降低系统设置页的初始包体积。"
+                />
+              }
+            >
+              <LazyKnowledgeCategoryManagementPanel
+                canEditKnowledge={canEditKnowledge}
+                canDeleteKnowledgeCategories={canDeleteKnowledgeCategories}
+                knowledgeImportInputRef={knowledgeImportInputRef}
+                knowledgeTreeError={knowledgeTreeError}
+                knowledgeLoading={knowledgeLoading}
+                knowledgeTree={knowledgeTree}
+                selectedKnowledgeGroup={selectedKnowledgeGroup}
+                onImportKnowledgeTreeFileChange={handleImportKnowledgeTreeFileChange}
+                onLoadKnowledgeTree={loadKnowledgeTree}
+                onAddKnowledgeGroup={handleAddKnowledgeGroup}
+                onExportKnowledgeTree={handleExportKnowledgeTree}
+                onResetKnowledgeTree={handleResetKnowledgeTree}
+                onSaveKnowledgeTreeToServer={handleSaveKnowledgeTreeToServer}
+                onSelectKnowledgeGroup={setKnowledgeSelectedId}
+                onMoveKnowledgeGroup={handleMoveKnowledgeGroup}
+                onDeleteKnowledgeGroup={handleDeleteKnowledgeGroup}
+                onUpdateKnowledgeGroup={handleUpdateKnowledgeGroup}
+                onAddKnowledgeSubCategory={handleAddKnowledgeSubCategory}
+                onUpdateKnowledgeSubCategory={handleUpdateKnowledgeSubCategory}
+                onMoveKnowledgeSubCategory={handleMoveKnowledgeSubCategory}
+                onConfirmRemoveKnowledgeSubCategory={
+                  handleConfirmRemoveKnowledgeSubCategory
+                }
+                onWarnNoKnowledgeImportPermission={() =>
+                  message.warning("当前账号无权导入知识库目录。")
+                }
+                onWarnNoKnowledgeDeletePermission={() =>
+                  message.warning("当前账号无权删除知识库目录。")
+                }
               />
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  gap: 12,
-                  flexWrap: "wrap",
-                  marginBottom: 16,
-                }}
-              >
-                <div style={{ fontSize: 14, color: "#595959", minWidth: 0, flex: 1 }}>
-                  知识库目录管理
-                  <br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    管理“知识库”左侧目录树的一级主题与二级子分类，目前以调用
-                    /knowledge/categories/tree 接口为主，当前未落库。
-                  </Text>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    flexWrap: "wrap",
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  <Button size="small" onClick={() => void loadKnowledgeTree()}>
-                    从后端重新加载
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={!canEditKnowledge}
-                    onClick={handleAddKnowledgeGroup}
-                  >
-                    + 新增一级知识库
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={!canEditKnowledge}
-                    onClick={() => {
-                      if (!canEditKnowledge) {
-                        message.warning("当前账号无权导入知识库目录。");
-                        return;
-                      }
-                      if (knowledgeImportInputRef.current) {
-                        knowledgeImportInputRef.current.click();
-                      }
-                    }}
-                  >
-                    从 JSON 导入
-                  </Button>
-                  <Button size="small" onClick={handleExportKnowledgeTree}>
-                    导出为 JSON
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={!canEditKnowledge}
-                    onClick={handleResetKnowledgeTree}
-                  >
-                    恢复默认目录
-                  </Button>
-                  <Button
-                    size="small"
-                    type="primary"
-                    disabled={!canEditKnowledge}
-                    onClick={handleSaveKnowledgeTreeToServer}
-                  >
-                    保存目录配置
-                  </Button>
-                </div>
-              </div>
-
-              {knowledgeTreeError && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#fa8c16",
-                    marginBottom: 8,
-                  }}
-                >
-                  {knowledgeTreeError}
-                </div>
-              )}
-
-              <Row gutter={16}>
-                <Col xs={24} md={10}>
-                  <Card
-                    size="small"
-                    title="一级知识库列表"
-                    bordered={false}
-                    bodyStyle={{ padding: 0 }}
-                  >
-                    <div
-                      style={{
-                        maxHeight: 320,
-                        overflowY: "auto",
-                        padding: 8,
-                      }}
-                    >
-                      {knowledgeLoading && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "#8c8c8c",
-                            marginBottom: 8,
-                          }}
-                        >
-                          正在从后端加载目录树...
-                        </div>
-                      )}
-                      {knowledgeTree.length === 0 && !knowledgeLoading && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "#8c8c8c",
-                          }}
-                        >
-                          当前尚未从后端获取到知识库目录配置，可点击“新增一级知识库”
-                          在本地先行配置。
-                        </div>
-                      )}
-                      {knowledgeTree.map((group) => {
-                        const isActive = selectedKnowledgeGroup
-                          ? selectedKnowledgeGroup.id === group.id
-                          : false;
-                        return (
-                          <div
-                            key={group.id}
-                            style={{
-                              padding: 8,
-                              borderRadius: 4,
-                              marginBottom: 4,
-                              cursor: "pointer",
-                              background: isActive
-                                ? "color-mix(in srgb, rgba(59,130,246,0.16) 70%, var(--app-surface) 30%)"
-                                : "var(--app-surface-soft)",
-                              border: isActive
-                                ? "1px solid rgba(59, 130, 246, 0.3)"
-                                : "1px solid var(--app-border)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: 8,
-                            }}
-                            onClick={() => setKnowledgeSelectedId(group.id)}
-                          >
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 500 }}>
-                                {group.icon} {group.name}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "#8c8c8c",
-                                  marginTop: 2,
-                                }}
-                              >
-                                子分类数量：{group.subCategories.length}
-                              </div>
-                            </div>
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 2,
-                                alignItems: "flex-end",
-                              }}
-                            >
-                              <div>
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveKnowledgeGroup(group.id, "up");
-                                  }}
-                                >
-                                  上移
-                                </Button>
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveKnowledgeGroup(group.id, "down");
-                                  }}
-                                >
-                                  下移
-                                </Button>
-                              </div>
-                              <Button
-                                type="link"
-                                size="small"
-                                disabled={!canDeleteKnowledgeCategories}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!canDeleteKnowledgeCategories) {
-                                    message.warning("当前账号无权删除知识库目录。");
-                                    return;
-                                  }
-                                  handleDeleteKnowledgeGroup(group);
-                                }}
-                                danger
-                              >
-                                删除
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </Card>
-                </Col>
-                <Col xs={24} md={14}>
-                  <Card
-                    size="small"
-                    title="选中知识库详情与子分类"
-                    bordered={false}
-                  >
-                    {selectedKnowledgeGroup ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 12,
-                        }}
-                      >
-                        <Row gutter={12}>
-                          <Col span={6}>
-                            <label
-                              style={{
-                                display: "block",
-                                fontSize: 12,
-                                color: "#8c8c8c",
-                                marginBottom: 4,
-                              }}
-                            >
-                              图标 Emoji
-                            </label>
-                            <AntInput
-                              value={selectedKnowledgeGroup.icon}
-                              onChange={(e) =>
-                                handleUpdateKnowledgeGroup(
-                                  selectedKnowledgeGroup.id,
-                                  { icon: e.target.value },
-                                )
-                              }
-                            />
-                          </Col>
-                          <Col span={9}>
-                            <label
-                              style={{
-                                display: "block",
-                                fontSize: 12,
-                                color: "#8c8c8c",
-                                marginBottom: 4,
-                              }}
-                            >
-                              一级名称
-                            </label>
-                            <AntInput
-                              value={selectedKnowledgeGroup.name}
-                              onChange={(e) =>
-                                handleUpdateKnowledgeGroup(
-                                  selectedKnowledgeGroup.id,
-                                  { name: e.target.value },
-                                )
-                              }
-                            />
-                          </Col>
-                          <Col span={9}>
-                            <label
-                              style={{
-                                display: "block",
-                                fontSize: 12,
-                                color: "#8c8c8c",
-                                marginBottom: 4,
-                              }}
-                            >
-                              描述
-                            </label>
-                            <AntInput
-                              value={selectedKnowledgeGroup.description}
-                              onChange={(e) =>
-                                handleUpdateKnowledgeGroup(
-                                  selectedKnowledgeGroup.id,
-                                  { description: e.target.value },
-                                )
-                              }
-                            />
-                          </Col>
-                        </Row>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginTop: 8,
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 500,
-                            }}
-                          >
-                            二级子分类
-                          </div>
-                          <Button
-                            type="dashed"
-                            size="small"
-                            onClick={() =>
-                              handleAddKnowledgeSubCategory(
-                                selectedKnowledgeGroup.id,
-                              )
-                            }
-                          >
-                            + 新增子分类
-                          </Button>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8,
-                            maxHeight: 260,
-                            overflowY: "auto",
-                          }}
-                        >
-                          {selectedKnowledgeGroup.subCategories.length === 0 && (
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              当前尚未配置任何子分类，可以点击“新增子分类”添加，例如：
-                              通用解决方案 / 行业解决方案 / 场景解决方案。
-                            </Text>
-                          )}
-                          {selectedKnowledgeGroup.subCategories.map(
-                            (sub, index) => (
-                              <div
-                                key={`${sub.value}-${index}`}
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns:
-                                    "1.2fr 1.4fr auto auto",
-                                  gap: 8,
-                                  alignItems: "center",
-                                }}
-                              >
-                                <AntInput
-                                  size="small"
-                                  value={sub.label}
-                                  placeholder="显示名称，例如：销售话术"
-                                  onChange={(e) =>
-                                    handleUpdateKnowledgeSubCategory(
-                                      selectedKnowledgeGroup.id,
-                                      index,
-                                      { label: e.target.value },
-                                    )
-                                  }
-                                />
-                                <AntInput
-                                  size="small"
-                                  value={sub.value}
-                                  placeholder="唯一标识，例如：销售知识库 / 销售话术"
-                                  onChange={(e) =>
-                                    handleUpdateKnowledgeSubCategory(
-                                      selectedKnowledgeGroup.id,
-                                      index,
-                                      { value: e.target.value },
-                                    )
-                                  }
-                                />
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 2,
-                                  }}
-                                >
-                                  <Button
-                                    type="link"
-                                    size="small"
-                                    onClick={() =>
-                                      handleMoveKnowledgeSubCategory(
-                                        selectedKnowledgeGroup.id,
-                                        index,
-                                        "up",
-                                      )
-                                    }
-                                  >
-                                    上移
-                                  </Button>
-                                  <Button
-                                    type="link"
-                                    size="small"
-                                    onClick={() =>
-                                      handleMoveKnowledgeSubCategory(
-                                        selectedKnowledgeGroup.id,
-                                        index,
-                                        "down",
-                                      )
-                                    }
-                                  >
-                                    下移
-                                  </Button>
-                                </div>
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  danger
-                                  disabled={!canDeleteKnowledgeCategories}
-                                  onClick={() => {
-                                    if (!canDeleteKnowledgeCategories) {
-                                      message.warning("当前账号无权删除知识库子分类。");
-                                      return;
-                                    }
-                                    handleConfirmRemoveKnowledgeSubCategory(
-                                      selectedKnowledgeGroup.id,
-                                      index,
-                                      sub.label,
-                                    );
-                                  }}
-                                >
-                                  删除
-                                </Button>
-                              </div>
-                            ),
-                          )}
-                        </div>
-
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          提示：子分类的 <strong>value</strong> 字段应与文档中的{" "}
-                          <code>category</code> 字段一致，例如：
-                          “销售知识库 / 销售话术”，以便在知识库页面按分类正确筛选。
-                        </Text>
-                      </div>
-                    ) : (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        请选择左侧的某个一级知识库后再进行编辑，或点击“新增一级知识库”
-                        创建新的主题。
-                      </Text>
-                    )}
-                  </Card>
-                </Col>
-              </Row>
-            </Card>
+            </Suspense>
           )}
 
           {activeMenu !== "team" &&
@@ -6204,621 +4532,137 @@ export function SettingsView(props: SettingsViewProps) {
         </Col>
       </Row>
 
-      <Modal
-        title={memberModalMode === "create" ? "添加成员" : "编辑成员"}
-        open={memberModalVisible}
-        onCancel={() => {
-          setGeneratedMemberPassword("");
-          setMemberModalVisible(false);
-        }}
-        onOk={async () => {
-          try {
-            const values = await form.validateFields();
-            const {
-              username,
-              name,
-              email,
-              role,
-              status,
-              mainIndustry,
-              teamRole,
-              password,
-            } = values as {
-              username: string;
-              name: string;
-              email: string;
-              role: TeamMember["role"];
-              status: TeamMember["status"];
-              mainIndustry?: string[];
-              teamRole?: string;
-              password?: string;
-            };
+      <Suspense fallback={null}>
+        <LazyTeamMemberModals
+          memberModalVisible={memberModalVisible}
+          memberModalMode={memberModalMode}
+          form={form}
+          onCancelMemberModal={() => {
+            setGeneratedMemberPassword("");
+            setMemberModalVisible(false);
+          }}
+          onSubmitMemberModal={async () => {
+            try {
+              const values = await form.validateFields();
+              const {
+                username,
+                name,
+                email,
+                role,
+                status,
+                mainIndustry,
+                teamRole,
+                password,
+              } = values as {
+                username: string;
+                name: string;
+                email: string;
+                role: TeamMember["role"];
+                status: TeamMember["status"];
+                mainIndustry?: string[];
+                teamRole?: string;
+                password?: string;
+              };
 
-            if (memberModalMode === "edit" && currentMember) {
-              const resp = await fetch(
-                `${USER_API_BASE_URL}/users/${currentMember.key}`,
-                {
-                  method: "PATCH",
+              if (memberModalMode === "edit" && currentMember) {
+                const resp = await fetch(
+                  `${USER_API_BASE_URL}/users/${currentMember.key}`,
+                  {
+                    method: "PATCH",
+                    headers: getWorkflowAuthHeaders(),
+                    body: JSON.stringify({
+                      displayName: name,
+                      email,
+                      role: teamRoleLabelToApiRole(role),
+                      isActive: status === "活跃",
+                      mainIndustry: mainIndustry || [],
+                      teamRole,
+                      ...(password ? { password } : {}),
+                    }),
+                  },
+                );
+                if (!resp.ok) {
+                  message.error(`保存成员失败：${resp.status}`);
+                  return;
+                }
+                const updated = mapApiUserToTeamMember(
+                  (await resp.json()) as ApiTeamMember,
+                );
+                setMembers((prev) =>
+                  prev.map((m) => (m.key === currentMember.key ? updated : m)),
+                );
+                message.success("已保存成员信息");
+              } else {
+                const resp = await fetch(`${USER_API_BASE_URL}/users`, {
+                  method: "POST",
                   headers: getWorkflowAuthHeaders(),
                   body: JSON.stringify({
+                    username,
                     displayName: name,
                     email,
+                    password,
                     role: teamRoleLabelToApiRole(role),
                     isActive: status === "活跃",
                     mainIndustry: mainIndustry || [],
                     teamRole,
-                    ...(password ? { password } : {}),
                   }),
-                },
-              );
-              if (!resp.ok) {
-                message.error(`保存成员失败：${resp.status}`);
-                return;
-              }
-              const updated = mapApiUserToTeamMember(
-                (await resp.json()) as ApiTeamMember,
-              );
-              setMembers((prev) =>
-                prev.map((m) => (m.key === currentMember.key ? updated : m)),
-              );
-              message.success("已保存成员信息");
-            } else {
-              const resp = await fetch(`${USER_API_BASE_URL}/users`, {
-                method: "POST",
-                headers: getWorkflowAuthHeaders(),
-                body: JSON.stringify({
-                  username,
-                  displayName: name,
-                  email,
-                  password,
-                  role: teamRoleLabelToApiRole(role),
-                  isActive: status === "活跃",
-                  mainIndustry: mainIndustry || [],
-                  teamRole,
-                }),
-              });
-              if (!resp.ok) {
-                message.error(`添加成员失败：${resp.status}`);
-                return;
-              }
-              const created = mapApiUserToTeamMember(
-                (await resp.json()) as ApiTeamMember,
-              );
-              setMembers((prev) => [...prev, created]);
-              message.success("已添加成员");
-            }
-
-            setGeneratedMemberPassword("");
-            setMemberModalVisible(false);
-          } catch {
-            // 校验失败时不关闭
-          }
-        }}
-        okText="保存"
-        cancelText="取消"
-        destroyOnClose
-      >
-        <Form layout="vertical" form={form}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="账号 *"
-                name="username"
-                rules={[{ required: true, message: "请输入账号" }]}
-              >
-                <AntInput
-                  name="username"
-                  autoComplete="username"
-                  placeholder="例如：zhangsan"
-                  disabled={memberModalMode === "edit"}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="姓名 *"
-                name="name"
-                rules={[{ required: true, message: "请输入姓名" }]}
-              >
-                <AntInput placeholder="例如：张三" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="邮箱 *"
-                name="email"
-                rules={[{ required: true, message: "请输入邮箱" }]}
-              >
-                <AntInput placeholder="例如：zhangsan@example.com" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="系统角色"
-                name="role"
-                initialValue="工程师"
-              >
-                <Select
-                  options={[
-                    { value: "管理员", label: "管理员" },
-                    { value: "经理", label: "经理" },
-                    { value: "工程师", label: "工程师" },
-                    { value: "销售", label: "销售" },
-                    { value: "访客", label: "访客" },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="状态"
-                name="status"
-                initialValue="活跃"
-              >
-                <Select
-                  options={[
-                    { value: "活跃", label: "活跃" },
-                    { value: "禁用", label: "禁用" },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="权限摘要（按角色自动生成）" name="permissions">
-            <AntInput disabled />
-          </Form.Item>
-          <Form.Item label="所属行业（可多选）" name="mainIndustry">
-            <Select
-              mode="tags"
-              style={{ width: "100%" }}
-              placeholder="例如：金融行业、电商行业"
-              options={allIndustries.map((v) => ({
-                value: v,
-                label: v,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item label="团队角色" name="teamRole">
-            <Select
-              allowClear
-              showSearch
-              placeholder="请选择团队角色"
-              options={TEAM_ROLE_OPTIONS}
-            />
-          </Form.Item>
-          <Form.Item
-            label={memberModalMode === "edit" ? "重置密码（可选）" : "初始密码 *"}
-            name="password"
-            rules={
-              memberModalMode === "create"
-                ? [
-                    { required: true, message: "请输入初始密码" },
-                    { min: 8, message: "密码长度不能少于 8 位" },
-                  ]
-                : [{ min: 8, message: "密码长度不能少于 8 位" }]
-            }
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-              }}
-            >
-              <AntInput.Password
-                name="password"
-                autoComplete={
-                  memberModalMode === "edit" ? "new-password" : "new-password"
+                });
+                if (!resp.ok) {
+                  message.error(`添加成员失败：${resp.status}`);
+                  return;
                 }
-                placeholder="请输入密码"
-                style={{ flex: 1 }}
-              />
-              <Button
-                onClick={() => {
-                  const chars =
-                    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
-                  const generated = Array.from({ length: 12 }, () =>
-                    chars.charAt(Math.floor(Math.random() * chars.length)),
-                  ).join("");
-                  form.setFieldValue("password", generated);
-                  setGeneratedMemberPassword(generated);
-                  message.success("已随机生成密码");
-                }}
-              >
-                随机生成密码
-              </Button>
-            </div>
-          </Form.Item>
-          {generatedMemberPassword ? (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              当前随机密码：{generatedMemberPassword}
-            </Text>
-          ) : null}
-        </Form>
-      </Modal>
+                const created = mapApiUserToTeamMember(
+                  (await resp.json()) as ApiTeamMember,
+                );
+                setMembers((prev) => [...prev, created]);
+                message.success("已添加成员");
+              }
 
-      <Modal
-        title="成员详情"
-        open={viewModalVisible}
-        onCancel={() => setViewModalVisible(false)}
-        footer={
-          <Button onClick={() => setViewModalVisible(false)}>关闭</Button>
-        }
-        destroyOnClose
-      >
-        {currentMember && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12,
-              fontSize: 13,
-            }}
-          >
-            <div>
-              <strong>账号：</strong>
-              <br />
-              {currentMember.username}
-            </div>
-            <div>
-              <strong>姓名：</strong>
-              <br />
-              {currentMember.name}
-            </div>
-            <div>
-              <strong>邮箱：</strong>
-              <br />
-              {currentMember.email}
-            </div>
-            <div>
-              <strong>系统角色：</strong>
-              <br />
-              {currentMember.role}
-            </div>
-            <div>
-              <strong>状态：</strong>
-              <br />
-              {currentMember.status}
-            </div>
-            <div>
-              <strong>权限：</strong>
-              <br />
-              {currentMember.permissions}
-            </div>
-            <div>
-              <strong>所属行业：</strong>
-              <br />
-              {currentMember.mainIndustry && currentMember.mainIndustry.length > 0
-                ? currentMember.mainIndustry.join("，")
-                : "未设置"}
-            </div>
-            <div>
-              <strong>团队角色：</strong>
-              <br />
-              {currentMember.teamRole || "未设置"}
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* 流程库配置弹窗 */}
-      <Modal
-        title={
-          workflowModalMode === "edit"
-            ? "编辑审批流程"
-            : "新建审批流程"
-        }
-        open={workflowModalVisible}
-        onCancel={() => {
-          setWorkflowModalVisible(false);
-        }}
-        onOk={() => {
-          void handleSaveWorkflowFromModal();
-        }}
-        okText="保存"
-        cancelText="取消"
-        destroyOnClose
-      >
-        <Form layout="vertical" form={workflowForm}>
-          <Form.Item
-            label="流程名称"
-            name="name"
-            rules={[{ required: true, message: "请输入流程名称" }]}
-          >
-            <AntInput placeholder="例如：标准商机审批流程 / 标准解决方案审批流程" />
-          </Form.Item>
-          <Form.Item
-            label="适用模块"
-            name="target"
-            rules={[{ required: true, message: "请选择适用模块" }]}
-          >
-            <Select
-              options={[
-                { value: "opportunity", label: "商机管理" },
-                { value: "solution", label: "解决方案管理" },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="流程说明" name="description">
-            <AntInput.TextArea
-              rows={2}
-              placeholder="例如：适用于商机立项审批 / 方案版本评审审批"
-            />
-          </Form.Item>
-          <Form.Item label="适用商机" name="applicableOpportunity">
-            <AntInput
-              placeholder="优先填写商机名称或客户关键词，例如：银行 / 总部统一安全 / 智慧园区"
-            />
-          </Form.Item>
-          <Form.Item
-            label="是否启用"
-            name="enabled"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-        </Form>
-
-        <div
-          style={{
-            marginTop: 12,
-            marginBottom: 8,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+              setGeneratedMemberPassword("");
+              setMemberModalVisible(false);
+            } catch {
+              // 校验失败时不关闭
+            }
           }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 500 }}>审批节点配置</div>
-          <Button type="dashed" size="small" onClick={handleAddWorkflowNode}>
-            + 添加审批节点
-          </Button>
-        </div>
-        {workflowEditorNodes.length === 0 && (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            当前尚未添加任何审批节点，可点击“添加审批节点”配置节点名称与审批对象，
-            例如：线索确认 / 项目启动 / 需求分析 / 最终审批 或 技术评审 / 商务评审 / 最终审批。
-          </Text>
-        )}
-        {workflowEditorNodes.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              marginTop: 4,
-              maxHeight: 260,
-              overflowY: "auto",
-            }}
-          >
-            {workflowEditorNodes.map((node, index) => (
-              <div
-                key={node.id}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                  padding: 10,
-                  border: "1px solid var(--app-border)",
-                  borderRadius: 6,
-                  background: "var(--app-surface-soft)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "32px minmax(0, 1.3fr) minmax(0, 1fr) auto",
-                    gap: 8,
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 24,
-                      textAlign: "center",
-                      fontSize: 12,
-                      color: "#8c8c8c",
-                    }}
-                  >
-                    {index + 1}
-                  </div>
-                  <AntInput
-                    size="small"
-                    placeholder="节点名称，例如：线索确认 / 技术评审"
-                    value={node.name}
-                    onChange={(e) =>
-                      handleUpdateWorkflowNode(String(node.id), {
-                        name: e.target.value,
-                      })
-                    }
-                  />
-                  <AntInput
-                    size="small"
-                    placeholder="审批对象名称，例如：销售负责人 / 技术评审专家 / zhangsan"
-                    value={node.approverRole}
-                    onChange={(e) =>
-                      handleUpdateWorkflowNode(String(node.id), {
-                        approverRole: e.target.value,
-                        approvers: [
-                          {
-                            approverType: "user",
-                            approverRef: e.target.value,
-                            displayName: e.target.value,
-                            voteRule: "any",
-                            sortOrder: 0,
-                          },
-                        ],
-                      })
-                    }
-                  />
-                  <Button
-                    type="link"
-                    size="small"
-                    danger
-                    disabled={!canDeleteWorkflow}
-                    onClick={() => handleRemoveWorkflowNode(String(node.id))}
-                  >
-                    删除
-                  </Button>
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                    gap: 8,
-                  }}
-                >
-                  <Select
-                    size="small"
-                    value={node.nodeType || "approval"}
-                    options={WORKFLOW_NODE_TYPE_OPTIONS}
-                    onChange={(value) =>
-                      handleUpdateWorkflowNode(String(node.id), {
-                        nodeType: value,
-                        fieldKey:
-                          value === "upload"
-                            ? "requirementBriefDocName"
-                            : value === "assignment"
-                              ? "solutionOwnerUsername"
-                              : "approvalStatus",
-                      })
-                    }
-                  />
-                  {workflowForm.getFieldValue("target") === "opportunity" && (
-                    <Select
-                      size="small"
-                      value={node.fieldKey}
-                      placeholder="选择节点绑定字段"
-                      options={OPPORTUNITY_WORKFLOW_FIELD_OPTIONS}
-                      onChange={(value) =>
-                        handleUpdateWorkflowNode(String(node.id), {
-                          fieldKey: value,
-                        })
-                      }
-                    />
-                  )}
-                  <AntInput
-                    size="small"
-                    placeholder="界面字段名称，例如：需求调研文档 / 解决方案负责人"
-                    value={node.fieldLabel}
-                    onChange={(e) =>
-                      handleUpdateWorkflowNode(String(node.id), {
-                        fieldLabel: e.target.value,
-                      })
-                    }
-                  />
-                  <AntInput
-                    size="small"
-                    placeholder="按钮名称，例如：上传文档 / 选择负责人"
-                    value={node.actionButtonLabel}
-                    onChange={(e) =>
-                      handleUpdateWorkflowNode(String(node.id), {
-                        actionButtonLabel: e.target.value,
-                      })
-                    }
-                  />
-                  <Select
-                    size="small"
-                    value={node.approvers?.[0]?.approverType || "user"}
-                    options={[
-                      { value: "user", label: "指定用户" },
-                      { value: "role", label: "角色对象" },
-                      { value: "field", label: "字段对象" },
-                    ]}
-                    onChange={(value) =>
-                      handleUpdateWorkflowNode(String(node.id), {
-                        approvers: [
-                          {
-                            ...(node.approvers?.[0] || {
-                              approverType: "user",
-                              approverRef: "",
-                              displayName: "",
-                              voteRule: "any",
-                              sortOrder: 0,
-                            }),
-                            approverType: value,
-                          },
-                        ],
-                      })
-                    }
-                  />
-                  <AntInput
-                    size="small"
-                    placeholder="审批对象标识，例如：sales_manager / solutionOwnerUsername"
-                    value={node.approvers?.[0]?.approverRef}
-                    onChange={(e) =>
-                      handleUpdateWorkflowNode(String(node.id), {
-                        approvers: [
-                          {
-                            ...(node.approvers?.[0] || {
-                              approverType: "user",
-                              voteRule: "any",
-                              sortOrder: 0,
-                            }),
-                            approverRef: e.target.value,
-                            displayName:
-                              node.approverRole && node.approverRole.trim().length > 0
-                                ? node.approverRole
-                                : e.target.value,
-                          },
-                        ],
-                      })
-                    }
-                  />
-                  <AntInput
-                    size="small"
-                    placeholder="节点说明，例如：审批是否允许进入下一阶段"
-                    value={node.description}
-                    onChange={(e) =>
-                      handleUpdateWorkflowNode(String(node.id), {
-                        description: e.target.value,
-                      })
-                    }
-                  />
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "0 8px",
-                      border: "1px solid #d9d9d9",
-                      borderRadius: 6,
-                      background: "var(--app-surface-soft)",
-                    }}
-                  >
-                    <Text style={{ fontSize: 12 }}>允许驳回</Text>
-                    <Switch
-                      size="small"
-                      checked={node.canReject ?? true}
-                      onChange={(checked) =>
-                        handleUpdateWorkflowNode(String(node.id), {
-                          canReject: checked,
-                        })
-                      }
-                    />
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "0 8px",
-                      border: "1px solid #d9d9d9",
-                      borderRadius: 6,
-                      background: "var(--app-surface-soft)",
-                      fontSize: 12,
-                      color: "var(--app-text-secondary)",
-                    }}
-                  >
-                    驳回即结束流程
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal>
+          allIndustries={allIndustries}
+          teamRoleOptions={TEAM_ROLE_OPTIONS}
+          generatedMemberPassword={generatedMemberPassword}
+          onGeneratePassword={() => {
+            const chars =
+              "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+            const generated = Array.from({ length: 12 }, () =>
+              chars.charAt(Math.floor(Math.random() * chars.length)),
+            ).join("");
+            form.setFieldValue("password", generated);
+            setGeneratedMemberPassword(generated);
+            message.success("已随机生成密码");
+          }}
+          viewModalVisible={viewModalVisible}
+          currentMember={currentMember}
+          onCloseViewModal={() => setViewModalVisible(false)}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <LazyWorkflowEditorModal
+          open={workflowModalVisible}
+          mode={workflowModalMode}
+          workflowForm={workflowForm}
+          onCancel={() => {
+            setWorkflowModalVisible(false);
+          }}
+          onSubmit={() => {
+            void handleSaveWorkflowFromModal();
+          }}
+          workflowEditorNodes={workflowEditorNodes}
+          handleAddWorkflowNode={handleAddWorkflowNode}
+          handleUpdateWorkflowNode={handleUpdateWorkflowNode}
+          handleRemoveWorkflowNode={handleRemoveWorkflowNode}
+          canDeleteWorkflow={canDeleteWorkflow}
+          workflowNodeTypeOptions={WORKFLOW_NODE_TYPE_OPTIONS}
+          opportunityWorkflowFieldOptions={OPPORTUNITY_WORKFLOW_FIELD_OPTIONS}
+        />
+      </Suspense>
     </div>
   );
 }

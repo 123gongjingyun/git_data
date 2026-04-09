@@ -1,5 +1,5 @@
 import { Col, Row, message } from "antd";
-import { useMemo, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 import type { CurrentUser } from "../shared/auth";
 import { buildApiUrl } from "../shared/api";
 import {
@@ -12,11 +12,9 @@ import {
   getSkillVisualMeta,
 } from "./openclaw-playground/helpers";
 import {
-  OpenClawHistoryPanel,
   OpenClawQueryComposer,
   OpenClawResultPanel,
   OpenClawSessionOverview,
-  OpenClawSidebar,
 } from "./openclaw-playground/sections";
 import type {
   HistoryFilter,
@@ -24,6 +22,39 @@ import type {
   PlaygroundResponse,
   RequestRecord,
 } from "./openclaw-playground/types";
+
+const LazyOpenClawSidebar = lazy(async () => {
+  const module = await import("./openclaw-playground/OpenClawAsyncPanels");
+  return { default: module.OpenClawSidebar };
+});
+
+const LazyOpenClawHistoryPanel = lazy(async () => {
+  const module = await import("./openclaw-playground/OpenClawAsyncPanels");
+  return { default: module.OpenClawHistoryPanel };
+});
+
+function OpenClawPanelLoading(props: { title: string; description: string }) {
+  const { title, description } = props;
+
+  return (
+    <div
+      style={{
+        minHeight: 160,
+        display: "grid",
+        placeItems: "center",
+        gap: 10,
+        textAlign: "center",
+        borderRadius: 18,
+        border: "1px solid var(--app-border)",
+        background: "var(--app-surface)",
+        padding: 20,
+      }}
+    >
+      <div style={{ fontSize: 16, fontWeight: 700 }}>{title}</div>
+      <div style={{ fontSize: 12, color: "#8c8c8c" }}>{description}</div>
+    </div>
+  );
+}
 
 interface OpenClawPlaygroundViewProps {
   currentUser: CurrentUser | null;
@@ -406,35 +437,53 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
 
         <Col xs={24} xl={8}>
           <div style={{ display: "grid", gap: 16 }}>
-            <OpenClawSidebar
-              currentUser={currentUser}
-              accessToken={accessToken}
-              result={result}
-              activeHistoryRecord={activeHistoryRecord}
-              latestSummary={latestSummary}
-              latestOutcome={latestOutcome}
-              latestSkillName={latestSkillName}
-              latestSkillMeta={latestSkillMeta}
-              successMeta={successMeta}
-              errorMeta={errorMeta}
-              showRawPayload={showRawPayload}
-              activeDebugPayload={activeDebugPayload}
-              onToggleRawPayload={() => setShowRawPayload((current) => !current)}
-            />
+            <Suspense
+              fallback={
+                <OpenClawPanelLoading
+                  title="正在加载辅助面板"
+                  description="正在准备最近状态、调试区与联调上下文。"
+                />
+              }
+            >
+              <LazyOpenClawSidebar
+                currentUser={currentUser}
+                accessToken={accessToken}
+                result={result}
+                activeHistoryRecord={activeHistoryRecord}
+                latestSummary={latestSummary}
+                latestOutcome={latestOutcome}
+                latestSkillName={latestSkillName}
+                latestSkillMeta={latestSkillMeta}
+                successMeta={successMeta}
+                errorMeta={errorMeta}
+                showRawPayload={showRawPayload}
+                activeDebugPayload={activeDebugPayload}
+                onToggleRawPayload={() => setShowRawPayload((current) => !current)}
+              />
+            </Suspense>
           </div>
         </Col>
       </Row>
 
-      <OpenClawHistoryPanel
-        historyFilter={historyFilter}
-        requestHistory={requestHistory}
-        filteredHistory={filteredHistory}
-        activeHistoryRecord={activeHistoryRecord}
-        onChangeFilter={setHistoryFilter}
-        onSelectHistory={handleSelectHistory}
-        onReplayHistory={handleReplayHistory}
-        onReuseHistory={handleReuseHistory}
-      />
+      <Suspense
+        fallback={
+          <OpenClawPanelLoading
+            title="正在加载请求记录"
+            description="正在准备最近联调历史与重放操作。"
+          />
+        }
+      >
+        <LazyOpenClawHistoryPanel
+          historyFilter={historyFilter}
+          requestHistory={requestHistory}
+          filteredHistory={filteredHistory}
+          activeHistoryRecord={activeHistoryRecord}
+          onChangeFilter={setHistoryFilter}
+          onSelectHistory={handleSelectHistory}
+          onReplayHistory={handleReplayHistory}
+          onReuseHistory={handleReuseHistory}
+        />
+      </Suspense>
     </div>
   );
 }
