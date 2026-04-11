@@ -4,6 +4,39 @@ export type PlaygroundIntent = {
   reason?: string;
 };
 
+export type PlaygroundSkillName =
+  | "get_my_pending_approvals"
+  | "get_opportunity_summary"
+  | "get_solution_summary"
+  | "get_daily_brief";
+
+export type PlaygroundSkillSchema = {
+  type: string;
+  required?: string[];
+  properties?: Record<
+    string,
+    {
+      type?: string;
+      minimum?: number;
+      maximum?: number;
+      pattern?: string;
+      enum?: string[];
+    }
+  >;
+};
+
+export type PlaygroundSkillDefinition = {
+  name: PlaygroundSkillName;
+  description: string;
+  readonly: boolean;
+  inputSchema: PlaygroundSkillSchema;
+};
+
+export type PlaygroundSkillCatalogResponse = {
+  items: PlaygroundSkillDefinition[];
+  total: number;
+};
+
 export type PlaygroundActor = {
   platformUserId?: number;
   username?: string;

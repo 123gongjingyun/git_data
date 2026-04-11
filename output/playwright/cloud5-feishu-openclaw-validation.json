@@ -1,0 +1,30 @@
+{
+  "validatedAt": "2026-04-11",
+  "baseUrl": "http://101.43.78.27/",
+  "account": {
+    "username": "admin_demo",
+    "role": "admin"
+  },
+  "checks": [
+    {
+      "path": "系统设置 > OpenClaw联调",
+      "result": "passed",
+      "details": [
+        "页面已展示 Skill 模式、结构化技能执行、执行 Skill 按钮",
+        "技能目录显示 4 个只读 skill",
+        "执行 get_daily_brief 成功，结果区出现 requestId、playground_skill_execution、日期 2026-04-11、待审批 3、风险商机 3、方案更新 10"
+      ],
+      "screenshot": "output/playwright/cloud5-openclaw-skill-mode.png"
+    },
+    {
+      "path": "系统设置 > 飞书集成 > 审批卡片联调",
+      "result": "passed",
+      "details": [
+        "页面已展示 平台页联调、只读接口已接通、审批卡片可预演 新文案",
+        "审批卡片联调表单已展示审批实例 ID、绑定记录 ID、Open ID 与 dryRun 复选框",
+        "以 approvalInstanceId=20、bindingId=1 执行 dryRun 成功，返回接收人 open_id 与卡片标题“方案审批：SOL-000006 连锁零售数据中台建设方案”"
+      ],
+      "screenshot": "output/playwright/cloud5-feishu-approval-dryrun.png"
+    }
+  ]
+}

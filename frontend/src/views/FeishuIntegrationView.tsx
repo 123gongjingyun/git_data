@@ -2,9 +2,12 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   Empty,
   Form,
+  Input,
+  InputNumber,
   Row,
   Segmented,
   Space,
@@ -111,6 +114,7 @@ function getStatusLabel(status: FeishuBindingStatus) {
 export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
   const { currentUser, accessToken } = props;
   const [form] = Form.useForm();
+  const [sendCardForm] = Form.useForm();
   const [previewMode, setPreviewMode] = useState<PreviewMode>("bindings");
   const [state, setState] = useState(() => loadFeishuIntegrationMockState());
   const [selectedCardId, setSelectedCardId] = useState<string>(() =>
@@ -132,6 +136,15 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
   const [recentCommandRequest, setRecentCommandRequest] =
     useState<CommandRequestInfo | null>(null);
   const [selectedActionKey, setSelectedActionKey] = useState("");
+  const [sendingApprovalCard, setSendingApprovalCard] = useState(false);
+  const [approvalCardSendResult, setApprovalCardSendResult] = useState<{
+    mode: string;
+    receiverOpenId?: string;
+    approvalInstanceId?: number;
+    messageId?: string;
+    cardTitle?: string;
+    requestModeLabel: string;
+  } | null>(null);
 
   const selectedCard = useMemo(
     () => state.cards.find((item) => item.id === selectedCardId) ?? state.cards[0],
@@ -934,7 +947,70 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
     setSelectedCardId(nextState.cards[0]?.id ?? "");
     saveFeishuIntegrationMockState(nextState);
     form.resetFields();
+    sendCardForm.resetFields();
+    setApprovalCardSendResult(null);
     message.success("已恢复飞书集成默认演示数据。");
+  };
+
+  const handleSendApprovalCard = async () => {
+    const values = await sendCardForm.validateFields();
+    if (!getEffectiveAccessToken()) {
+      message.warning("当前未检测到登录令牌，无法调用审批卡片发送接口。");
+      return;
+    }
+
+    const payload = {
+      approvalInstanceId: Number(values.approvalInstanceId),
+      bindingId:
+        typeof values.bindingId === "number" && Number.isFinite(values.bindingId)
+          ? values.bindingId
+          : undefined,
+      openId: typeof values.openId === "string" && values.openId.trim() ? values.openId.trim() : undefined,
+      dryRun: values.dryRun !== false,
+    };
+
+    setSendingApprovalCard(true);
+    try {
+      const response = await fetch(
+        buildApiUrl("/integrations/feishu/messages/approval-cards/send"),
+        {
+          method: "POST",
+          headers: buildAuthHeaders(),
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `审批卡片发送接口返回 ${response.status}`);
+      }
+
+      const result = (await response.json()) as {
+        mode?: string;
+        receiverOpenId?: string;
+        approvalInstanceId?: number;
+        messageId?: string;
+        card?: { title?: string };
+      };
+      setApprovalCardSendResult({
+        mode: result.mode || "unknown",
+        receiverOpenId: result.receiverOpenId,
+        approvalInstanceId: result.approvalInstanceId,
+        messageId: result.messageId,
+        cardTitle: result.card?.title,
+        requestModeLabel: payload.dryRun ? "Dry Run 预览" : "真实发送",
+      });
+      message.success(payload.dryRun ? "审批卡片预览已生成。" : "审批卡片发送请求已完成。");
+    } catch (error) {
+      const nextMessage =
+        error instanceof Error ? error.message : "审批卡片发送失败";
+      setApprovalCardSendResult({
+        mode: "failed",
+        requestModeLabel: "请求失败",
+      });
+      message.error(nextMessage);
+    } finally {
+      setSendingApprovalCard(false);
+    }
   };
 
   const cardOptions = state.cards.map((item) => ({
@@ -959,14 +1035,16 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
               飞书集成
             </div>
             <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
-              当前按“前端优先、后端接口预留”推进。这个页面先用于验证绑定管理、命令口径、
-              卡片字段和平台落位方式，后续再对接真实 `integrations/feishu` 后端模块。
+              当前页面已进入“平台页联调 + 后端能力验收”阶段。这里不仅用于绑定管理、
+              命令口径和卡片字段验收，也可以直接调用现有 `integrations/feishu`
+              接口验证只读摘要与审批卡片发送链路。
             </Paragraph>
           </div>
           <Space wrap>
             <Tag color="cyan">MVP 阶段</Tag>
-            <Tag color="blue">前端原型优先</Tag>
-            <Tag color="purple">后端接口待接入</Tag>
+            <Tag color="blue">平台页联调</Tag>
+            <Tag color="green">只读接口已接通</Tag>
+            <Tag color="purple">审批卡片可预演</Tag>
           </Space>
         </div>
       </Card>
@@ -974,8 +1052,8 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
       <Alert
         type="info"
         showIcon
-        message="当前页面为前端原型"
-        description={`当前登录账号：${currentUser?.displayName || currentUser?.username || "未登录用户"}。本阶段只做平台内配置、绑定管理和飞书卡片预览；页面已支持优先从后端读取 bindings 示例接口，若失败则自动回退到本地 Mock。`}
+        message="当前页面已支持后端联调"
+        description={`当前登录账号：${currentUser?.displayName || currentUser?.username || "未登录用户"}。绑定管理、只读摘要/简报接口和卡片预览刷新均会优先请求后端；若接口失败，页面才回退到本地 Mock。管理员/经理还可在下方直接预演审批卡片发送接口。`}
       />
 
       <Row gutter={[16, 16]}>
@@ -992,6 +1070,95 @@ export function FeishuIntegrationView(props: FeishuIntegrationViewProps) {
               onReset={handleReset}
             />
           </Suspense>
+
+          <Card
+            title="审批卡片联调"
+            style={{ marginTop: 16 }}
+            extra={<Tag color="gold">管理员 / 经理</Tag>}
+          >
+            <div style={{ display: "grid", gap: 14 }}>
+              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                直接调用 `POST /integrations/feishu/messages/approval-cards/send`。默认使用
+                `dryRun` 只生成卡片预览，不真正向飞书发消息。
+              </Paragraph>
+
+              <Form
+                form={sendCardForm}
+                layout="vertical"
+                initialValues={{ dryRun: true }}
+              >
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="审批实例 ID"
+                      name="approvalInstanceId"
+                      rules={[{ required: true, message: "请输入审批实例 ID" }]}
+                    >
+                      <InputNumber
+                        min={1}
+                        style={{ width: "100%" }}
+                        placeholder="例如：1"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="绑定记录 ID" name="bindingId">
+                      <InputNumber
+                        min={1}
+                        style={{ width: "100%" }}
+                        placeholder="可选：优先按绑定记录发送"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item label="接收人 Open ID" name="openId">
+                      <Input placeholder="可选：直接指定飞书 open_id" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={24}>
+                    <Form.Item name="dryRun" valuePropName="checked" style={{ marginBottom: 0 }}>
+                      <Checkbox>仅做 Dry Run 预览，不真实发送</Checkbox>
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Form>
+
+              <Space wrap>
+                <Button
+                  type="primary"
+                  loading={sendingApprovalCard}
+                  onClick={() => void handleSendApprovalCard()}
+                >
+                  执行发送联调
+                </Button>
+                <Button onClick={() => sendCardForm.resetFields()}>清空参数</Button>
+              </Space>
+
+              {approvalCardSendResult ? (
+                <Alert
+                  type={approvalCardSendResult.mode === "failed" ? "error" : "success"}
+                  showIcon
+                  message={`${approvalCardSendResult.requestModeLabel} · ${approvalCardSendResult.mode}`}
+                  description={[
+                    approvalCardSendResult.approvalInstanceId
+                      ? `审批实例：${approvalCardSendResult.approvalInstanceId}`
+                      : "",
+                    approvalCardSendResult.receiverOpenId
+                      ? `接收人：${approvalCardSendResult.receiverOpenId}`
+                      : "",
+                    approvalCardSendResult.cardTitle
+                      ? `卡片标题：${approvalCardSendResult.cardTitle}`
+                      : "",
+                    approvalCardSendResult.messageId
+                      ? `消息 ID：${approvalCardSendResult.messageId}`
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" | ")}
+                />
+              ) : null}
+            </div>
+          </Card>
         </Col>
 
         <Col xs={24} xl={14}>

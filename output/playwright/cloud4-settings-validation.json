@@ -1,0 +1,33 @@
+{
+  "frontendUrl": "http://101.43.78.27/",
+  "validatedAt": "2026-04-11T15:00:00+08:00",
+  "checks": [
+    {
+      "key": "settings-team",
+      "status": "passed",
+      "details": [
+        "团队管理页面已加载",
+        "显示 添加成员 / 列设置 / 权限说明",
+        "成员表格显示真实接口数据且存在 查看/编辑/禁用/删除 操作列"
+      ]
+    },
+    {
+      "key": "settings-menu-permissions",
+      "status": "passed",
+      "details": [
+        "权限管理中心默认进入 菜单权限",
+        "显示 成员选择 / 菜单权限明细 / 模块化矩阵视图",
+        "可见 系统设置 下的团队管理、品牌设置、插件库、知识库目录、菜单权限页、操作权限页"
+      ]
+    },
+    {
+      "key": "settings-action-permissions",
+      "status": "passed",
+      "details": [
+        "切换到 操作权限 tab 成功",
+        "显示 操作权限管理 / 操作权限明细 / 当前操作权限与服务器已同步",
+        "可见 team.manage、menu-permission.manage、action-permission.manage 等设置动作权限"
+      ]
+    }
+  ]
+}

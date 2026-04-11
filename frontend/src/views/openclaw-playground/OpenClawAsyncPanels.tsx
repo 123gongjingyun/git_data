@@ -11,6 +11,7 @@ import type {
   PlaygroundErrorResponse,
   PlaygroundResponse,
   RequestRecord,
+  PlaygroundSkillDefinition,
   SuccessInsight,
 } from "./types";
 
@@ -20,6 +21,7 @@ export function OpenClawSidebar(props: {
   currentUser: CurrentUser | null;
   accessToken?: string | null;
   result: PlaygroundResponse | null;
+  skillDefinitions: PlaygroundSkillDefinition[];
   activeHistoryRecord: RequestRecord | null;
   latestSummary:
     | {
@@ -45,6 +47,7 @@ export function OpenClawSidebar(props: {
     currentUser,
     accessToken,
     result,
+    skillDefinitions,
     activeHistoryRecord,
     latestSummary,
     latestOutcome,
@@ -69,7 +72,11 @@ export function OpenClawSidebar(props: {
             },
             { label: "系统角色", value: currentUser?.roleLabel || "未知" },
             { label: "登录令牌", value: accessToken ? "已检测到" : "未检测到" },
-            { label: "联调接口", value: "/integrations/openclaw/playground/query" },
+            {
+              label: "联调接口",
+              value: "/integrations/openclaw/playground/query + /playground/skills/*",
+            },
+            { label: "技能目录", value: `${skillDefinitions.length} 个只读 skill` },
             {
               label: "联调边界",
               value: "只读技能，不执行审批/创建/修改/删除/指派",

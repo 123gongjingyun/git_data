@@ -31,6 +31,11 @@ class OpenClawPlaygroundQueryDto {
   requestId?: string;
 }
 
+class OpenClawPlaygroundExecuteSkillDto {
+  input?: Record<string, unknown>;
+  requestId?: string;
+}
+
 @Controller("integrations/openclaw")
 export class OpenClawController {
   constructor(private readonly openClawService: OpenClawService) {}
@@ -58,6 +63,38 @@ export class OpenClawController {
   ) {
     this.openClawService.assertSharedToken(token);
     return this.openClawService.query(body as OpenClawQueryInput);
+  }
+
+  @UseGuards(AuthGuard("jwt"))
+  @Get("playground/skills")
+  listPlaygroundSkills() {
+    return this.openClawService.listSkills();
+  }
+
+  @UseGuards(AuthGuard("jwt"))
+  @Post("playground/skills/:name")
+  async executeSkillFromPlayground(
+    @Param("name") name: OpenClawSkillName,
+    @Body() body: OpenClawPlaygroundExecuteSkillDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const execution = await this.openClawService.executeSkill(name, {
+      platformUserId: req.user.id,
+      requestId: body.requestId,
+      input: body.input,
+    });
+
+    return {
+      requestId: execution.requestId,
+      queryText: "",
+      intent: {
+        skillName: execution.skillName,
+        arguments: body.input || {},
+        reason: "playground_skill_execution",
+      },
+      actor: execution.actor,
+      result: execution.result,
+    };
   }
 
   @UseGuards(AuthGuard("jwt"))

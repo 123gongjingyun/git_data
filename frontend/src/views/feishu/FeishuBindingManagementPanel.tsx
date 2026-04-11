@@ -29,7 +29,7 @@ export function FeishuBindingManagementPanel(
 
   return (
     <Card
-      title="绑定管理（Mock / API）"
+      title="绑定管理（API 优先 / Mock 回退）"
       extra={
         <Space wrap>
           <Button onClick={() => void onLoadBindingsFromServer()}>从后端加载</Button>

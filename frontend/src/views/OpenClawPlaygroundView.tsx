@@ -1,5 +1,5 @@
 import { Col, Row, message } from "antd";
-import { Suspense, lazy, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import type { CurrentUser } from "../shared/auth";
 import { buildApiUrl } from "../shared/api";
 import {
@@ -21,6 +21,9 @@ import type {
   PlaygroundErrorResponse,
   PlaygroundResponse,
   RequestRecord,
+  PlaygroundSkillCatalogResponse,
+  PlaygroundSkillDefinition,
+  PlaygroundSkillName,
 } from "./openclaw-playground/types";
 
 const LazyOpenClawSidebar = lazy(async () => {
@@ -65,6 +68,16 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
   const { currentUser, accessToken } = props;
   const [queryText, setQueryText] = useState("给我今日简报");
   const [running, setRunning] = useState(false);
+  const [skillCatalogLoading, setSkillCatalogLoading] = useState(false);
+  const [skillCatalogError, setSkillCatalogError] = useState("");
+  const [skillDefinitions, setSkillDefinitions] = useState<PlaygroundSkillDefinition[]>([]);
+  const [selectedSkillName, setSelectedSkillName] =
+    useState<PlaygroundSkillName>("get_daily_brief");
+  const [selectedSkillInput, setSelectedSkillInput] = useState({
+    code: "OPP-000003",
+    limit: 5,
+    businessType: "" as "" | "opportunity" | "solution",
+  });
   const [result, setResult] = useState<PlaygroundResponse | null>(null);
   const [blockedResult, setBlockedResult] = useState<PlaygroundErrorResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -184,6 +197,46 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
     }
     return headers;
   };
+
+  const loadSkillCatalog = async () => {
+    if (!accessToken) {
+      setSkillCatalogError("当前未检测到登录令牌，无法加载技能目录。");
+      setSkillDefinitions([]);
+      return;
+    }
+
+    setSkillCatalogLoading(true);
+    setSkillCatalogError("");
+    try {
+      const response = await fetch(buildApiUrl("/integrations/openclaw/playground/skills"), {
+        headers: buildAuthHeaders(false),
+      });
+      if (!response.ok) {
+        throw new Error(`技能目录请求失败：${response.status}`);
+      }
+      const payload = (await response.json()) as PlaygroundSkillCatalogResponse;
+      const nextDefinitions = Array.isArray(payload.items) ? payload.items : [];
+      setSkillDefinitions(nextDefinitions);
+      if (nextDefinitions.length > 0) {
+        setSelectedSkillName((current) =>
+          nextDefinitions.some((item) => item.name === current)
+            ? current
+            : nextDefinitions[0].name,
+        );
+      }
+    } catch (error) {
+      const nextMessage =
+        error instanceof Error ? error.message : "技能目录加载失败";
+      setSkillCatalogError(nextMessage);
+      message.warning("OpenClaw 技能目录加载失败。");
+    } finally {
+      setSkillCatalogLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadSkillCatalog();
+  }, [accessToken]);
 
   const handleRunQuery = async (nextQueryText?: string) => {
     const normalizedQuery = (nextQueryText ?? queryText).trim();
@@ -305,6 +358,119 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
     }
   };
 
+  const handleRunSkill = async (nextSkillName?: PlaygroundSkillName) => {
+    if (!accessToken) {
+      setErrorMessage("当前未检测到登录令牌，无法调用联调接口。");
+      setResult(null);
+      return;
+    }
+
+    const activeSkillName = nextSkillName ?? selectedSkillName;
+    const requestId = `playground-skill-${activeSkillName}-${Date.now()}`;
+    const normalizedInput: Record<string, unknown> = {};
+    if (activeSkillName === "get_my_pending_approvals") {
+      normalizedInput.limit = selectedSkillInput.limit;
+      if (selectedSkillInput.businessType) {
+        normalizedInput.businessType = selectedSkillInput.businessType;
+      }
+    }
+    if (
+      activeSkillName === "get_opportunity_summary" ||
+      activeSkillName === "get_solution_summary"
+    ) {
+      const code = selectedSkillInput.code.trim().toUpperCase();
+      if (!code) {
+        message.warning("请输入业务编号。");
+        return;
+      }
+      normalizedInput.code = code;
+    }
+
+    const requestLabel =
+      Object.keys(normalizedInput).length > 0
+        ? `${activeSkillName} ${JSON.stringify(normalizedInput)}`
+        : activeSkillName;
+
+    setRunning(true);
+    setErrorMessage("");
+    setBlockedResult(null);
+    setSelectedHistoryId(null);
+    try {
+      const response = await fetch(
+        buildApiUrl(`/integrations/openclaw/playground/skills/${activeSkillName}`),
+        {
+          method: "POST",
+          headers: buildAuthHeaders(),
+          body: JSON.stringify({
+            input: normalizedInput,
+            requestId,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        let fallbackText = "";
+        try {
+          const errorPayload = (await response.json()) as PlaygroundErrorResponse;
+          fallbackText = errorPayload.message || errorPayload.error || "";
+        } catch {
+          fallbackText = await response.text();
+        }
+        throw new Error(fallbackText || `请求失败：${response.status}`);
+      }
+
+      const payload = (await response.json()) as PlaygroundResponse;
+      const preview = buildResultPreview(payload.result, payload.intent?.skillName);
+      setResult(payload);
+      setBlockedResult(null);
+      setRequestHistory((current) =>
+        [
+          {
+            id: payload.requestId,
+            queryText: requestLabel,
+            skillName: payload.intent?.skillName || activeSkillName,
+            requestedAt: formatDateTime(new Date()),
+            outcome: "success",
+            responseTitle: preview.title,
+            responseDetail: preview.lines.join(" | "),
+            snapshot: {
+              kind: "success",
+              payload,
+            },
+          },
+          ...current,
+        ].slice(0, 5),
+      );
+      message.success("OpenClaw Skill 执行结果已刷新。");
+    } catch (error) {
+      const nextMessage = error instanceof Error ? error.message : "OpenClaw Skill 执行失败";
+      setErrorMessage(nextMessage);
+      setResult(null);
+      setBlockedResult(null);
+      setRequestHistory((current) =>
+        [
+          {
+            id: `error-${Date.now()}`,
+            queryText: requestLabel,
+            skillName: activeSkillName,
+            requestedAt: formatDateTime(new Date()),
+            outcome: "error",
+            responseTitle: "Skill 执行失败",
+            responseDetail: nextMessage,
+            snapshot: {
+              kind: "error",
+              payload: nextMessage,
+            },
+          },
+          ...current,
+        ].slice(0, 5),
+      );
+      message.error("OpenClaw Skill 执行失败。");
+    } finally {
+      setRunning(false);
+    }
+  };
+
   const handleSelectHistory = (record: RequestRecord) => {
     setSelectedHistoryId(record.id);
     setQueryText(record.queryText);
@@ -327,6 +493,17 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
 
   const handleReplayHistory = async (record: RequestRecord) => {
     setQueryText(record.queryText);
+    if (
+      record.skillName === "get_my_pending_approvals" ||
+      record.skillName === "get_opportunity_summary" ||
+      record.skillName === "get_solution_summary" ||
+      record.skillName === "get_daily_brief"
+    ) {
+      setSelectedSkillName(record.skillName);
+      await handleRunSkill(record.skillName);
+      return;
+    }
+
     await handleRunQuery(record.queryText);
   };
 
@@ -394,6 +571,11 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
 
   const handleReset = () => {
     setQueryText("给我今日简报");
+    setSelectedSkillInput({
+      code: "OPP-000003",
+      limit: 5,
+      businessType: "",
+    });
     setResult(null);
     setBlockedResult(null);
     setErrorMessage("");
@@ -407,9 +589,20 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
           <OpenClawQueryComposer
             queryText={queryText}
             running={running}
+            skillCatalogLoading={skillCatalogLoading}
+            skillCatalogError={skillCatalogError}
+            skillDefinitions={skillDefinitions}
+            selectedSkillName={selectedSkillName}
+            selectedSkillInput={selectedSkillInput}
             showRawPayload={showRawPayload}
             onChangeQueryText={setQueryText}
+            onChangeSelectedSkillName={setSelectedSkillName}
+            onChangeSelectedSkillInput={(patch) =>
+              setSelectedSkillInput((current) => ({ ...current, ...patch }))
+            }
             onRunQuery={handleRunQuery}
+            onRunSkill={handleRunSkill}
+            onReloadSkills={loadSkillCatalog}
             onCopySummary={handleCopySummary}
             onCopyRawPayload={handleCopyRawPayload}
             onExportHistory={handleExportHistory}
@@ -449,6 +642,7 @@ export function OpenClawPlaygroundView(props: OpenClawPlaygroundViewProps) {
                 currentUser={currentUser}
                 accessToken={accessToken}
                 result={result}
+                skillDefinitions={skillDefinitions}
                 activeHistoryRecord={activeHistoryRecord}
                 latestSummary={latestSummary}
                 latestOutcome={latestOutcome}
