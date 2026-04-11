@@ -106,6 +106,11 @@ const LazySettingsAccountPanel = lazy(async () => {
   return { default: module.SettingsAccountPanel };
 });
 
+const LazySettingsKnowledgeRuntimePanel = lazy(async () => {
+  const module = await import("./settings/SettingsKnowledgeRuntimePanel");
+  return { default: module.SettingsKnowledgeRuntimePanel };
+});
+
 function SettingsSectionLoadingCard(props: { title: string; description: string }) {
   const { title, description } = props;
 
@@ -939,34 +944,22 @@ export function SettingsView(props: SettingsViewProps) {
     form.setFieldValue("permissions", getPermissionSummaryByRole(selectedMemberRole));
   }, [form, selectedMemberRole]);
 
-  const [knowledgeTree, setKnowledgeTree] = useState<KnowledgeCategoryTreeNode[]>(
-    () => {
-      if (typeof window !== "undefined") {
-        try {
-          const stored = window.localStorage.getItem(
-            KNOWLEDGE_TREE_STORAGE_KEY,
-          );
-          if (stored) {
-            const parsed = JSON.parse(stored) as KnowledgeCategoryTreeNode[];
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              return parsed;
-            }
+  const initialKnowledgeTree = useMemo(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem(KNOWLEDGE_TREE_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as KnowledgeCategoryTreeNode[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
           }
-        } catch {
-          // ignore parse errors
         }
+      } catch {
+        // ignore parse errors
       }
-      return DEFAULT_KNOWLEDGE_CATEGORY_TREE;
-    },
-  );
-  const [knowledgeTreeError, setKnowledgeTreeError] = useState<string | null>(
-    null,
-  );
-  const [knowledgeSelectedId, setKnowledgeSelectedId] = useState<string | null>(
-    () => knowledgeTree[0]?.id ?? null,
-  );
-  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
-  const knowledgeImportInputRef = useRef<HTMLInputElement | null>(null);
+    }
+    return DEFAULT_KNOWLEDGE_CATEGORY_TREE;
+  }, []);
 
   const allIndustries = Array.from(
     new Set(
@@ -1426,231 +1419,6 @@ export function SettingsView(props: SettingsViewProps) {
     // 当前仅在团队管理页按筛选项刷新成员列表
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMenu, canManageMembers, keyword, roleFilter, statusFilter]);
-
-  const loadKnowledgeTree = async () => {
-    setKnowledgeLoading(true);
-    try {
-      const resp = await fetch(
-        buildApiUrl("/knowledge/categories/tree"),
-      );
-      if (!resp.ok) {
-        setKnowledgeTreeError(
-          "未能从后端加载知识库目录配置，请检查 /knowledge/categories/tree 接口是否可用。",
-        );
-        return;
-      }
-      const data = (await resp.json()) as KnowledgeCategoryTreeNode[];
-      if (Array.isArray(data) && data.length > 0) {
-        setKnowledgeTree(data);
-        setKnowledgeTreeError(null);
-        if (!knowledgeSelectedId) {
-          setKnowledgeSelectedId(data[0].id);
-        }
-      } else {
-        // 后端返回空配置时保持现有本地状态
-      }
-    } catch {
-      // 在未接入后端时提示并继续在当前页面内使用本地配置
-      setKnowledgeTreeError(
-        "未能从后端加载知识库目录配置，请检查 /knowledge/categories/tree 接口是否可用。",
-      );
-    } finally {
-      setKnowledgeLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadKnowledgeTree();
-    // 仅在首次挂载时加载一次
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const selectedKnowledgeGroup =
-    knowledgeTree.find((g) => g.id === knowledgeSelectedId) ||
-    knowledgeTree[0] ||
-    null;
-
-  const handleUpdateKnowledgeGroup = (
-    groupId: string,
-    patch: Partial<KnowledgeCategoryTreeNode>,
-  ) => {
-    setKnowledgeTree((prev) =>
-      prev.map((g) => (g.id === groupId ? { ...g, ...patch } : g)),
-    );
-  };
-
-  const handleUpdateKnowledgeSubCategory = (
-    groupId: string,
-    index: number,
-    patch: Partial<{ value: string; label: string }>,
-  ) => {
-    setKnowledgeTree((prev) =>
-      prev.map((g) => {
-        if (g.id !== groupId) return g;
-        const nextSubs = [...g.subCategories];
-        const original = nextSubs[index];
-        if (!original) return g;
-        nextSubs[index] = { ...original, ...patch };
-        return { ...g, subCategories: nextSubs };
-      }),
-    );
-  };
-
-  const handleAddKnowledgeSubCategory = (groupId: string) => {
-    setKnowledgeTree((prev) =>
-      prev.map((g) => {
-        if (g.id !== groupId) return g;
-        const nextSubs = [
-          ...g.subCategories,
-          {
-            value: `${g.name} / 新子分类`,
-            label: "新子分类",
-          },
-        ];
-        return { ...g, subCategories: nextSubs };
-      }),
-    );
-  };
-
-  const handleRemoveKnowledgeSubCategory = (groupId: string, index: number) => {
-    setKnowledgeTree((prev) =>
-      prev.map((g) => {
-        if (g.id !== groupId) return g;
-        const nextSubs = g.subCategories.filter((_, i) => i !== index);
-        return { ...g, subCategories: nextSubs };
-      }),
-    );
-  };
-
-  const handleDeleteKnowledgeGroup = (group: KnowledgeCategoryTreeNode) => {
-    Modal.confirm({
-      title: `确认删除一级知识库「${group.name}」？`,
-      content: "删除后该一级知识库及其全部子分类会一起移除。",
-      okText: "删除",
-      okButtonProps: { danger: true },
-      cancelText: "取消",
-      onOk: () => {
-        setKnowledgeTree((prev) => prev.filter((g) => g.id !== group.id));
-        if (selectedKnowledgeGroup && selectedKnowledgeGroup.id === group.id) {
-          setKnowledgeSelectedId((prev) =>
-            prev && prev === group.id ? null : prev,
-          );
-        }
-        message.success(`已删除知识库：${group.name}`);
-      },
-    });
-  };
-
-  const handleConfirmRemoveKnowledgeSubCategory = (
-    groupId: string,
-    index: number,
-    label: string,
-  ) => {
-    Modal.confirm({
-      title: `确认删除子分类「${label || "未命名子分类"}」？`,
-      content: "删除后该子分类会从当前知识库目录中移除。",
-      okText: "删除",
-      okButtonProps: { danger: true },
-      cancelText: "取消",
-      onOk: () => {
-        handleRemoveKnowledgeSubCategory(groupId, index);
-        message.success(`已删除子分类：${label || "未命名子分类"}`);
-      },
-    });
-  };
-
-  const handleAddKnowledgeGroup = () => {
-    if (!canEditKnowledge) {
-      message.warning("当前账号无权新增知识库目录。");
-      return;
-    }
-    const newId = `custom_${Date.now()}`;
-    const newGroup: KnowledgeCategoryTreeNode = {
-      id: newId,
-      name: "自定义知识库",
-      icon: "📚",
-      description: "自定义知识库，可根据需要调整名称与子分类。",
-      subCategories: [],
-    };
-    setKnowledgeTree((prev) => [...prev, newGroup]);
-    setKnowledgeSelectedId(newId);
-  };
-
-  const handleSaveKnowledgeTreeToServer = async () => {
-    if (!canEditKnowledge) {
-      message.warning("当前账号无权保存知识库目录。");
-      return;
-    }
-    try {
-      const resp = await fetch(
-        buildApiUrl("/knowledge/categories/tree"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(knowledgeTree),
-        },
-      );
-      if (resp.ok) {
-        message.success("已将知识库目录配置保存到服务器。");
-      } else {
-        // 服务器未实现或未接受保存请求时，给出 Mock 提示
-        if (resp.status === 404) {
-          message.warning(
-            "服务器未接受目录保存请求：404，请检查是否实现 POST /knowledge/categories/tree。",
-          );
-        } else {
-          message.info(
-            `服务器未接受目录保存请求（状态码 ${resp.status}），已在本地保存配置。`,
-          );
-        }
-      }
-    } catch {
-      message.info("未检测到可用的知识库目录保存接口，仅在当前页面内保存配置。");
-    }
-  };
-
-  const handleResetKnowledgeTree = async () => {
-    if (!canEditKnowledge) {
-      message.warning("当前账号无权重置知识库目录。");
-      return;
-    }
-    setKnowledgeTree(DEFAULT_KNOWLEDGE_CATEGORY_TREE);
-    setKnowledgeSelectedId(DEFAULT_KNOWLEDGE_CATEGORY_TREE[0]?.id ?? null);
-    try {
-      const resp = await fetch(
-        buildApiUrl("/knowledge/categories/tree"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(DEFAULT_KNOWLEDGE_CATEGORY_TREE),
-        },
-      );
-      if (resp.ok) {
-        message.success("已将知识库目录重置为默认配置并同步到服务器（如已实现）。");
-      }
-    } catch {
-      // 后端未接入时仅重置前端与本地存储
-    }
-  };
-
-  const handleExportKnowledgeTree = () => {
-    try {
-      const blob = new Blob([JSON.stringify(knowledgeTree, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "knowledge-category-tree.json";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      message.success("已导出知识库目录配置为 JSON 文件。");
-    } catch {
-      message.error("导出目录配置时出现错误。");
-    }
-  };
 
   // 审批流程库（流程库）配置，仅前端 Mock，存入 localStorage，供商机 / 解决方案模块引用
   const [workflowList, setWorkflowList] = useState<WorkflowDefinition[]>(
@@ -2169,105 +1937,6 @@ export function SettingsView(props: SettingsViewProps) {
         message.success("已删除流程");
       },
     });
-  };
-
-  const handleImportKnowledgeTreeFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    if (!canEditKnowledge) {
-      message.warning("当前账号无权导入知识库目录。");
-      event.target.value = "";
-      return;
-    }
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const text = String(reader.result || "");
-        const parsed = JSON.parse(text) as KnowledgeCategoryTreeNode[];
-        if (!Array.isArray(parsed) || parsed.length === 0) {
-          message.warning("导入的目录配置为空或格式不正确。");
-          return;
-        }
-        setKnowledgeTree(parsed);
-        setKnowledgeSelectedId(parsed[0]?.id ?? null);
-        message.success("已从 JSON 文件导入知识库目录配置。");
-      } catch {
-        message.error("解析导入的目录配置失败，请确认文件格式。");
-      } finally {
-        // 重置 input，避免再次选择同一文件时不触发 change
-        // eslint-disable-next-line no-param-reassign
-        event.target.value = "";
-      }
-    };
-    reader.onerror = () => {
-      message.error("读取目录配置文件失败。");
-      // eslint-disable-next-line no-param-reassign
-      event.target.value = "";
-    };
-    reader.readAsText(file);
-  };
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        KNOWLEDGE_TREE_STORAGE_KEY,
-        JSON.stringify(knowledgeTree),
-      );
-      // 同步通知当前页面内的其他视图（例如知识库文档视图）更新目录树
-      const event = new CustomEvent("knowledgeTreeUpdated", {
-        detail: knowledgeTree,
-      });
-      window.dispatchEvent(event);
-    } catch {
-      // ignore storage errors
-    }
-  }, [knowledgeTree]);
-
-  const handleMoveKnowledgeGroup = (groupId: string, direction: "up" | "down") => {
-    if (!canEditKnowledge) {
-      message.warning("当前账号无权编辑知识库目录。");
-      return;
-    }
-    setKnowledgeTree((prev) => {
-      const index = prev.findIndex((g) => g.id === groupId);
-      if (index === -1) return prev;
-      if (direction === "up" && index === 0) return prev;
-      if (direction === "down" && index === prev.length - 1) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(index, 1);
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
-      next.splice(targetIndex, 0, moved);
-      return next;
-    });
-  };
-
-  const handleMoveKnowledgeSubCategory = (
-    groupId: string,
-    index: number,
-    direction: "up" | "down",
-  ) => {
-    if (!canEditKnowledge) {
-      message.warning("当前账号无权编辑知识库目录。");
-      return;
-    }
-    setKnowledgeTree((prev) =>
-      prev.map((g) => {
-        if (g.id !== groupId) return g;
-        if (index < 0 || index >= g.subCategories.length) return g;
-        if (direction === "up" && index === 0) return g;
-        if (direction === "down" && index === g.subCategories.length - 1) return g;
-        const subs = [...g.subCategories];
-        const [moved] = subs.splice(index, 1);
-        const targetIndex = direction === "up" ? index - 1 : index + 1;
-        subs.splice(targetIndex, 0, moved);
-        return { ...g, subCategories: subs };
-      }),
-    );
   };
 
   const getBrandLogoVisual = () => {
@@ -3045,36 +2714,11 @@ export function SettingsView(props: SettingsViewProps) {
                 />
               }
             >
-              <LazyKnowledgeCategoryManagementPanel
+              <LazySettingsKnowledgeRuntimePanel
                 canEditKnowledge={canEditKnowledge}
                 canDeleteKnowledgeCategories={canDeleteKnowledgeCategories}
-                knowledgeImportInputRef={knowledgeImportInputRef}
-                knowledgeTreeError={knowledgeTreeError}
-                knowledgeLoading={knowledgeLoading}
-                knowledgeTree={knowledgeTree}
-                selectedKnowledgeGroup={selectedKnowledgeGroup}
-                onImportKnowledgeTreeFileChange={handleImportKnowledgeTreeFileChange}
-                onLoadKnowledgeTree={loadKnowledgeTree}
-                onAddKnowledgeGroup={handleAddKnowledgeGroup}
-                onExportKnowledgeTree={handleExportKnowledgeTree}
-                onResetKnowledgeTree={handleResetKnowledgeTree}
-                onSaveKnowledgeTreeToServer={handleSaveKnowledgeTreeToServer}
-                onSelectKnowledgeGroup={setKnowledgeSelectedId}
-                onMoveKnowledgeGroup={handleMoveKnowledgeGroup}
-                onDeleteKnowledgeGroup={handleDeleteKnowledgeGroup}
-                onUpdateKnowledgeGroup={handleUpdateKnowledgeGroup}
-                onAddKnowledgeSubCategory={handleAddKnowledgeSubCategory}
-                onUpdateKnowledgeSubCategory={handleUpdateKnowledgeSubCategory}
-                onMoveKnowledgeSubCategory={handleMoveKnowledgeSubCategory}
-                onConfirmRemoveKnowledgeSubCategory={
-                  handleConfirmRemoveKnowledgeSubCategory
-                }
-                onWarnNoKnowledgeImportPermission={() =>
-                  message.warning("当前账号无权导入知识库目录。")
-                }
-                onWarnNoKnowledgeDeletePermission={() =>
-                  message.warning("当前账号无权删除知识库目录。")
-                }
+                defaultKnowledgeCategoryTree={DEFAULT_KNOWLEDGE_CATEGORY_TREE}
+                initialKnowledgeCategoryTree={initialKnowledgeTree}
               />
             </Suspense>
           )}
