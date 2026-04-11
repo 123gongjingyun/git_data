@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Card, Row, Col, Select, Button, Input, Tooltip, Modal, message } from "antd";
-import { EChartsPreview } from "../components/EChartsPreview";
+import type { EChartsModuleKey } from "../components/EChartsPreview";
 import type { CurrentUser } from "../shared/auth";
 import { buildApiUrl } from "../shared/api";
 import {
@@ -555,6 +555,38 @@ const AnalyticsCustomDashboardLayout = lazy(async () => {
   const module = await import("./analytics/AnalyticsCustomDashboardLayout");
   return { default: module.AnalyticsCustomDashboardLayout };
 });
+
+const EChartsPreview = lazy(async () => {
+  const module = await import("../components/EChartsPreview");
+  return { default: module.EChartsPreview };
+});
+
+function renderChartPreviewFallback(height: number) {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height,
+        borderRadius: 16,
+        background:
+          "linear-gradient(135deg, rgba(22,119,255,0.08) 0%, rgba(54,207,201,0.08) 100%)",
+        border: "1px dashed rgba(22,119,255,0.2)",
+      }}
+    />
+  );
+}
+
+function renderLazyChartPreview(
+  option: unknown,
+  moduleKeys: EChartsModuleKey[],
+  height: number,
+) {
+  return (
+    <Suspense fallback={renderChartPreviewFallback(height)}>
+      <EChartsPreview option={option} moduleKeys={moduleKeys} height={height} />
+    </Suspense>
+  );
+}
 
 export function AnalyticsView(props: AnalyticsViewProps = {}) {
   const { currentUser, themeMode = "light" } = props;
@@ -1218,7 +1250,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
         boxSizing: "border-box",
       }}
     >
-      <EChartsPreview option={funnelChartOption} moduleKeys={["bar"]} height={260} />
+      {renderLazyChartPreview(funnelChartOption, ["bar"], 260)}
       <div
         style={{
           display: "grid",
@@ -1279,7 +1311,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
           真实 MySQL 数据优先，空缺月份保留 0 值
         </div>
       </div>
-      <EChartsPreview option={trendChartOption} moduleKeys={["bar", "line"]} height={236} />
+      {renderLazyChartPreview(trendChartOption, ["bar", "line"], 236)}
       <div
         style={{
           display: "grid",
@@ -1337,7 +1369,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
           活跃行业 {activeIndustryCount} 个
         </div>
       </div>
-      <EChartsPreview option={industryChartOption} moduleKeys={["pie"]} height={286} />
+      {renderLazyChartPreview(industryChartOption, ["pie"], 286)}
     </div>
   );
 
@@ -1364,7 +1396,7 @@ export function AnalyticsView(props: AnalyticsViewProps = {}) {
         >
         左侧固定项目名称，右侧展示阶段窗口与推进区间，避免图形压住标题。
       </div>
-      <EChartsPreview option={ganttChartOption} moduleKeys={["bar"]} height={286} />
+      {renderLazyChartPreview(ganttChartOption, ["bar"], 286)}
     </div>
   );
 
