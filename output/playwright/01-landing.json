@@ -1,0 +1,24 @@
+{
+  "title": "售前流程全生命周期管理系统",
+  "text": "AI\n售前流程全生命周期管理系统\n欢迎登录\n输入账号信息后继续处理项目、审批与协作。\n账号 / 企业邮箱\n密码\n登 录\n还没有账户？\n注册",
+  "buttons": [
+    "登 录",
+    "注册"
+  ],
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "type": "text",
+      "placeholder": "账号/企业邮箱",
+      "ariaLabel": null
+    },
+    {
+      "tag": "INPUT",
+      "type": "password",
+      "placeholder": "请输入登录密码",
+      "ariaLabel": null
+    }
+  ],
+  "path": "/",
+  "hash": ""
+}

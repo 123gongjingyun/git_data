@@ -434,6 +434,46 @@ body[data-theme="dark"] .ant-tour .ant-tour-inner {
   scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
 }
 
+.app-shell {
+  --app-scrollbar-size: 10px;
+  --app-scrollbar-track: transparent;
+  --app-scrollbar-thumb: rgba(148, 163, 184, 0.32);
+  --app-scrollbar-thumb-hover: rgba(100, 116, 139, 0.42);
+}
+
+.app-shell[data-theme="dark"] {
+  --app-scrollbar-track: rgba(15, 23, 42, 0.18);
+  --app-scrollbar-thumb: rgba(71, 85, 105, 0.9);
+  --app-scrollbar-thumb-hover: rgba(100, 116, 139, 0.96);
+}
+
+.app-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+}
+
+.app-scrollbar::-webkit-scrollbar {
+  width: var(--app-scrollbar-size);
+  height: var(--app-scrollbar-size);
+}
+
+.app-scrollbar::-webkit-scrollbar-track {
+  background: var(--app-scrollbar-track);
+  border-radius: 999px;
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--app-scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--app-scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
 .app-shell[data-theme="dark"] .settings-view .ant-card,
 .app-shell[data-theme="dark"] .settings-view .ant-card-body,
 .app-shell[data-theme="dark"] .settings-view .ant-card-head {

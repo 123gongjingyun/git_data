@@ -661,6 +661,7 @@ export function AppAuthenticatedShell(props: AppAuthenticatedShellProps) {
             {!collapsed && <span>{appName}</span>}
           </div>
           <div
+            className="app-scrollbar"
             style={{
               flex: 1,
               overflowY: "auto",
@@ -930,6 +931,7 @@ export function AppAuthenticatedShell(props: AppAuthenticatedShellProps) {
           </div>
         </Header>
         <Content
+          className="app-scrollbar"
           style={{
             flex: 1,
             overflowY: "auto",

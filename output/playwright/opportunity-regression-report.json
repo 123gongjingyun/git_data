@@ -1,0 +1,19 @@
+{
+  "summary": {
+    "loginSucceeded": true,
+    "navigatedToOpportunities": true,
+    "approvalModalOpened": true,
+    "opportunityListShowsApproved": true,
+    "approvalModalShowsCompletedFlow": true,
+    "approvalModalShowsOwnerAndResearchDoc": true,
+    "approvalModalShowsFinalComment": true
+  },
+  "consoleEvents": [
+    {
+      "type": "verbose",
+      "text": "[DOM] Input elements should have autocomplete attributes (suggested: \"current-password\"): (More info: https://goo.gl/9p2vKq) %o"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": []
+}

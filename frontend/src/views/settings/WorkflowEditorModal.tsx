@@ -126,6 +126,7 @@ export function WorkflowEditorModal(props: WorkflowEditorModalProps) {
       )}
       {workflowEditorNodes.length > 0 && (
         <div
+          className="app-scrollbar"
           style={{
             display: "flex",
             flexDirection: "column",

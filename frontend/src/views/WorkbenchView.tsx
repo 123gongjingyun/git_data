@@ -554,6 +554,7 @@ export function WorkbenchView(props: WorkbenchViewProps = {}) {
             }}
           >
             <div
+              className="app-scrollbar"
               style={{
                 display: "flex",
                 flexDirection: "column",

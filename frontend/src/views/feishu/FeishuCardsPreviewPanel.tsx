@@ -247,6 +247,7 @@ export function FeishuCardsPreviewPanel(props: FeishuCardsPreviewPanelProps) {
             ]}
           />
           <div
+            className="app-scrollbar"
             style={{
               borderRadius: 14,
               padding: 14,

@@ -360,6 +360,7 @@ export function ActionPermissionsPanel(props: ActionPermissionsPanelProps) {
             style={{ width: "100%" }}
           >
             <div
+              className="app-scrollbar"
               style={{
                 display: "flex",
                 gap: 12,

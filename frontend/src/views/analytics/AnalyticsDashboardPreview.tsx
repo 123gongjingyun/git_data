@@ -163,6 +163,7 @@ export function AnalyticsDashboardPreview(
         </div>
       </div>
       <div
+        className="app-scrollbar"
         style={{
           flex: 1,
           padding: 24,

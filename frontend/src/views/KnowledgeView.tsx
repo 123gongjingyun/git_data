@@ -1094,6 +1094,7 @@ export function KnowledgeView(props: KnowledgeViewProps = {}) {
               </div>
             )}
             <div
+              className="app-scrollbar"
               style={{
                 display: "flex",
                 flexDirection: "column",

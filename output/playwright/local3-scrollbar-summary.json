@@ -1,0 +1,137 @@
+{
+  "frontendUrl": "http://127.0.0.1:5173",
+  "summary": [
+    {
+      "key": "workbench",
+      "menu": "工作台",
+      "subMenu": null,
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 3,
+      "horizontalScrollerCount": 0,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "projects",
+      "menu": "项目管理",
+      "subMenu": null,
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 2,
+      "horizontalScrollerCount": 0,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "opportunities",
+      "menu": "商机管理",
+      "subMenu": null,
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 2,
+      "horizontalScrollerCount": 0,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "solutions",
+      "menu": "解决方案",
+      "subMenu": null,
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 2,
+      "horizontalScrollerCount": 0,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "bids",
+      "menu": "投标管理",
+      "subMenu": null,
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 2,
+      "horizontalScrollerCount": 0,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "contracts",
+      "menu": "合同管理",
+      "subMenu": null,
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 2,
+      "horizontalScrollerCount": 0,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "knowledge",
+      "menu": "知识库",
+      "subMenu": null,
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 3,
+      "horizontalScrollerCount": 0,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "settings-menu-permissions",
+      "menu": "系统设置",
+      "subMenu": "权限管理中心",
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 3,
+      "horizontalScrollerCount": 1,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "settings-action-permissions",
+      "menu": "系统设置",
+      "subMenu": "权限管理中心",
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 3,
+      "horizontalScrollerCount": 1,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "settings-team",
+      "menu": "系统设置",
+      "subMenu": "团队管理",
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 3,
+      "horizontalScrollerCount": 1,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "settings-knowledge-category",
+      "menu": "系统设置",
+      "subMenu": "知识库目录管理",
+      "previewMode": null,
+      "theme": "dark",
+      "scrollerCount": 3,
+      "horizontalScrollerCount": 1,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    },
+    {
+      "key": "settings-feishu-cards",
+      "menu": "系统设置",
+      "subMenu": "飞书集成",
+      "previewMode": "卡片预览",
+      "theme": "dark",
+      "scrollerCount": 3,
+      "horizontalScrollerCount": 0,
+      "includesMenuText": true,
+      "includesEnsureTexts": true
+    }
+  ]
+}

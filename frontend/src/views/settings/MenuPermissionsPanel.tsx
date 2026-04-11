@@ -347,6 +347,7 @@ export function MenuPermissionsPanel(props: MenuPermissionsPanelProps) {
             style={{ width: "100%" }}
           >
             <div
+              className="app-scrollbar"
               style={{
                 display: "flex",
                 gap: 12,

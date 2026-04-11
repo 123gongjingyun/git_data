@@ -301,6 +301,7 @@ export function KnowledgeCategoryManagementPanel(props: {
         <Col xs={24} md={10}>
           <Card size="small" title="一级知识库列表" bordered={false} bodyStyle={{ padding: 0 }}>
             <div
+              className="app-scrollbar"
               style={{
                 maxHeight: 320,
                 overflowY: "auto",
@@ -516,6 +517,7 @@ export function KnowledgeCategoryManagementPanel(props: {
                 </div>
 
                 <div
+                  className="app-scrollbar"
                   style={{
                     display: "flex",
                     flexDirection: "column",
