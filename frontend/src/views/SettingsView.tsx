@@ -102,6 +102,11 @@ const LazySettingsWorkflowPanel = lazy(async () => {
   return { default: module.SettingsWorkflowPanel };
 });
 
+const LazySettingsTeamPanel = lazy(async () => {
+  const module = await import("./settings/SettingsTeamPanel");
+  return { default: module.SettingsTeamPanel };
+});
+
 function SettingsSectionLoadingCard(props: { title: string; description: string }) {
   const { title, description } = props;
 
@@ -3806,26 +3811,37 @@ export function SettingsView(props: SettingsViewProps) {
           )}
 
           {activeMenu === "team" && (
-            <Card>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-              }}
+            <Suspense
+              fallback={
+                <SettingsSectionLoadingCard
+                  title="正在加载团队管理"
+                  description="成员列表、筛选器与权限说明正在按需加载，以继续压缩系统设置页主包。"
+                />
+              }
             >
-              <div style={{ fontSize: 14, color: "#595959" }}>
-                团队与权限管理
-                <br />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  管理团队成员及其访问权限
-                </Text>
-              </div>
-              <Button
-                type="primary"
-                disabled={!canManageMembers}
-                onClick={() => {
+              <LazySettingsTeamPanel
+                canManageMembers={canManageMembers}
+                columns={columns}
+                filteredMembersLength={filteredMembers.length}
+                keyword={keyword}
+                membersLoading={membersLoading}
+                membersPermissionHint={
+                  !canManageMembers
+                    ? "当前登录角色仅可查看权限说明；团队成员维护、权限配置与设置中心高级入口需按角色模板或个性化权限开放。"
+                    : "当前页面已接入真实团队成员接口，菜单与操作权限均基于角色模板 + 用户个性化覆盖实时生效。"
+                }
+                paginatedMembers={paginatedMembers}
+                roleFilter={roleFilter}
+                rolePermissionSummaryCards={ROLE_PERMISSION_SUMMARY_CARDS}
+                selectedTeamTableToggleableColumnCount={
+                  selectedTeamTableToggleableColumnKeys.length
+                }
+                statusFilter={statusFilter}
+                teamTableColumnSettingContent={teamTableColumnSettingContent}
+                teamTablePage={teamTablePage}
+                teamTablePageSize={teamTablePageSize}
+                teamTableToggleableColumnCount={teamTableToggleableColumnKeys.length}
+                onAddMember={() => {
                   setCurrentMember(null);
                   setMemberModalMode("create");
                   setGeneratedMemberPassword("");
@@ -3838,222 +3854,24 @@ export function SettingsView(props: SettingsViewProps) {
                   });
                   setMemberModalVisible(true);
                 }}
-              >
-                + 添加成员
-              </Button>
-            </div>
-            <div
-              style={{
-                marginBottom: 12,
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <AntInput
-                allowClear
-                style={{ width: 240 }}
-                placeholder="搜索姓名 / 邮箱 / 行业 / 团队角色..."
-                value={keyword}
-                onChange={(e) => {
+                onKeywordChange={(value) => {
                   setTeamTablePage(1);
-                  setKeyword(e.target.value);
+                  setKeyword(value);
                 }}
-              />
-              <Select
-                allowClear
-                style={{ width: 140 }}
-                placeholder="全部角色"
-                value={roleFilter}
-                onChange={(value) => {
+                onPaginationChange={(nextPage, nextPageSize) => {
+                  setTeamTablePage(nextPage);
+                  setTeamTablePageSize(nextPageSize);
+                }}
+                onRoleFilterChange={(value) => {
                   setTeamTablePage(1);
                   setRoleFilter(value as TeamMember["role"] | undefined);
                 }}
-                options={[
-                  { value: "管理员", label: "管理员" },
-                  { value: "经理", label: "经理" },
-                  { value: "工程师", label: "工程师" },
-                  { value: "销售", label: "销售" },
-                  { value: "访客", label: "访客" },
-                ]}
-              />
-              <Select
-                allowClear
-                style={{ width: 140 }}
-                placeholder="全部状态"
-                value={statusFilter}
-                onChange={(value) => {
+                onStatusFilterChange={(value) => {
                   setTeamTablePage(1);
                   setStatusFilter(value as TeamMember["status"] | undefined);
                 }}
-                options={[
-                  { value: "活跃", label: "活跃" },
-                  { value: "禁用", label: "禁用" },
-                ]}
               />
-              <Popover
-                trigger="click"
-                placement="bottomRight"
-                content={teamTableColumnSettingContent}
-              >
-                <Button>
-                  列设置（{selectedTeamTableToggleableColumnKeys.length}/
-                  {teamTableToggleableColumnKeys.length}）
-                </Button>
-              </Popover>
-            </div>
-            <Table<TeamMember>
-              size="small"
-              loading={membersLoading}
-              scroll={{ x: 1360 }}
-              pagination={{
-                current: teamTablePage,
-                pageSize: teamTablePageSize,
-                total: filteredMembers.length,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                pageSizeOptions: ["5", "10", "20", "50"],
-                showTotal: (total) => `共 ${total} 条`,
-                onChange: (nextPage, nextPageSize) => {
-                  setTeamTablePage(nextPage);
-                  setTeamTablePageSize(nextPageSize);
-                },
-              }}
-              rowKey="key"
-              dataSource={paginatedMembers}
-              columns={columns}
-            />
-
-            <div
-              style={{
-                marginTop: 24,
-                padding: 18,
-                background:
-                  "linear-gradient(135deg, color-mix(in srgb, rgba(250,140,22,0.16) 70%, var(--app-surface) 30%) 0%, var(--app-surface-soft) 100%)",
-                borderRadius: 16,
-                border: "1px solid rgba(250, 140, 22, 0.24)",
-                boxShadow: "0 12px 32px rgba(250, 140, 22, 0.08)",
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
-                权限说明
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--app-text-secondary)",
-                  marginBottom: 14,
-                }}
-              >
-                当前说明已与系统内真实角色模板、菜单权限和操作权限逻辑保持同步。
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: 12,
-                  marginBottom: 14,
-                }}
-              >
-                {ROLE_PERMISSION_SUMMARY_CARDS.map((item) => (
-                  <div
-                    key={item.role}
-                    style={{
-                      background: item.accent,
-                      borderRadius: 14,
-                      border: "1px solid var(--app-border)",
-                      padding: 14,
-                      minHeight: 168,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 8,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 600,
-                          color: "var(--app-text-primary)",
-                        }}
-                      >
-                        {item.role}
-                      </span>
-                      <span
-                        style={{
-                          padding: "3px 10px",
-                          borderRadius: 999,
-                          background: item.badgeColor,
-                          color: "#fff",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {item.role}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                      }}
-                    >
-                      {item.highlights.map((highlight) => (
-                        <div
-                          key={highlight}
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 8,
-                            fontSize: 12,
-                            color: "var(--app-text-secondary)",
-                            lineHeight: 1.6,
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: item.badgeColor,
-                              fontWeight: 700,
-                              marginTop: 1,
-                            }}
-                          >
-                            •
-                          </span>
-                          <span>{highlight}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--app-text-secondary)",
-                  lineHeight: 1.7,
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  background:
-                    "linear-gradient(180deg, color-mix(in srgb, rgba(245,158,11,0.10) 56%, var(--app-surface) 44%) 0%, var(--app-surface-soft) 100%)",
-                  border: "1px dashed rgba(245, 158, 11, 0.32)",
-                  boxShadow: "0 10px 24px rgba(15, 23, 42, 0.06)",
-                }}
-              >
-                {!canManageMembers
-                  ? "当前登录角色仅可查看权限说明；团队成员维护、权限配置与设置中心高级入口需按角色模板或个性化权限开放。"
-                  : "当前页面已接入真实团队成员接口，菜单与操作权限均基于角色模板 + 用户个性化覆盖实时生效。"}
-              </div>
-            </div>
-          </Card>
+            </Suspense>
           )}
 
           {activeMenu === "permissionsCenter" && (
